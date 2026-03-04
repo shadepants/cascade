@@ -1,9 +1,16 @@
 // ─── Action Menu ────────────────────────────────────────────────────────
 // Overlay for player choices when interacting with an item.
-// POC: give artifact to faction, free prisoner, deliver letter.
+// When the player gives an artifact to a faction, we:
+//   1. Compute stat deltas based on item type + significance
+//   2. Apply those deltas immediately to faction stats
+//   3. Store them on the event (for cascade attribution)
+//
+// This connects the player's action to the simulation's cascade phase:
+// the tick engine reads statDeltas to derive mechanically-legible consequences.
 
 import { useGame } from '../store.ts';
 import { createEvent } from '../world/events.ts';
+import type { StatDelta } from '../types.ts';
 
 export function ActionMenu() {
   const { state, dispatch } = useGame();
@@ -17,7 +24,32 @@ export function ActionMenu() {
     const faction = factions.find(f => f.id === factionId);
     if (!faction) return;
 
-    // Create a player-caused event
+    // Compute stat deltas from item type + significance.
+    // These reflect what actually changes in the world when the player acts.
+    const sig = activeItem!.significance;
+    const deltas: StatDelta[] = (() => {
+      switch (activeItem!.type) {
+        case 'artifact':
+          // Artifacts confer legitimacy and cultural weight
+          return [
+            { factionId, stat: 'culture'   as const, delta: Math.round(sig * 1.2) },
+            { factionId, stat: 'stability' as const, delta: Math.round(sig * 0.8) },
+          ];
+        case 'letter':
+          // Letters shift political relationships; can stabilise or destabilise
+          return [
+            { factionId, stat: 'stability' as const, delta: Math.round(sig * 1.0) },
+            { factionId, stat: 'wealth'    as const, delta: Math.round(sig * 0.5) },
+          ];
+        case 'key':
+          // Keys unlock military or political advantage
+          return [
+            { factionId, stat: 'military'  as const, delta: Math.round(sig * 1.0) },
+            { factionId, stat: 'stability' as const, delta: -Math.round(sig * 0.3) },
+          ];
+      }
+    })();
+
     const event = createEvent({
       tick: world!.currentYear,
       year: world!.currentYear,
@@ -25,23 +57,44 @@ export function ActionMenu() {
       action: `gave_${activeItem!.type}`,
       object: factionId,
       causedBy: null,
-      significance: activeItem!.significance,
+      significance: sig,
       playerCaused: true,
       description: `The Traveler gave the ${activeItem!.name} to ${faction.name}`,
+      motivation: 'driven by the weight of choice',
+      statDeltas: deltas,
     });
 
-    // Record event, remove item from world map, track player action
     dispatch({
       type: 'UPDATE_WORLD',
-      updater: (w) => ({
-        ...w,
-        events: [...w.events, event],
-        items: w.items.filter(i => i.id !== activeItem!.id),
-        player: {
-          ...w.player,
-          actionsThisEra: [...w.player.actionsThisEra, event.id],
-        },
-      }),
+      updater: (w) => {
+        // Apply stat changes to the faction immediately
+        const updatedFactions = w.factions.map(f => {
+          if (f.id !== factionId) return f;
+          const updated = { ...f };
+          for (const d of deltas) {
+            const ranges: Record<string, [number, number]> = {
+              population: [0, 1000], stability: [0, 100],
+              wealth: [0, 100], military: [0, 100], culture: [0, 100],
+            };
+            const [min, max] = ranges[d.stat] ?? [0, 100];
+            const cur = (updated as unknown as Record<string, number>)[d.stat] ?? 0;
+            (updated as unknown as Record<string, number>)[d.stat] =
+              Math.max(min, Math.min(max, cur + d.delta));
+          }
+          return updated;
+        });
+
+        return {
+          ...w,
+          factions: updatedFactions,
+          events: [...w.events, event],
+          items: w.items.filter(i => i.id !== activeItem!.id),
+          player: {
+            ...w.player,
+            actionsThisEra: [...w.player.actionsThisEra, event.id],
+          },
+        };
+      },
     });
 
     dispatch({ type: 'CLOSE_ACTION' });
