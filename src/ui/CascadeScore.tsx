@@ -3,7 +3,8 @@
 // The payoff moment — "look what your actions caused."
 
 import { useGame } from '../store.ts';
-import { calculateCascade, formatChainAsTree } from '../simulation/cascade.ts';
+import { calculateCascade } from '../simulation/cascade.ts';
+import { CascadeMap } from './CascadeMap.tsx';
 
 export function CascadeScore() {
   const { state, dispatch } = useGame();
@@ -40,12 +41,8 @@ export function CascadeScore() {
 
       {result.chains.length > 0 ? (
         <div className="causal-chains">
-          <h3>Your Causal Chains</h3>
-          {result.chains.map((chain) => (
-            <pre key={chain.rootEventId} className="chain-tree">
-              {formatChainAsTree(chain, world.events)}
-            </pre>
-          ))}
+          <h3>Your Causal Graph</h3>
+          <CascadeMap chains={result.chains} allEvents={world.events} />
         </div>
       ) : (
         <p className="no-chains">

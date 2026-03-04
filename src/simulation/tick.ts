@@ -78,9 +78,11 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
     const econ = phaseEconomics(world, year, rng, eco);
     const pol  = phasePolitics(world, year, rng, [...eco, ...econ]);
     const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...pol]);
-    const cas  = phaseCascade(world, [...eco, ...econ, ...pol, ...con], year, rng);
+    const stab = phaseStability(world, year, rng);
+    const gos  = phaseGossip(world, year, rng);
+    const cas  = phaseCascade(world, [...eco, ...econ, ...pol, ...con, ...stab, ...gos], year, rng);
 
-    const yearEvents = [...eco, ...econ, ...pol, ...con, ...cas];
+    const yearEvents = [...eco, ...econ, ...pol, ...con, ...stab, ...gos, ...cas];
 
     // Apply stat deltas from all events this year
     for (const event of yearEvents) {
@@ -491,6 +493,97 @@ function phaseConflict(
       motivation: pickMotivation('conquered', rng),
       statDeltas: deltas,
     }));
+  }
+
+  return events;
+}
+
+// ─── Phase 6: Stability ──────────────────────────────────────────────────
+// Imperial overstretch: factions controlling too much territory suffer
+// stability penalties, potentially leading to fragmentation or rebellion.
+
+function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+  const events: GameEvent[] = [];
+  const totalTiles = world.map.width * world.map.height;
+
+  for (const faction of world.factions) {
+    const tiles = getTilesForFaction(world.map, faction.id);
+    const controlFraction = tiles.length / totalTiles;
+
+    // Overstretch penalty starts at 40% control
+    if (controlFraction > 0.4) {
+      const severity = Math.floor((controlFraction - 0.4) * 100);
+      const stabilityDelta = -Math.max(5, severity);
+
+      events.push(createEvent({
+        tick: year, year,
+        subject: faction.id,
+        action:  'imperial_overstretch',
+        object:  faction.id,
+        causedBy: null,
+        significance: 4,
+        playerCaused: false,
+        description: `${faction.name} struggled with the weight of its vast borders`,
+        motivation: 'as the central authority failed to keep pace with the empire\'s expansion',
+        statDeltas: [
+          { factionId: faction.id, stat: 'stability', delta: stabilityDelta },
+        ],
+      }));
+    }
+
+    // Spontaneous recovery for stable factions
+    if (faction.stability < 40 && faction.wealth > 70 && rng.nextFloat() < 0.1) {
+      events.push(createEvent({
+        tick: year, year,
+        subject: faction.id,
+        action:  'administrative_reform',
+        object:  faction.id,
+        causedBy: null,
+        significance: 2,
+        playerCaused: false,
+        description: `${faction.name} implemented sweeping administrative reforms`,
+        motivation: 'using its vast wealth to stabilize the restless provinces',
+        statDeltas: [
+          { factionId: faction.id, stat: 'stability', delta: 15 },
+          { factionId: faction.id, stat: 'wealth',    delta: -20 },
+        ],
+      }));
+    }
+  }
+
+  return events;
+}
+
+// ─── Phase 7: Gossip ─────────────────────────────────────────────────────
+// NPCs in the same settlement trade knowledge. Accuracy degrades with 
+// each transfer. This creates the 'Telephone Game' effect across history.
+
+function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+  const events: GameEvent[] = [];
+
+  for (const settlement of world.settlements) {
+    const settlementNpcs = world.npcs.filter(n => settlement.npcs.includes(n.id) && n.alive);
+    if (settlementNpcs.length < 2) continue;
+
+    for (let i = 0; i < settlementNpcs.length; i++) {
+      const npcA = settlementNpcs[i];
+      const npcB = settlementNpcs[(i + 1) % settlementNpcs.length];
+
+      // NPC A tells NPC B something they know
+      if (npcA.knowledge.length > 0 && rng.nextFloat() < 0.3) {
+        const knowledgeToShare = npcA.knowledge[rng.nextInt(npcA.knowledge.length)];
+        
+        // Check if NPC B already knows this
+        if (!npcB.knowledge.some(k => k.eventId === knowledgeToShare.eventId)) {
+          npcB.knowledge.push({
+            eventId:        knowledgeToShare.eventId,
+            discoveredYear: year,
+            accuracy:       knowledgeToShare.accuracy * 0.9, // accuracy degrades
+            sourceId:       npcA.id,
+          });
+        }
+      }
+    }
   }
 
   return events;

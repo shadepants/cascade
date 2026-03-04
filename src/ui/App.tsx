@@ -19,35 +19,73 @@ export function App() {
   useEffect(() => {
     if (state.phase !== 'jumping' || !state.world) return;
 
-    const timer = setTimeout(() => {
-      const JUMP_YEARS = 10;
-      const MAX_YEARS = 150;
+    // Initialize the WebWorker
+    // Note: Vite uses ?worker to import worker files
+    const worker = new Worker(new URL('../simulation/worker.ts', import.meta.url), {
+      type: 'module'
+    });
 
-      // Deep copy so runSimulation can mutate safely
-      const newWorld = JSON.parse(JSON.stringify(state.world));
-      const newEvents = runSimulation(newWorld, JUMP_YEARS);
+    const JUMP_YEARS = 10;
+    const MAX_YEARS = 150;
 
-      // Distribute new player-caused cascade events to NPCs
-      // so they can tell the player about consequences after the jump
-      const cascadeEvents = newEvents.filter((e: { playerCaused: boolean }) => e.playerCaused);
-      if (cascadeEvents.length > 0) {
-        for (const npc of newWorld.npcs) {
-          if (npc.alive) {
-            const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
-            npc.knownEvents.push(...toLearn.map((e: { id: string }) => e.id));
+    worker.onmessage = (event) => {
+      const result = event.data;
+
+      if (result.type === 'SIMULATION_COMPLETE') {
+        const { world: newWorld, events: newEvents } = result;
+
+        // Distribute new player-caused cascade events to NPCs
+        // so they can tell the player about consequences after the jump
+        const cascadeEvents = newEvents.filter((e: { playerCaused: boolean }) => e.playerCaused);
+        if (cascadeEvents.length > 0) {
+          for (const npc of newWorld.npcs) {
+            if (npc.alive) {
+              const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
+              for (const event of toLearn) {
+                if (!npc.knowledge.some((k: { eventId: string }) => k.eventId === event.id)) {
+                  npc.knowledge.push({
+                    eventId: event.id,
+                    discoveredYear: newWorld.currentYear,
+                    accuracy: 0.8, // gossip is less accurate than direct witnessing
+                    sourceId: 'history',
+                  });
+                }
+              }
+            }
           }
         }
+
+        // Update history of all items in player inventory
+        for (const item of newWorld.player.inventory) {
+          if (!item.history) item.history = [];
+          item.history.push({ 
+            year: state.world.currentYear, 
+            ownerName: state.world.player.name 
+          });
+        }
+
+        // SET_WORLD transitions phase → 'exploring'
+        dispatch({ type: 'SET_WORLD', world: newWorld });
+
+        if (newWorld.currentYear >= MAX_YEARS) {
+          dispatch({ type: 'SET_PHASE', phase: 'score' });
+        }
+      } else if (result.type === 'SIMULATION_ERROR') {
+        console.error('Simulation Worker Error:', result.error);
+        dispatch({ type: 'SET_PHASE', phase: 'exploring' });
+        dispatch({ type: 'SHOW_NOTIFICATION', text: 'Simulation error occurred.' });
       }
 
-      // SET_WORLD transitions phase → 'exploring'
-      dispatch({ type: 'SET_WORLD', world: newWorld });
+      worker.terminate();
+    };
 
-      if (newWorld.currentYear >= MAX_YEARS) {
-        dispatch({ type: 'SET_PHASE', phase: 'score' });
-      }
-    }, 50);
+    worker.postMessage({
+      type: 'RUN_SIMULATION',
+      world: state.world,
+      years: JUMP_YEARS
+    });
 
-    return () => clearTimeout(timer);
+    return () => worker.terminate();
   }, [state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-dismiss cascade notifications after 3 seconds

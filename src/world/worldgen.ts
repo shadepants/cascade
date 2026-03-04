@@ -140,8 +140,8 @@ function findPlayerStart(
 
 /** Give each NPC knowledge of 2-4 random historical events. */
 function assignKnowledgeToNPCs(
-  npcs: { knownEvents: string[] }[],
-  events: { id: string }[],
+  npcs: { knowledge: any[] }[],
+  events: { id: string; year: number }[],
   _seed: number,
 ): void {
   if (events.length === 0) return;
@@ -151,9 +151,15 @@ function assignKnowledgeToNPCs(
     const count = 2 + (i % 3); // 2, 3, or 4 events per NPC
     for (let j = 0; j < count; j++) {
       const eventIndex = (i * 7 + j * 3) % events.length;
-      const eventId = events[eventIndex].id;
-      if (!npcs[i].knownEvents.includes(eventId)) {
-        npcs[i].knownEvents.push(eventId);
+      const event = events[eventIndex];
+      
+      if (!npcs[i].knowledge.some(k => k.eventId === event.id)) {
+        npcs[i].knowledge.push({
+          eventId: event.id,
+          discoveredYear: event.year,
+          accuracy: 1.0,           // worldgen events are 'known truth' for pre-history
+          sourceId: 'direct',
+        });
       }
     }
   }

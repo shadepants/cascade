@@ -109,9 +109,16 @@ export interface Entity {
 export interface NPC extends Entity {
   factionId: string;
   personality: NPCPersonality;
-  knownEvents: string[];       // event IDs this NPC knows about
+  knowledge: NPCKnowledge[];   // upgraded from simple string[]
   dialogueKey: string;         // key into dialogue templates
   alive: boolean;
+}
+
+export interface NPCKnowledge {
+  eventId: string;
+  discoveredYear: number;
+  accuracy: number;            // 0-1, information degrades over time/transfers
+  sourceId: string | 'direct'; // which NPC told them, or 'direct' if they saw it
 }
 
 export type NPCPersonality = 'loyal' | 'skeptic' | 'zealot' | 'pragmatist';
@@ -129,6 +136,12 @@ export interface Item {
   type: ItemType;
   significance: number;        // 0-10, how historically important
   position: Position;          // map tile where item sits (removed from world.items on pickup)
+  history: ItemHistoryEntry[]; // era markers for legendary status
+}
+
+export interface ItemHistoryEntry {
+  year: number;
+  ownerName: string;
 }
 
 export type ItemType = 'artifact' | 'letter' | 'key';

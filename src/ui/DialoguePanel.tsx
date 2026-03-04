@@ -34,8 +34,8 @@ export function DialoguePanel() {
   });
 
   // Build event knowledge lines
-  const knownEvents = activeNpc.knownEvents
-    .map(eid => world.events.find(e => e.id === eid))
+  const knownEvents = activeNpc.knowledge
+    .map(k => world.events.find(e => e.id === k.eventId))
     .filter((e): e is GameEvent => e != null);
 
   const eventLines = knownEvents.map(event =>

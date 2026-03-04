@@ -35,7 +35,7 @@ export function generateNPCs(
         position,
         factionId: faction.id,
         personality: PERSONALITIES[rng.nextInt(PERSONALITIES.length)],
-        knownEvents: [],   // populated after worldgen events
+        knowledge: [],     // populated after worldgen events
         dialogueKey: 'default',
         alive: true,
       };
@@ -81,10 +81,12 @@ export function generateItems(
     id: `item_0`,
     name: template.name,
     description: template.description,
-    type: template.type,
+    type: template.type as any,
     significance: template.significance,
     position,
+    history: [],
   };
+
 
   targetSettlement.items.push(item.id);
   items.push(item);
