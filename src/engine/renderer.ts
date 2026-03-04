@@ -2,7 +2,7 @@
 // Draws the game map to a <canvas> element. Pure function: takes state, draws pixels.
 // No game logic here — just rendering.
 
-import type { GameMap, Camera, NPC, Player, Settlement, Item, Faction } from '../types.ts';
+import type { GameMap, Camera, NPC, Player, Settlement, Item, Faction, WorldState } from '../types.ts';
 import { TILE_SIZE } from '../types.ts';
 import { BIOME_COLORS } from '../data/biomes.ts';
 
@@ -15,11 +15,12 @@ export interface RenderContext {
   settlements: Settlement[];
   items: Item[];
   factions: Faction[];
+  previousWorld?: WorldState | null; // Ghost of History layer
 }
 
 /** Main render function — called once per turn (not per frame). */
 export function renderWorld(rc: RenderContext): void {
-  const { ctx, map, camera, player, npcs, settlements, items, factions } = rc;
+  const { ctx, map, camera, player, npcs, settlements, items, factions, previousWorld } = rc;
   const canvasW = camera.viewportWidth * TILE_SIZE;
   const canvasH = camera.viewportHeight * TILE_SIZE;
 
@@ -53,6 +54,45 @@ export function renderWorld(rc: RenderContext): void {
       if (tile.factionId) {
         const color = factionColors.get(tile.factionId) ?? '#ffffff';
         drawFactionTerritory(ctx, map, camera, wx, wy, sx, sy, tile.factionId, color);
+      }
+    }
+  }
+
+  // Draw Ghost Layer if requested
+  if (previousWorld) {
+    const prevMap = previousWorld.map;
+    const prevFactionColors = new Map<string, string>();
+    for (const f of previousWorld.factions) {
+      prevFactionColors.set(f.id, f.color);
+    }
+
+    ctx.setLineDash([4, 4]); // Dashed lines for history
+    
+    for (let vy = 0; vy < camera.viewportHeight; vy++) {
+      for (let vx = 0; vx < camera.viewportWidth; vx++) {
+        const wx = camera.x + vx;
+        const wy = camera.y + vy;
+
+        if (wx < 0 || wy < 0 || wx >= prevMap.width || wy >= prevMap.height) continue;
+
+        const tile = prevMap.tiles[wy][wx];
+        const sx = vx * TILE_SIZE;
+        const sy = vy * TILE_SIZE;
+
+        if (tile.factionId) {
+          const color = prevFactionColors.get(tile.factionId) ?? '#ffffff';
+          drawGhostTerritory(ctx, prevMap, camera, wx, wy, sx, sy, tile.factionId, color);
+        }
+      }
+    }
+    
+    ctx.setLineDash([]); // Reset dash
+
+    // Draw destroyed settlements as Ruins
+    const currentSettlementIds = new Set(settlements.map(s => s.id));
+    for (const oldS of previousWorld.settlements) {
+      if (!currentSettlementIds.has(oldS.id)) {
+        drawGlyph(ctx, camera, oldS.position.x, oldS.position.y, 'r', '#666666'); // 'r' for ruin
       }
     }
   }
@@ -151,3 +191,48 @@ function drawFactionTerritory(
     }
   }
 }
+
+/** Draw ghost territory: no fill, dashed border. */
+function drawGhostTerritory(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  camera: Camera,
+  wx: number,
+  wy: number,
+  sx: number,
+  sy: number,
+  factionId: string,
+  color: string,
+): void {
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+
+  const neighbors = [
+    { dx: 0, dy: -1, edge: () => { ctx.moveTo(sx, sy); ctx.lineTo(sx + TILE_SIZE, sy); } },            // top
+    { dx: 0, dy: 1,  edge: () => { ctx.moveTo(sx, sy + TILE_SIZE); ctx.lineTo(sx + TILE_SIZE, sy + TILE_SIZE); } }, // bottom
+    { dx: -1, dy: 0, edge: () => { ctx.moveTo(sx, sy); ctx.lineTo(sx, sy + TILE_SIZE); } },             // left
+    { dx: 1, dy: 0,  edge: () => { ctx.moveTo(sx + TILE_SIZE, sy); ctx.lineTo(sx + TILE_SIZE, sy + TILE_SIZE); } }, // right
+  ];
+
+  for (const n of neighbors) {
+    const nx = wx + n.dx;
+    const ny = wy + n.dy;
+
+    const neighborFaction = (nx >= 0 && ny >= 0 && nx < map.width && ny < map.height)
+      ? map.tiles[ny][nx].factionId
+      : null;
+
+    if (neighborFaction !== factionId) {
+      const nvx = nx - camera.x;
+      const nvy = ny - camera.y;
+      if (nvx < -1 || nvy < -1 || nvx > camera.viewportWidth || nvy > camera.viewportHeight) continue;
+
+      ctx.beginPath();
+      n.edge();
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1.0;
+}
+

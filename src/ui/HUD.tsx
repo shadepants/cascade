@@ -41,6 +41,7 @@ export function HUD() {
           <>
             <span className="hud-hint">
               ↑↓←→ move | Enter: use item | J: jump
+              {state.previousWorld && ' | H: hold for history'}
             </span>
             <button
               className="hud-score-btn"

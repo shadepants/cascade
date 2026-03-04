@@ -13,6 +13,7 @@ import { DEFAULT_CONFIG, VIEWPORT_TILES } from './types.ts';
 export const initialState: GameStore = {
   phase: 'title',
   world: null,
+  previousWorld: null,
   config: DEFAULT_CONFIG,
   activeNpc: null,
   activeItem: null,
@@ -30,6 +31,7 @@ export const initialState: GameStore = {
 export type GameStoreAction =
   | { type: 'SET_PHASE'; phase: GamePhase }
   | { type: 'SET_WORLD'; world: WorldState }
+  | { type: 'SET_PREVIOUS_WORLD'; world: WorldState }
   | { type: 'SET_CAMERA'; camera: Camera }
   | { type: 'OPEN_DIALOGUE'; npc: NPC }
   | { type: 'CLOSE_DIALOGUE' }
@@ -49,6 +51,9 @@ export function gameReducer(state: GameStore, action: GameStoreAction): GameStor
 
     case 'SET_WORLD':
       return { ...state, world: action.world, phase: 'exploring' };
+
+    case 'SET_PREVIOUS_WORLD':
+      return { ...state, previousWorld: action.world };
 
     case 'SET_CAMERA':
       return { ...state, camera: action.camera };

@@ -264,6 +264,7 @@ export type GamePhase =
 export interface GameStore {
   phase: GamePhase;
   world: WorldState | null;
+  previousWorld: WorldState | null; // For rendering the 'Ghost of History' layer
   config: WorldConfig;
 
   // UI state

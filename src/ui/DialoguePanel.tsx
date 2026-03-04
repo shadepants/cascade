@@ -6,6 +6,8 @@ import { useGame } from '../store.ts';
 import { DIALOGUE, fillTemplate } from '../data/templates.ts';
 import type { GameEvent, KnowledgeEntry } from '../types.ts';
 import { assembleNarrativeContext, buildSocraticPrompt } from '../simulation/narrative.ts';
+import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
+import { useState, useEffect } from 'react';
 
 /** Walk the causedBy chain to find how many links deep this event is. */
 function getCausalDepth(event: GameEvent, allEvents: GameEvent[]): number {
@@ -22,26 +24,43 @@ function getCausalDepth(event: GameEvent, allEvents: GameEvent[]): number {
 export function DialoguePanel() {
   const { state, dispatch } = useGame();
   const { activeNpc, world } = state;
+  const [aiText, setAiText] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    if (!activeNpc || !world) return;
+    
+    const config = getLLMConfig();
+    if (config) {
+      setIsTyping(true);
+      const narrativeCtx = assembleNarrativeContext(activeNpc, world);
+      const prompt = buildSocraticPrompt(narrativeCtx);
+      
+      fetchNarrative(prompt, config)
+        .then(text => setAiText(text))
+        .catch(err => {
+          console.error('LLM Error:', err);
+          setAiText(null); // fallback to templates
+        })
+        .finally(() => setIsTyping(false));
+    } else {
+      setAiText(null);
+      setIsTyping(false);
+    }
+  }, [activeNpc, world]);
 
   if (!activeNpc || !world) return null;
 
   const faction = world.factions.find(f => f.id === activeNpc.factionId);
   const factionName = faction?.name ?? 'Unknown';
 
-  // Build Socratic Gate Context (for future LLM use or template refinement)
-  const narrativeCtx = assembleNarrativeContext(activeNpc, world);
-  const _socraticPrompt = buildSocraticPrompt(narrativeCtx);
-  if (import.meta.env.DEV) {
-    console.log('Socratic Prompt:', _socraticPrompt);
-  }
-
-  // Build greeting
+  // Build greeting (fallback)
   const greeting = fillTemplate(DIALOGUE.greeting[activeNpc.personality], {
     name: activeNpc.name,
     faction: factionName,
   });
 
-  // Build event knowledge lines (Templates for now, LLM later)
+  // Build event knowledge lines (fallback)
   const knownEvents = activeNpc.knowledge
     .map(k => world.events.find(e => e.id === k.eventId))
     .filter((e): e is GameEvent => e != null);
@@ -64,7 +83,6 @@ export function DialoguePanel() {
       discoveredYear: world!.currentYear,
     };
 
-    // Add to player's knowledge log (avoid duplicates)
     dispatch({
       type: 'UPDATE_WORLD',
       updater: (w) => {
@@ -80,7 +98,6 @@ export function DialoguePanel() {
       },
     });
 
-    // Flash cascade notification when discovering a player-caused consequence
     if (event.playerCaused && event.causedBy !== null && world) {
       const depth = getCausalDepth(event, world.events);
       dispatch({
@@ -99,9 +116,19 @@ export function DialoguePanel() {
         </button>
       </div>
 
-      <p className="dialogue-text">{greeting}</p>
+      {isTyping ? (
+        <p className="dialogue-text" style={{ fontStyle: 'italic', color: '#adcbe3' }}>
+          {activeNpc.name} is speaking...
+        </p>
+      ) : aiText ? (
+        <div className="dialogue-text" style={{ whiteSpace: 'pre-wrap' }}>
+          {aiText}
+        </div>
+      ) : (
+        <p className="dialogue-text">{greeting}</p>
+      )}
 
-      {eventLines.length > 0 && (
+      {(!isTyping && knownEvents.length > 0) && (
         <div className="dialogue-events">
           <h4>What they know:</h4>
           {knownEvents.map((event, i) => (
@@ -122,3 +149,4 @@ export function DialoguePanel() {
     </div>
   );
 }
+
