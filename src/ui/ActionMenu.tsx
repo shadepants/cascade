@@ -9,6 +9,7 @@
 // the tick engine reads statDeltas to derive mechanically-legible consequences.
 
 import { useGame } from '../store.ts';
+import { MAX_ACTIONS_PER_ERA } from '../types.ts';
 import { createEvent } from '../world/events.ts';
 import type { StatDelta } from '../types.ts';
 
@@ -19,8 +20,12 @@ export function ActionMenu() {
   if (!activeItem || !world) return null;
 
   const factions = world.factions;
+  const actionsUsed = world.player.actionsThisEra.length;
+  const actionsLeft = Math.max(0, MAX_ACTIONS_PER_ERA - actionsUsed);
+  const exhausted = actionsLeft === 0;
 
   function handleGiveToFaction(factionId: string) {
+    if (exhausted) return;
     const faction = factions.find(f => f.id === factionId);
     if (!faction) return;
 
@@ -113,6 +118,9 @@ export function ActionMenu() {
 
       <p className="item-description">{activeItem.description}</p>
 
+      <div style={{ fontSize: "0.8rem", marginBottom: "0.5rem", color: exhausted ? "#f87171" : "#6b8fa3" }}>
+        Era actions: {actionsUsed}/{MAX_ACTIONS_PER_ERA}{exhausted ? " — jump forward to act again" : ""}
+      </div>
       <div className="action-choices">
         <h4>What do you do?</h4>
         {factions.map((faction) => (
@@ -120,7 +128,8 @@ export function ActionMenu() {
             key={faction.id}
             className="action-btn"
             onClick={() => handleGiveToFaction(faction.id)}
-            style={{ borderColor: faction.color }}
+            disabled={exhausted}
+            style={{ borderColor: exhausted ? "#444" : faction.color, opacity: exhausted ? 0.45 : 1, cursor: exhausted ? "not-allowed" : "pointer" }}
           >
             Give to {faction.name}
           </button>

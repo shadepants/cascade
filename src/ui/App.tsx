@@ -117,6 +117,9 @@ export function App() {
           }
         }
 
+        // Reset action budget for the new era
+        newWorld.player.actionsThisEra = [];
+
         // SET_WORLD transitions phase → 'exploring'
         dispatch({ type: 'SET_WORLD', world: newWorld });
 

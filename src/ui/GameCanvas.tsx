@@ -4,7 +4,7 @@
 // - Calling the renderer on state changes
 // - Keyboard event capture
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
 import { useGame } from '../store.ts';
 import { renderWorld } from '../engine/renderer.ts';
 import { mapKeyToAction } from '../engine/input.ts';
@@ -34,8 +34,8 @@ export function GameCanvas() {
     };
   }, []);
 
-  // Render whenever world or camera changes
-  useEffect(() => {
+  // Render whenever world or camera changes (useLayoutEffect avoids flash before paint)
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !state.world) return;

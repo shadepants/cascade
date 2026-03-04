@@ -287,3 +287,4 @@ export interface Camera {
 
 export const TILE_SIZE = 24;       // pixels per tile
 export const VIEWPORT_TILES = 24;  // tiles visible in each direction
+export const MAX_ACTIONS_PER_ERA = 6; // player action budget per time jump
