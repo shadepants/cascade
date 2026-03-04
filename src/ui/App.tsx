@@ -1,7 +1,7 @@
 // ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useEffect, useRef, useState } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
 import { TitleScreen } from './TitleScreen.tsx';
 import { GameCanvas } from './GameCanvas.tsx';
@@ -49,6 +49,9 @@ function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: n
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  // Always-current world ref — avoids stale closure in WebWorker effect
+  const worldRef = useRef(state.world);
+  useEffect(() => { worldRef.current = state.world; }, [state.world]);
 
   // Auto-save every 5 minutes
   useEffect(() => {
@@ -137,12 +140,12 @@ export function App() {
 
     worker.postMessage({
       type: 'RUN_SIMULATION',
-      world: state.world,
+      world: worldRef.current,
       years: JUMP_YEARS
     });
 
     return () => worker.terminate();
-  }, [state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.phase]); // worldRef.current used instead of state.world to avoid stale closure
 
   // Auto-dismiss cascade notifications after 3 seconds
   useEffect(() => {

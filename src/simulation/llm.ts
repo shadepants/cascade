@@ -1,5 +1,6 @@
 // ─── LLM Integration (Socratic Gate Proxy) ──────────────────────────────
 // Uses Anthropic API (via local proxy to avoid CORS) to generate dialogue.
+// API key stored in sessionStorage only — evaporates on tab close (no persistent XSS risk).
 
 export interface LLMConfig {
   apiKey: string;
@@ -8,7 +9,7 @@ export interface LLMConfig {
 }
 
 export function getLLMConfig(): LLMConfig | null {
-  const stored = localStorage.getItem('cascade_llm_config');
+  const stored = sessionStorage.getItem('cascade_llm_config');
   if (stored) {
     try {
       return JSON.parse(stored) as LLMConfig;
@@ -21,9 +22,9 @@ export function getLLMConfig(): LLMConfig | null {
 
 export function saveLLMConfig(config: LLMConfig | null): void {
   if (config) {
-    localStorage.setItem('cascade_llm_config', JSON.stringify(config));
+    sessionStorage.setItem('cascade_llm_config', JSON.stringify(config));
   } else {
-    localStorage.removeItem('cascade_llm_config');
+    sessionStorage.removeItem('cascade_llm_config');
   }
 }
 

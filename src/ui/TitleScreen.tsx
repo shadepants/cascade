@@ -86,7 +86,7 @@ export function TitleScreen() {
         <div className="panel" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'left' }}>
           <h3>AI Settings (Socratic Gate)</h3>
           <p style={{ margin: '1rem 0', color: '#aaa' }}>
-            Enter an Anthropic API Key to enable dynamic, biased NPC dialogue based on the simulation's causal history.
+            Enter an Anthropic API Key to enable dynamic NPC dialogue. Key is session-only — you'll need to re-enter it next time you open the game.
           </p>
           <input 
             type="password" 
