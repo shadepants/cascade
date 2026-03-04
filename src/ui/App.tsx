@@ -10,6 +10,7 @@ import { KnowledgeLog } from './KnowledgeLog.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
 import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
+import { saveGame } from '../data/db.ts';
 
 /** High-speed year counter overlay for the 'jumping' phase. */
 function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: number }) {
@@ -48,6 +49,22 @@ function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: n
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+
+  // Auto-save every 5 minutes
+  useEffect(() => {
+    if (!state.world) return;
+    const timer = setInterval(() => {
+      saveGame('auto_save', state.world!);
+    }, 1000 * 60 * 5);
+    return () => clearInterval(timer);
+  }, [state.world]);
+
+  // Save immediately after world update (e.g., after jump)
+  useEffect(() => {
+    if (state.world && state.phase === 'exploring') {
+      saveGame('auto_save', state.world);
+    }
+  }, [state.world, state.phase]);
 
   // Execute time jump when phase transitions to 'jumping'
   useEffect(() => {

@@ -519,11 +519,14 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
   const events: GameEvent[] = [];
   const totalTiles = world.map.width * world.map.height;
 
-  for (const faction of world.factions) {
+  // We copy the factions list because fractureFaction will add new ones
+  const currentFactions = [...world.factions];
+
+  for (const faction of currentFactions) {
     const tiles = getTilesForFaction(world.map, faction.id);
     const controlFraction = tiles.length / totalTiles;
 
-    // Overstretch penalty starts at 40% control
+    // 1. Overstretch penalty starts at 40% control
     if (controlFraction > 0.4) {
       const severity = Math.floor((controlFraction - 0.4) * 100);
       const stabilityDelta = -Math.max(5, severity);
@@ -544,7 +547,13 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
       }));
     }
 
-    // Spontaneous recovery for stable factions
+    // 2. Fracture Trigger: Critical instability shatters the empire
+    if (faction.stability < REBELLION_STABILITY_MIN && tiles.length > 10) {
+      const fracture = fractureFaction(world, faction, year, rng);
+      if (fracture) events.push(fracture);
+    }
+
+    // 3. Spontaneous recovery for stable factions
     if (faction.stability < 40 && faction.wealth > 70 && rng.nextFloat() < 0.1) {
       events.push(createEvent({
         tick: year, year,
@@ -565,6 +574,126 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
   }
 
   return events;
+}
+
+/** 
+ * Shatter a faction into two. A new rival faction takes ~30% of the territory.
+ * BFS starts from the tile furthest from the capital (first settlement).
+ */
+function fractureFaction(
+  world: WorldState, 
+  original: Faction, 
+  year: number, 
+  rng: SeededRNG
+): GameEvent | null {
+  const tiles = getTilesWithPosForFaction(world.map, original.id);
+  if (tiles.length < 10) return null;
+
+  // Find tile furthest from the first settlement (capital)
+  const capital = world.settlements.find(s => s.id === original.settlements[0]);
+  if (!capital) return null;
+
+  let furthest: Position = tiles[0];
+  let maxDist = -1;
+  for (const t of tiles) {
+    const d = Math.abs(t.x - capital.position.x) + Math.abs(t.y - capital.position.y);
+    if (d > maxDist) {
+      maxDist = d;
+      furthest = t;
+    }
+  }
+
+  // BFS to claim 30% of territory
+  const newFactionId = `faction_rebel_${original.id}_${year}`;
+  const targetCount = Math.floor(tiles.length * 0.3);
+  const queue: Position[] = [furthest];
+  const claimed = new Set<string>();
+  const newTiles: Position[] = [];
+
+  while (queue.length > 0 && newTiles.length < targetCount) {
+    const curr = queue.shift()!;
+    const key = `${curr.x},${curr.y}`;
+    if (claimed.has(key)) continue;
+    claimed.add(key);
+    newTiles.push(curr);
+
+    const neighbors = [
+      { x: curr.x - 1, y: curr.y }, { x: curr.x + 1, y: curr.y },
+      { x: curr.x, y: curr.y - 1 }, { x: curr.x, y: curr.y + 1 }
+    ];
+    for (const n of neighbors) {
+      if (n.x >= 0 && n.y >= 0 && n.x < world.map.width && n.y < world.map.height &&
+          world.map.tiles[n.y][n.x].factionId === original.id) {
+        queue.push(n);
+      }
+    }
+  }
+
+  // Create the Rebel Faction
+  const newFaction: Faction = {
+    ...original,
+    id: newFactionId,
+    name: `${original.name} Remnant`,
+    color: `#${Math.floor(rng.nextFloat()*16777215).toString(16)}`,
+    stability: 50,
+    military: Math.round(original.military * 0.4),
+    wealth: Math.round(original.wealth * 0.3),
+    settlements: [], // will be updated if a settlement was in the stolen tiles
+  };
+
+  // Transfer tiles
+  for (const pos of newTiles) {
+    const tile = world.map.tiles[pos.y][pos.x];
+    tile.factionId = newFactionId;
+    if (tile.settlementId) {
+      const s = world.settlements.find(set => set.id === tile.settlementId);
+      if (s) {
+        s.factionId = newFactionId;
+        newFaction.settlements.push(s.id);
+        original.settlements = original.settlements.filter(id => id !== s.id);
+      }
+    }
+  }
+
+  world.factions.push(newFaction);
+
+  // Set to War immediately
+  world.relationships.push({
+    factionA: original.id,
+    factionB: newFactionId,
+    opinion: -100,
+    animosity: 150,
+    state: 'war'
+  });
+
+  return createEvent({
+    tick: year, year,
+    subject: original.id,
+    action:  'civil_war_fracture',
+    object:  newFactionId,
+    causedBy: null,
+    significance: 8,
+    playerCaused: false,
+    description: `A civil war shattered ${original.name}, as the ${newFaction.name} seized the frontier`,
+    motivation: 'sparked by the collapse of central authority and long-held regional grievances',
+    statDeltas: [
+      { factionId: original.id, stat: 'stability', delta: -30 },
+      { factionId: original.id, stat: 'military',  delta: -20 },
+    ],
+  });
+}
+
+/** Helper to get tiles with their coordinates. */
+function getTilesWithPosForFaction(map: GameMap, factionId: string): (Position & { biome: string })[] {
+  const tiles: (Position & { biome: string })[] = [];
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.tiles[y][x].factionId === factionId) {
+        tiles.push({ x, y, biome: map.tiles[y][x].biome });
+      }
+    }
+  }
+  return tiles;
 }
 
 // ─── Phase 7: Gossip ─────────────────────────────────────────────────────

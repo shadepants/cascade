@@ -5,6 +5,7 @@
 import { useGame } from '../store.ts';
 import { DIALOGUE, fillTemplate } from '../data/templates.ts';
 import type { GameEvent, KnowledgeEntry } from '../types.ts';
+import { assembleNarrativeContext, buildSocraticPrompt } from '../simulation/narrative.ts';
 
 /** Walk the causedBy chain to find how many links deep this event is. */
 function getCausalDepth(event: GameEvent, allEvents: GameEvent[]): number {
@@ -27,13 +28,20 @@ export function DialoguePanel() {
   const faction = world.factions.find(f => f.id === activeNpc.factionId);
   const factionName = faction?.name ?? 'Unknown';
 
+  // Build Socratic Gate Context (for future LLM use or template refinement)
+  const narrativeCtx = assembleNarrativeContext(activeNpc, world);
+  const _socraticPrompt = buildSocraticPrompt(narrativeCtx);
+  if (import.meta.env.DEV) {
+    console.log('Socratic Prompt:', _socraticPrompt);
+  }
+
   // Build greeting
   const greeting = fillTemplate(DIALOGUE.greeting[activeNpc.personality], {
     name: activeNpc.name,
     faction: factionName,
   });
 
-  // Build event knowledge lines
+  // Build event knowledge lines (Templates for now, LLM later)
   const knownEvents = activeNpc.knowledge
     .map(k => world.events.find(e => e.id === k.eventId))
     .filter((e): e is GameEvent => e != null);
