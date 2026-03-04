@@ -210,6 +210,69 @@ export interface Settlement {
   items: string[];             // Item IDs available here
 }
 
+// ─── Storyteller Director ────────────────────────────────────────────────
+
+export type StorytellerMode = 'clio' | 'ares' | 'tyche';
+
+export interface CooldownEntry {
+  triggerEventId: string;
+  triggerSignificance: number;
+  startYear: number;
+  durationYears: number;
+}
+
+export interface StorytellerState {
+  mode: StorytellerMode;
+
+  // Tension (0-100): narrative pressure — gates event frequency/cascade depth
+  tension: number;
+  tensionDecayRate: number;    // per simulated year
+  tensionFloor: number;        // minimum after decay
+
+  // Spotlight: faction the director is foregrounding
+  spotlightFactionId: string | null;
+  spotlightSetYear: number;
+  spotlightDecayYears: number;
+
+  // Narrative debt: years since player discovered a playerCaused event
+  yearsSincePlayerDiscovery: number;
+  debtInterventionsFired: number;  // diminishing returns counter
+
+  // Pacing cooldowns: suppress event stacking after high-sig events
+  cooldowns: CooldownEntry[];
+
+  // Event budget per simulated year (significance >= 5)
+  maxEventsPerYear: number;
+  highSigEventsThisYear: number;  // reset each year
+
+  // Tracking
+  lastHighSigYear: number;
+  consecutiveQuietYears: number;
+  playerActionCount: number;
+}
+
+export function defaultStorytellerState(mode: StorytellerMode = 'clio'): StorytellerState {
+  const modeDefaults: Record<StorytellerMode, { tensionDecayRate: number; tensionFloor: number; maxEventsPerYear: number; spotlightDecayYears: number }> = {
+    clio:  { tensionDecayRate: 3,  tensionFloor: 10, maxEventsPerYear: 2, spotlightDecayYears: 50 },
+    ares:  { tensionDecayRate: 8,  tensionFloor: 20, maxEventsPerYear: 4, spotlightDecayYears: 20 },
+    tyche: { tensionDecayRate: 5,  tensionFloor: 0,  maxEventsPerYear: 8, spotlightDecayYears: 10 },
+  };
+  return {
+    mode,
+    tension: 20,
+    ...modeDefaults[mode],
+    spotlightFactionId: null,
+    spotlightSetYear: 0,
+    yearsSincePlayerDiscovery: 0,
+    debtInterventionsFired: 0,
+    cooldowns: [],
+    highSigEventsThisYear: 0,
+    lastHighSigYear: 0,
+    consecutiveQuietYears: 0,
+    playerActionCount: 0,
+  };
+}
+
 // ─── World State (the big container) ────────────────────────────────────
 
 export interface WorldState {
@@ -224,6 +287,7 @@ export interface WorldState {
   items: Item[];
   events: GameEvent[];
   player: Player;
+  storyteller: StorytellerState;
 }
 
 // ─── World Generation Config ────────────────────────────────────────────
@@ -236,6 +300,7 @@ export interface WorldConfig {
   npcsPerSettlement: number;   // 2-3 for POC
   pregenYears: number;         // 100 for POC
   ticksPerYear: number;        // 1 for POC (simplified)
+  storytellerMode: StorytellerMode; // clio | ares | tyche
 }
 
 export const DEFAULT_CONFIG: WorldConfig = {
@@ -246,6 +311,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   npcsPerSettlement: 3,
   pregenYears: 100,
   ticksPerYear: 1,
+  storytellerMode: 'clio' as StorytellerMode,
 };
 
 // ─── Game Phase (UI state machine) ──────────────────────────────────────

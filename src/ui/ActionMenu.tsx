@@ -11,6 +11,7 @@
 import { useGame } from '../store.ts';
 import { MAX_ACTIONS_PER_ERA } from '../types.ts';
 import { createEvent } from '../world/events.ts';
+import { setSpotlight } from '../simulation/storyteller.ts';
 import type { StatDelta } from '../types.ts';
 
 export function ActionMenu() {
@@ -55,6 +56,7 @@ export function ActionMenu() {
       }
     })();
 
+    setSpotlight(world!.storyteller, factionId, world!.currentYear);
     console.log(`[ACTION] Player gave ${activeItem!.name} (${activeItem!.type}, sig:${sig}) to ${faction.name}. Deltas: ${deltas.map(d => `${d.stat}${d.delta >= 0 ? '+' : ''}${d.delta}`).join(', ')}`);
 
     const event = createEvent({

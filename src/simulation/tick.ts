@@ -23,6 +23,11 @@ import type {
 import { createEvent } from '../world/events.ts';
 import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
+import {
+  computeTension, decayTension, pruneCooldowns,
+  getCascadeThreshold,
+  accumulateDebt, fireDebtIntervention, applyIntervention,
+} from './storyteller.ts';
 
 // ─── Thresholds ──────────────────────────────────────────────────────────
 
@@ -76,6 +81,11 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
   for (let i = 0; i < jumpYears; i++) {
     const year = world.currentYear + i + 1;
 
+    // Storyteller Director — per-year hooks
+    pruneCooldowns(world.storyteller, year);
+    world.storyteller.highSigEventsThisYear = 0;
+    world.storyteller.tension = computeTension(world.storyteller, world);
+
     const eco  = phaseEcology(world, year, rng);
     const econ = phaseEconomics(world, year, rng, eco);
     const pol  = phasePolitics(world, year, rng, [...eco, ...econ]);
@@ -104,6 +114,12 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
 
     world.events.push(...yearEvents);
     allNewEvents.push(...yearEvents);
+
+    // Storyteller Director — year-end hooks
+    decayTension(world.storyteller);
+    accumulateDebt(world.storyteller, world, year);
+    const intervention = fireDebtIntervention(world.storyteller, world, rng);
+    if (intervention) applyIntervention(intervention, world, rng, year);
   }
 
   world.currentYear += jumpYears;
@@ -782,7 +798,7 @@ function phaseCascade(
   );
 
   for (const trigger of playerEvents) {
-    if (rng.nextFloat() > 0.4) continue; // 40% chance per year per qualifying event
+    if (rng.nextFloat() > getCascadeThreshold(world.storyteller, trigger.subject, year)) continue;
 
     // Derive consequences from the state changes this event caused
     for (const delta of trigger.statDeltas) {

@@ -1,5 +1,5 @@
 // ─── Title Screen ───────────────────────────────────────────────────────
-// Simple start screen with game title and "New Game" button.
+// Start screen with storyteller mode selection and AI settings.
 
 import { useState, useEffect } from 'react';
 import { useGame } from '../store.ts';
@@ -7,21 +7,25 @@ import { generateWorld } from '../world/worldgen.ts';
 import { createCamera } from '../engine/camera.ts';
 import { loadMostRecentSave } from '../data/db.ts';
 import { getLLMConfig, saveLLMConfig } from '../simulation/llm.ts';
+import type { StorytellerMode } from '../types.ts';
+
+const MODE_INFO: Record<StorytellerMode, { label: string; description: string; color: string }> = {
+  clio:  { label: 'Clio',  description: 'Historian. Slow burn — consequences unfold across decades.',    color: '#adcbe3' },
+  ares:  { label: 'Ares',  description: 'War. Rapid escalation — your actions ignite conflict fast.',     color: '#f87171' },
+  tyche: { label: 'Tyche', description: 'Chaos. Unpredictable — no cooldowns, anything can cascade.',     color: '#facc15' },
+};
 
 export function TitleScreen() {
   const { state, dispatch } = useGame();
-  const [hasSave, setHasSave] = useState(false);
+  const [hasSave, setHasSave]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey]           = useState('');
+  const [mode, setMode]               = useState<StorytellerMode>('clio');
 
   useEffect(() => {
-    loadMostRecentSave().then(save => {
-      if (save) setHasSave(true);
-    });
+    loadMostRecentSave().then(save => { if (save) setHasSave(true); });
     const config = getLLMConfig();
-    if (config?.apiKey) {
-      setApiKey(config.apiKey);
-    }
+    if (config?.apiKey) setApiKey(config.apiKey);
   }, []);
 
   async function handleResume() {
@@ -35,12 +39,8 @@ export function TitleScreen() {
 
   function handleNewGame() {
     dispatch({ type: 'SET_PHASE', phase: 'worldgen' });
-
-    // Generate world (synchronous for POC — no WebWorker)
-    const config = { ...state.config, seed: Date.now() };
-    const world = generateWorld(config);
-
-    // Set camera centered on player
+    const config = { ...state.config, seed: Date.now(), storytellerMode: mode };
+    const world  = generateWorld(config);
     const camera = createCamera(world.player.position, world.map);
     dispatch({ type: 'SET_CAMERA', camera });
     dispatch({ type: 'SET_WORLD', world });
@@ -48,49 +48,25 @@ export function TitleScreen() {
 
   function handleSaveSettings() {
     if (apiKey.trim()) {
-      saveLLMConfig({
-        provider: 'anthropic',
-        apiKey: apiKey.trim(),
-        model: 'claude-3-5-sonnet-20241022'
-      });
+      saveLLMConfig({ provider: 'anthropic', apiKey: apiKey.trim(), model: 'claude-3-5-sonnet-20241022' });
     } else {
       saveLLMConfig(null);
     }
     setShowSettings(false);
   }
 
-  return (
-    <div className="title-screen">
-      <h1 className="title">CASCADE</h1>
-      <p className="subtitle">
-        Travel through time. Shape history. Discover what you caused.
-      </p>
-      
-      {!showSettings ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button className="start-btn" onClick={handleNewGame}>
-              New Game
-            </button>
-            {hasSave && (
-              <button className="start-btn" onClick={handleResume} style={{ borderColor: '#adcbe3', color: '#adcbe3' }}>
-                Resume
-              </button>
-            )}
-          </div>
-            <button className="start-btn" style={{ fontSize: '14px', padding: '8px 16px', marginTop: '2rem', borderStyle: 'dashed' }} onClick={() => setShowSettings(true)}>
-              ⚙️ AI Settings
-            </button>
-        </div>
-      ) : (
+  if (showSettings) {
+    return (
+      <div className="title-screen">
         <div className="panel" style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'left' }}>
           <h3>AI Settings (Socratic Gate)</h3>
           <p style={{ margin: '1rem 0', color: '#aaa' }}>
-            Enter an Anthropic API Key to enable dynamic NPC dialogue. Key is session-only — you'll need to re-enter it next time you open the game.
+            Enter an Anthropic API Key to enable dynamic NPC dialogue.
+            Key is session-only — you'll need to re-enter it next time.
           </p>
-          <input 
-            type="password" 
-            placeholder="sk-ant-..." 
+          <input
+            type="password"
+            placeholder="sk-ant-..."
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
             style={{ width: '100%', padding: '8px', marginBottom: '1rem', background: '#000', color: '#fff', border: '1px solid #333' }}
@@ -100,7 +76,67 @@ export function TitleScreen() {
             <button className="start-btn" style={{ flex: 1, borderColor: '#555', color: '#aaa' }} onClick={() => setShowSettings(false)}>Cancel</button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="title-screen">
+      <h1 className="title">CASCADE</h1>
+      <p className="subtitle">
+        Travel through time. Shape history. Discover what you caused.
+      </p>
+
+      {/* Storyteller mode selector */}
+      <div style={{ margin: '1.5rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+        <p style={{ color: '#6b8fa3', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Storyteller</p>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {(Object.keys(MODE_INFO) as StorytellerMode[]).map(m => {
+            const info = MODE_INFO[m];
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                style={{
+                  padding: '0.4rem 1rem',
+                  border: `1px solid ${active ? info.color : '#333'}`,
+                  background: active ? '#111' : 'transparent',
+                  color: active ? info.color : '#555',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {info.label}
+              </button>
+            );
+          })}
+        </div>
+        <p style={{ color: '#6b8fa3', fontSize: '0.8rem', maxWidth: '280px', textAlign: 'center' }}>
+          {MODE_INFO[mode].description}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="start-btn" onClick={handleNewGame}>
+            New Game
+          </button>
+          {hasSave && (
+            <button className="start-btn" onClick={handleResume} style={{ borderColor: '#adcbe3', color: '#adcbe3' }}>
+              Resume
+            </button>
+          )}
+        </div>
+        <button
+          className="start-btn"
+          style={{ fontSize: '14px', padding: '8px 16px', marginTop: '1rem', borderStyle: 'dashed' }}
+          onClick={() => setShowSettings(true)}
+        >
+          ⚙️ AI Settings
+        </button>
+      </div>
     </div>
   );
 }

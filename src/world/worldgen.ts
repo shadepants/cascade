@@ -20,6 +20,7 @@ import { generateFactions } from './factions.ts';
 import { generateNPCs, createPlayer, generateItems } from './entities.ts';
 import { resetEventIds } from './events.ts';
 import { runSimulation } from '../simulation/tick.ts';
+import { defaultStorytellerState } from '../types.ts';
 import { NPC_NAMES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
 
@@ -69,6 +70,7 @@ export function generateWorld(config: WorldConfig): WorldState {
     items,
     events: [],
     player,
+    storyteller: defaultStorytellerState(config.storytellerMode ?? 'clio'),
   };
 
   // Run the pre-history simulation — this is what makes history real.
