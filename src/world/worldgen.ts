@@ -73,11 +73,14 @@ export function generateWorld(config: WorldConfig): WorldState {
 
   // Run the pre-history simulation — this is what makes history real.
   // Events are world-state-driven, not templates.
+  console.log(`[WORLDGEN] Running ${config.pregenYears}-year pre-history simulation...`);
   runSimulation(worldStub, config.pregenYears);
-  // worldStub.currentYear is now pregenYears; worldStub.events has history.
+  console.log(`[WORLDGEN] Pre-history complete. ${worldStub.events.length} events generated over ${config.pregenYears} years.`);
+  console.log(`[WORLDGEN] Faction states: ${worldStub.factions.map(f => `${f.name}(pop:${f.population} mil:${f.military} stab:${f.stability} wealth:${f.wealth})`).join(', ')}`);
 
   // ── Step 6: Assign NPC knowledge from pre-history ──────────────────────
   assignKnowledgeToNPCs(npcs, worldStub.events, seed);
+  console.log(`[WORLDGEN] Assigned pre-history knowledge to ${npcs.length} NPCs.`);
 
   return worldStub;
 }

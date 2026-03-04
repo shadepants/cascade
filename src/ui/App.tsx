@@ -1,7 +1,7 @@
 // ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useState } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
 import { TitleScreen } from './TitleScreen.tsx';
 import { GameCanvas } from './GameCanvas.tsx';
@@ -10,6 +10,41 @@ import { KnowledgeLog } from './KnowledgeLog.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
 import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
+
+/** High-speed year counter overlay for the 'jumping' phase. */
+function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: number }) {
+  const [displayYear, setDisplayYear] = useState(startYear);
+
+  useEffect(() => {
+    let current = startYear;
+    const duration = 1500; // ms
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function for smooth acceleration/deceleration
+      const ease = 1 - Math.pow(1 - progress, 3);
+      current = Math.floor(startYear + (endYear - startYear) * ease);
+      
+      setDisplayYear(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [startYear, endYear]);
+
+  return (
+    <div className="jumping-overlay">
+      <div className="year-counter">Year {displayYear}</div>
+      <div className="jumping-label">Temporal Cascade in Progress</div>
+    </div>
+  );
+}
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
@@ -117,6 +152,12 @@ export function App() {
             </div>
 
             {/* Overlay panels */}
+            {state.phase === 'jumping' && state.world && (
+              <TemporalOverlay 
+                startYear={state.world.currentYear} 
+                endYear={state.world.currentYear + 10} 
+              />
+            )}
             {state.phase === 'dialogue' && <DialoguePanel />}
             {state.phase === 'action' && <ActionMenu />}
           </div>

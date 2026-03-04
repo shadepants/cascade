@@ -71,6 +71,8 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
   const rng = new SeededRNG(world.seed + world.currentYear);
   const allNewEvents: GameEvent[] = [];
 
+  console.log(`[SIM] Starting ${jumpYears}-year run from year ${world.currentYear}. Factions: ${world.factions.map(f => `${f.name}(mil:${f.military} stab:${f.stability})`).join(', ')}`);
+
   for (let i = 0; i < jumpYears; i++) {
     const year = world.currentYear + i + 1;
 
@@ -84,6 +86,16 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
 
     const yearEvents = [...eco, ...econ, ...pol, ...con, ...stab, ...gos, ...cas];
 
+    if (yearEvents.length > 0) {
+      console.log(`[TICK y=${year}] eco:${eco.length} econ:${econ.length} pol:${pol.length} conflict:${con.length} stab:${stab.length} cascade:${cas.length}`);
+      for (const e of con) {
+        console.log(`  [CONFLICT] ${e.action}: ${e.subject} → ${e.object} — "${e.description}"`);
+      }
+      for (const e of cas) {
+        console.log(`  [CASCADE] ${e.action} on ${e.object} causedBy=${e.causedBy ?? 'none'} — "${e.description}"`);
+      }
+    }
+
     // Apply stat deltas from all events this year
     for (const event of yearEvents) {
       applyStatDeltas(world, event.statDeltas);
@@ -94,6 +106,7 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
   }
 
   world.currentYear += jumpYears;
+  console.log(`[SIM] Done. Year=${world.currentYear}. New events: ${allNewEvents.length}. Total history: ${world.events.length}`);
   return allNewEvents;
 }
 

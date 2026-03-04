@@ -50,6 +50,8 @@ export function ActionMenu() {
       }
     })();
 
+    console.log(`[ACTION] Player gave ${activeItem!.name} (${activeItem!.type}, sig:${sig}) to ${faction.name}. Deltas: ${deltas.map(d => `${d.stat}${d.delta >= 0 ? '+' : ''}${d.delta}`).join(', ')}`);
+
     const event = createEvent({
       tick: world!.currentYear,
       year: world!.currentYear,
