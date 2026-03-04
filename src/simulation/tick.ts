@@ -81,10 +81,11 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
     const pol  = phasePolitics(world, year, rng, [...eco, ...econ]);
     const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...pol]);
     const stab = phaseStability(world, year, rng);
+    const cas  = phaseCascade(world, [...eco, ...econ, ...pol, ...con, ...stab], year, rng);
+    seedEventKnowledge(world, cas, year, rng);
     const gos  = phaseGossip(world, year, rng);
-    const cas  = phaseCascade(world, [...eco, ...econ, ...pol, ...con, ...stab, ...gos], year, rng);
 
-    const yearEvents = [...eco, ...econ, ...pol, ...con, ...stab, ...gos, ...cas];
+    const yearEvents = [...eco, ...econ, ...pol, ...con, ...stab, ...cas, ...gos];
 
     if (yearEvents.length > 0) {
       console.log(`[TICK y=${year}] eco:${eco.length} econ:${econ.length} pol:${pol.length} conflict:${con.length} stab:${stab.length} cascade:${cas.length}`);
@@ -729,6 +730,37 @@ function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent
   }
 
   return events;
+}
+
+// ─── Knowledge Seeding ───────────────────────────────────────────────────
+// Cascade events are routed into the knowledge of NPCs who belong to the
+// affected faction. Without this, phaseGossip has nothing to spread —
+// NPC knowledge arrays stay empty and dialogue never references cascade events.
+
+function seedEventKnowledge(
+  world: WorldState,
+  events: GameEvent[],
+  year: number,
+  rng: SeededRNG,
+): void {
+  for (const event of events) {
+    const affectedFactionId = event.subject;
+    const witnessNpcs = world.npcs.filter(
+      n => n.alive && n.factionId === affectedFactionId,
+    );
+    for (const npc of witnessNpcs) {
+      if (npc.knowledge.some(k => k.eventId === event.id)) continue;
+      // Faction members who witnessed the event have high accuracy.
+      // Add a small random spread (0.75–1.0) so tiers vary in dialogue.
+      const accuracy = 0.75 + rng.nextFloat() * 0.25;
+      npc.knowledge.push({
+        eventId:        event.id,
+        discoveredYear: year,
+        accuracy,
+        sourceId:       'direct',
+      });
+    }
+  }
 }
 
 // ─── Phase 5: Cascade ────────────────────────────────────────────────────
