@@ -1,69 +1,129 @@
 // ─── World Generation Orchestrator ──────────────────────────────────────
-// Pulls together terrain, factions, entities, and pre-history into a
-// complete WorldState. This is the single entry point for "make me a world."
+// Builds a complete WorldState. Pipeline:
+//   1. Terrain
+//   2. Factions + territory + settlements
+//   3. Historical figures (rulers)
+//   4. NPCs + items
+//   5. Pre-history simulation (real tick engine, not templates)
+//   6. Assign NPC knowledge from pre-history events
+//   7. Player start
+//
+// DF insight: pre-history IS the simulation. We run the actual tick engine
+// for pregenYears so the world has mechanically-derived history when the
+// player arrives — not hand-authored templates.
 
-import type { WorldState, WorldConfig, Position } from '../types.ts';
+import type {
+  WorldState, WorldConfig, Position, HistoricalFigure, Faction,
+} from '../types.ts';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
 import { generateNPCs, createPlayer, generateItems } from './entities.ts';
-import { generatePreHistory, resetEventIds } from './events.ts';
+import { resetEventIds } from './events.ts';
+import { runSimulation } from '../simulation/tick.ts';
+import { NPC_NAMES } from '../data/names.ts';
+import { SeededRNG } from '../utils/rng.ts';
 
 /** Generate a complete world from a config. Pure function (stateless). */
 export function generateWorld(config: WorldConfig): WorldState {
   const seed = config.seed || Date.now();
 
   resetEventIds();
+  const rng = new SeededRNG(seed + 9000);
 
-  // Step 1: Terrain
+  // ── Step 1: Terrain ────────────────────────────────────────────────────
   const map = generateTerrain(seed, config.mapSize);
 
-  // Step 2: Factions + territory + settlements
+  // ── Step 2: Factions + territory + settlements ─────────────────────────
   const { factions, relationships, settlements } =
     generateFactions(map, config.numFactions, seed);
 
-  // Step 3: NPCs
-  const npcs = generateNPCs(
-    settlements,
-    factions,
-    config.npcsPerSettlement,
-    map,
-    seed,
-  );
+  // ── Step 3: Historical figures — one ruler per faction ─────────────────
+  const historicalFigures = spawnRulers(factions, seed, rng);
 
-  // Step 4: Items — avoid placing on NPC tiles
+  // Assign rulers to their factions
+  for (const hf of historicalFigures) {
+    const faction = factions.find(f => f.id === hf.factionId);
+    if (faction) faction.leaderId = hf.id;
+  }
+
+  // ── Step 4: NPCs + items ───────────────────────────────────────────────
+  const npcs = generateNPCs(settlements, factions, config.npcsPerSettlement, map, seed);
   const npcPositions = npcs.map(n => n.position);
   const items = generateItems(settlements, map, npcPositions, seed);
 
-  // Step 5: Pre-history events
-  const factionIds = factions.map(f => f.id);
-  const events = generatePreHistory(factionIds, config.pregenYears, seed);
-
-  // Assign known events to NPCs (each NPC knows 2-3 random events)
-  assignKnowledgeToNPCs(npcs, events, seed);
-
-  // Step 6: Player — start at center of map, find nearest walkable tile
+  // ── Step 5: Pre-history simulation ────────────────────────────────────
+  // Build an initial world stub and run the real tick engine.
+  // currentYear starts at 0; simulation advances it to pregenYears.
   const startPos = findPlayerStart(map, config.mapSize);
   const player = createPlayer(startPos);
 
-  return {
+  const worldStub: WorldState = {
     seed,
-    currentYear: config.pregenYears,
+    currentYear: 0,
     map,
     factions,
     relationships,
+    historicalFigures,
     settlements,
     npcs,
     items,
-    events,
+    events: [],
     player,
   };
+
+  // Run the pre-history simulation — this is what makes history real.
+  // Events are world-state-driven, not templates.
+  runSimulation(worldStub, config.pregenYears);
+  // worldStub.currentYear is now pregenYears; worldStub.events has history.
+
+  // ── Step 6: Assign NPC knowledge from pre-history ──────────────────────
+  assignKnowledgeToNPCs(npcs, worldStub.events, seed);
+
+  return worldStub;
 }
 
+// ─── Historical Figure Generation ────────────────────────────────────────
+
+/** Spawn one ruler per faction. Rulers' personality values modulate war. */
+function spawnRulers(factions: Faction[], _seed: number, rng: SeededRNG): HistoricalFigure[] {
+  const usedNames = new Set<string>();
+
+  return factions.map(faction => {
+    let name = NPC_NAMES[rng.nextInt(NPC_NAMES.length)];
+    // Avoid name collisions
+    let attempts = 0;
+    while (usedNames.has(name) && attempts < 20) {
+      name = NPC_NAMES[rng.nextInt(NPC_NAMES.length)];
+      attempts++;
+    }
+    usedNames.add(name);
+
+    return {
+      id:        `ruler_${faction.id}`,
+      name:      `${name} of ${faction.name}`,
+      factionId: faction.id,
+      role:      'ruler' as const,
+      values: {
+        ambition:   rng.nextInt(101) - 50,  // -50 to +50
+        loyalty:    rng.nextInt(101) - 50,
+        compassion: rng.nextInt(101) - 50,
+        cunning:    rng.nextInt(101) - 50,
+      },
+      bornYear: -(rng.nextInt(30) + 20), // 20-50 years before world start
+      diedYear: null,
+    };
+  });
+}
+
+// ─── Spatial Helpers ──────────────────────────────────────────────────────
+
 /** Find a walkable starting position near the center of the map. */
-function findPlayerStart(map: { width: number; height: number; tiles: { walkable: boolean }[][] }, mapSize: number): Position {
+function findPlayerStart(
+  map: { width: number; height: number; tiles: { walkable: boolean }[][] },
+  mapSize: number,
+): Position {
   const center = Math.floor(mapSize / 2);
 
-  // Spiral out from center to find walkable tile
   for (let radius = 0; radius < mapSize; radius++) {
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
@@ -78,18 +138,23 @@ function findPlayerStart(map: { width: number; height: number; tiles: { walkable
   return { x: center, y: center }; // fallback
 }
 
-/** Give each NPC knowledge of 2-3 random historical events. */
+/** Give each NPC knowledge of 2-4 random historical events. */
 function assignKnowledgeToNPCs(
   npcs: { knownEvents: string[] }[],
   events: { id: string }[],
   _seed: number,
 ): void {
-  // Simple deterministic assignment — not using SeededRNG to avoid circular import complexity
+  if (events.length === 0) return;
+
+  // Deterministic assignment — not using SeededRNG to avoid circular import
   for (let i = 0; i < npcs.length; i++) {
-    const count = 2 + (i % 2); // alternating 2 and 3
-    for (let j = 0; j < count && j < events.length; j++) {
-      const eventIndex = (i * 3 + j) % events.length;
-      npcs[i].knownEvents.push(events[eventIndex].id);
+    const count = 2 + (i % 3); // 2, 3, or 4 events per NPC
+    for (let j = 0; j < count; j++) {
+      const eventIndex = (i * 7 + j * 3) % events.length;
+      const eventId = events[eventIndex].id;
+      if (!npcs[i].knownEvents.includes(eventId)) {
+        npcs[i].knownEvents.push(eventId);
+      }
     }
   }
 }

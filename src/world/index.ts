@@ -7,6 +7,5 @@ export { generateNPCs, createPlayer, generateItems } from './entities.ts';
 export {
   createEvent,
   buildCausalChains,
-  generatePreHistory,
   resetEventIds,
 } from './events.ts';

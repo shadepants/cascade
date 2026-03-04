@@ -1,143 +1,390 @@
-// ─── Simplified Tick Loop (3-Phase) ─────────────────────────────────────
-// Runs the time-jump simulation. Takes the current world state and advances
-// it by N years. Mutates the world state in place for POC simplicity.
+﻿// ─── 5-Phase Simulation Tick ─────────────────────────────────────────────
+// Advances world state by N years. Each year runs 5 phases:
 //
-// Three phases per tick:
-//   1. Diplomacy — faction relationships shift based on events
-//   2. Conflict  — if aggression > threshold, war breaks out
-//   3. Events    — cascade player actions forward, generate new events
+//   1. ECOLOGY   — biome-driven population growth, famine
+//   2. ECONOMICS — wealth from territory, trade, military upkeep
+//   3. POLITICS  — structural animosity accumulation, alliances
+//   4. CONFLICT  — ethics divergence → war → geographic territory transfer
+//   5. CASCADE   — player-caused state changes → derived consequences
+//
+// DF design principles applied:
+//   - Events are derived from state changes, not random template selection
+//   - Every event carries statDeltas (what actually changed)
+//   - Attribution is a forward-causal chain: root → children
+//   - War requires geographic adjacency; territory transfer follows borders
+//   - Post-hoc motivation rationalization: event fires, then reason attached
+//
+// External contract (unchanged): runSimulation(world, jumpYears) → GameEvent[]
 
 import type {
-  WorldState, GameEvent,
+  WorldState, GameEvent, Faction,
+  StatDelta, FactionStatKey, GameMap, Position,
 } from '../types.ts';
 import { createEvent } from '../world/events.ts';
+import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
 
-const WAR_THRESHOLD = 60;    // aggression + negative opinion triggers conflict
-const CASCADE_MIN_SIGNIFICANCE = 3; // only propagate events above this
+// ─── Thresholds ──────────────────────────────────────────────────────────
 
-/** Run the time-jump simulation. Returns new events generated. */
-export function runSimulation(
-  world: WorldState,
-  jumpYears: number,
-): GameEvent[] {
-  const rng = new SeededRNG(world.seed + world.currentYear);
-  const newEvents: GameEvent[] = [];
+const WAR_ANIMOSITY_THRESHOLD = 80;    // animosity needed to declare war
+const FAMINE_DESERT_THRESHOLD  = 0.55; // fraction of territory that's harsh
+const FAMINE_POPULATION_MIN    = 300;  // must have enough people to suffer
+const REBELLION_STABILITY_MIN  = 20;   // below this → rebellion risk
+const ALLIANCE_OPINION_MIN     = 55;   // opinion needed to form alliance
+const CASCADE_SIGNIFICANCE_MIN = 3;    // only propagate events above this
 
-  for (let year = 0; year < jumpYears; year++) {
-    const currentYear = world.currentYear + year + 1;
-    const tick = currentYear;
+// ─── Biome pressure modifiers (applied per tile, normalized by territory) ─
 
-    // Phase 1: Diplomacy
-    const diplomacyEvents = phaseDiplomacy(world, tick, currentYear, rng);
-    newEvents.push(...diplomacyEvents);
+const BIOME_POP_DELTA: Record<string, number> = {
+  plains: 2, forest: 0.5, mountain: -1, desert: -2, tundra: -2, water: 0,
+};
+const BIOME_WEALTH_DELTA: Record<string, number> = {
+  plains: 1, forest: 2, mountain: 0.5, desert: -1, tundra: -1, water: 0,
+};
 
-    // Phase 2: Conflict
-    const conflictEvents = phaseConflict(world, tick, currentYear, rng);
-    newEvents.push(...conflictEvents);
+// ─── Post-hoc motivation library ─────────────────────────────────────────
+// Caves of Qud pattern: generate event from state, then attach best-matching
+// reason. Text system is separate from simulation logic.
 
-    // Phase 3: Cascade propagation
-    const cascadeEvents = phaseCascade(world, newEvents, tick, currentYear, rng);
-    newEvents.push(...cascadeEvents);
-  }
+const MOTIVATIONS: Record<string, string[]> = {
+  famine:           ['as drought consumed their lands', 'as harvests failed for the third season', 'as their territory could no longer sustain the growing populace'],
+  trade_boom:       ['as merchants found new routes through the borderlands', 'as peacetime opened old trading paths', 'as their surplus drew buyers from afar'],
+  alliance_formed:  ['bound by mutual fear of a common enemy', 'as shared hardship forged unexpected bonds', 'as their leaders found more to gain together than apart'],
+  war_declared:     ['driven by long-festering territorial grievances', 'as their ruler\'s ambition outweighed caution', 'responding to cultural insults that could no longer be ignored', 'as border skirmishes finally ignited into open war'],
+  conquered:        ['breaking the defenders\' resistance at the frontier', 'exploiting a moment of political weakness', 'as superior numbers overwhelmed the garrison'],
+  peace_tribute:    ['as the defeated had nothing left to offer but compliance', 'as the victor demanded recompense for the costs of war'],
+  peace_treaty:     ['as both sides counted their dead and found the price too high', 'exhausted and depleted, they sought terms'],
+  rebellion:        ['as the people could no longer bear the weight of instability', 'as neglected grievances turned to open defiance', 'sparked by a moment of weakness at the center of power'],
+  cultural_spread:  ['as their way of life proved attractive to neighboring peoples', 'carried by traders, travelers, and refugees into foreign lands'],
+  population_boom:  ['as peaceful years and fertile land bore fruit', 'as prosperity drew settlers from distant regions'],
+};
 
-  // Add all new events to world
-  world.events.push(...newEvents);
-  world.currentYear += jumpYears;
-
-  return newEvents;
+function pickMotivation(key: string, rng: SeededRNG): string {
+  const pool = MOTIVATIONS[key] ?? ['for reasons lost to history'];
+  return pool[rng.nextInt(pool.length)];
 }
 
-/** Phase 1: Shift faction relationships based on proximity and events. */
-function phaseDiplomacy(
-  world: WorldState,
-  tick: number,
-  year: number,
-  rng: SeededRNG,
-): GameEvent[] {
+// ─── Main Entry Point ────────────────────────────────────────────────────
+
+/** Run simulation for jumpYears. Mutates world in place. Returns new events. */
+export function runSimulation(world: WorldState, jumpYears: number): GameEvent[] {
+  const rng = new SeededRNG(world.seed + world.currentYear);
+  const allNewEvents: GameEvent[] = [];
+
+  for (let i = 0; i < jumpYears; i++) {
+    const year = world.currentYear + i + 1;
+
+    const eco  = phaseEcology(world, year, rng);
+    const econ = phaseEconomics(world, year, rng, eco);
+    const pol  = phasePolitics(world, year, rng, [...eco, ...econ]);
+    const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...pol]);
+    const cas  = phaseCascade(world, [...eco, ...econ, ...pol, ...con], year, rng);
+
+    const yearEvents = [...eco, ...econ, ...pol, ...con, ...cas];
+
+    // Apply stat deltas from all events this year
+    for (const event of yearEvents) {
+      applyStatDeltas(world, event.statDeltas);
+    }
+
+    world.events.push(...yearEvents);
+    allNewEvents.push(...yearEvents);
+  }
+
+  world.currentYear += jumpYears;
+  return allNewEvents;
+}
+
+
+// ─── Typed Stat Accessors ─────────────────────────────────────────────────
+// Avoids unsafe Record<string,number> casts for dynamic stat access.
+
+function getFactionStat(faction: Faction, stat: FactionStatKey): number {
+  switch (stat) {
+    case 'population': return faction.population;
+    case 'stability':  return faction.stability;
+    case 'wealth':     return faction.wealth;
+    case 'military':   return faction.military;
+    case 'culture':    return faction.culture;
+  }
+}
+
+function setFactionStat(faction: Faction, stat: FactionStatKey, value: number): void {
+  switch (stat) {
+    case 'population': faction.population = value; break;
+    case 'stability':  faction.stability  = value; break;
+    case 'wealth':     faction.wealth     = value; break;
+    case 'military':   faction.military   = value; break;
+    case 'culture':    faction.culture    = value; break;
+  }
+}
+/** Apply a list of stat deltas to faction stats, clamped to valid ranges. */
+function applyStatDeltas(world: WorldState, deltas: StatDelta[]): void {
+  for (const delta of deltas) {
+    const faction = world.factions.find(f => f.id === delta.factionId);
+    if (!faction) continue;
+    const ranges: Record<string, [number, number]> = {
+      population: [0, 1000], stability: [0, 100],
+      wealth: [0, 100], military: [0, 100], culture: [0, 100],
+    };
+    const [min, max] = ranges[delta.stat] ?? [0, 100];
+    setFactionStat(faction, delta.stat, Math.max(min, Math.min(max, getFactionStat(faction, delta.stat) + delta.delta)));
+  }
+}
+
+// ─── Phase 1: Ecology ────────────────────────────────────────────────────
+// Biome composition of each faction's territory drives population change.
+// Famine fires when too much territory is harsh AND population is high.
+
+function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
-  for (const rel of world.relationships) {
-    // Random drift
-    const drift = rng.nextInt(11) - 5; // -5 to +5
-    rel.opinion = Math.max(-100, Math.min(100, rel.opinion + drift));
+  for (const faction of world.factions) {
+    const tiles = getTilesForFaction(world.map, faction.id);
+    if (tiles.length === 0) continue;
 
-    // Significant shift generates an event
-    if (Math.abs(drift) >= 4) {
+    // Compute biome pressure from territory composition
+    let popDelta = 0;
+    let wealthDelta = 0;
+    let harshCount = 0;
+
+    for (const tile of tiles) {
+      popDelta    += (BIOME_POP_DELTA[tile.biome]    ?? 0) / tiles.length;
+      wealthDelta += (BIOME_WEALTH_DELTA[tile.biome] ?? 0) / tiles.length;
+      if (tile.biome === 'desert' || tile.biome === 'tundra') harshCount++;
+    }
+
+    const harshFraction = harshCount / tiles.length;
+
+    // Population growth/decline (scaled by current population)
+    const rawPopChange = Math.round(popDelta * (faction.population / 200));
+    if (rawPopChange !== 0) {
+      faction.population = Math.max(0, Math.min(1000, faction.population + rawPopChange));
+    }
+
+    // Famine: harsh territory + large population = food crisis
+    if (harshFraction > FAMINE_DESERT_THRESHOLD &&
+        faction.population > FAMINE_POPULATION_MIN &&
+        rng.nextFloat() < 0.35) {
+
+      const deltas: StatDelta[] = [
+        { factionId: faction.id, stat: 'population', delta: -80 },
+        { factionId: faction.id, stat: 'stability',  delta: -15 },
+        { factionId: faction.id, stat: 'wealth',     delta: -10 },
+      ];
       events.push(createEvent({
-        tick,
-        year,
-        subject: rel.factionA,
-        action: drift > 0 ? 'improved_relations' : 'worsened_relations',
-        object: rel.factionB,
+        tick: year, year,
+        subject: faction.id,
+        action:  'suffered_famine',
+        object:  'wilderness',
+        causedBy: null,
+        significance: 5,
+        playerCaused: false,
+        description: `${faction.name} suffered a devastating famine`,
+        motivation: pickMotivation('famine', rng),
+        statDeltas: deltas,
+      }));
+    }
+
+    // Population boom: good territory + low population (room to grow)
+    if (popDelta > 1.2 && faction.population < 400 && rng.nextFloat() < 0.25) {
+      const deltas: StatDelta[] = [
+        { factionId: faction.id, stat: 'population', delta: 60 },
+        { factionId: faction.id, stat: 'stability',  delta: 5 },
+      ];
+      events.push(createEvent({
+        tick: year, year,
+        subject: faction.id,
+        action:  'population_growth',
+        object:  'wilderness',
         causedBy: null,
         significance: 2,
         playerCaused: false,
-        description: `Relations between ${rel.factionA} and ${rel.factionB} ${drift > 0 ? 'improved' : 'deteriorated'}`,
+        description: `${faction.name} experienced a period of population growth`,
+        motivation: pickMotivation('population_boom', rng),
+        statDeltas: deltas,
       }));
+    }
+
+    // Apply small annual wealth drift from biome (separate from events)
+    const smallWealthChange = Math.round(wealthDelta * 2);
+    if (smallWealthChange !== 0) {
+      faction.wealth = Math.max(0, Math.min(100, faction.wealth + smallWealthChange));
     }
   }
 
   return events;
 }
 
-/** Phase 2: Check for war when aggression + negative opinion exceed threshold. */
-function phaseConflict(
-  world: WorldState,
-  tick: number,
-  year: number,
-  rng: SeededRNG,
+// ─── Phase 2: Economics ──────────────────────────────────────────────────
+// Trade between peaceful neighbors. Military upkeep drains wealth.
+// Cultural drift grows when stable and wealthy.
+
+function phaseEconomics(
+  world: WorldState, year: number, rng: SeededRNG, _priorEvents: GameEvent[],
+): GameEvent[] {
+  const events: GameEvent[] = [];
+
+  // Military upkeep: maintaining armies costs wealth
+  for (const faction of world.factions) {
+    const upkeep = Math.round(faction.military * 0.08);
+    faction.wealth = Math.max(0, faction.wealth - upkeep);
+
+    // Culture grows slowly in stable, wealthy factions
+    if (faction.stability > 60 && faction.wealth > 40) {
+      faction.culture = Math.min(100, faction.culture + 1);
+    }
+  }
+
+  // Trade between peaceful/allied factions with high opinion
+  for (const rel of world.relationships) {
+    if (rel.state !== 'peace' && rel.state !== 'alliance') continue;
+    if (rel.opinion < 30) continue;
+    if (rng.nextFloat() > 0.3) continue; // 30% chance per year
+
+    const fA = world.factions.find(f => f.id === rel.factionA);
+    const fB = world.factions.find(f => f.id === rel.factionB);
+    if (!fA || !fB) continue;
+
+    const tradeValue = Math.max(0, Math.round(
+      (fA.ethics.trade === 'embraced' ? 8 : fA.ethics.trade === 'neutral' ? 4 : 1) +
+      (fB.ethics.trade === 'embraced' ? 8 : fB.ethics.trade === 'neutral' ? 4 : 1),
+    ) / 2);
+
+    if (tradeValue < 2) continue;
+
+    const deltas: StatDelta[] = [
+      { factionId: fA.id, stat: 'wealth', delta: tradeValue },
+      { factionId: fB.id, stat: 'wealth', delta: tradeValue },
+    ];
+    events.push(createEvent({
+      tick: year, year,
+      subject: fA.id,
+      action:  'trade_agreement',
+      object:  fB.id,
+      causedBy: null,
+      significance: 2,
+      playerCaused: false,
+      description: `${fA.name} and ${fB.name} engaged in prosperous trade`,
+      motivation: pickMotivation('trade_boom', rng),
+      statDeltas: deltas,
+    }));
+
+    rel.opinion = Math.min(100, rel.opinion + 3);
+  }
+
+  return events;
+}
+
+// ─── Phase 3: Politics ───────────────────────────────────────────────────
+// Structural animosity: border pressure + ethics divergence.
+// Alliance formation when opinion is high and mutual interest exists.
+// War-state decay (wars eventually exhaust both sides).
+
+function phasePolitics(
+  world: WorldState, year: number, rng: SeededRNG, _priorEvents: GameEvent[],
 ): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const rel of world.relationships) {
-    const factionA = world.factions.find(f => f.id === rel.factionA);
-    const factionB = world.factions.find(f => f.id === rel.factionB);
-    if (!factionA || !factionB) continue;
+    const fA = world.factions.find(f => f.id === rel.factionA);
+    const fB = world.factions.find(f => f.id === rel.factionB);
+    if (!fA || !fB) continue;
 
-    const warScore = Math.max(factionA.aggression, factionB.aggression) + Math.abs(Math.min(0, rel.opinion));
+    // ── Animosity accumulation ───────────────────────────────────────────
+    // Border pressure: factions sharing territory naturally build tension
+    const sharedBorderTiles = countSharedBorderTiles(world.map, fA.id, fB.id);
+    const borderPressure = sharedBorderTiles * 0.2;
 
-    if (warScore > WAR_THRESHOLD && rng.nextFloat() < 0.15) {
-      // War! Determine winner by aggression + randomness
-      const aStrength = factionA.aggression + rng.nextInt(30);
-      const bStrength = factionB.aggression + rng.nextInt(30);
-      const winner = aStrength >= bStrength ? factionA : factionB;
-      const loser = winner === factionA ? factionB : factionA;
+    // Ethics divergence: structural incompatibility
+    const ethicsDelta = computeEthicsDivergence(fA.ethics, fB.ethics) * 0.5;
+
+    // Population pressure: large populations push outward
+    const popPressureA = fA.population > 600 ? 1.5 : fA.population > 400 ? 0.5 : 0;
+    const popPressureB = fB.population > 600 ? 1.5 : fB.population > 400 ? 0.5 : 0;
+
+    if (rel.state !== 'war') {
+      rel.animosity = Math.max(0, Math.min(200,
+        rel.animosity + borderPressure + ethicsDelta + popPressureA + popPressureB,
+      ));
+    }
+
+    // Opinion drift toward center (forgetting)
+    rel.opinion = Math.round(rel.opinion * 0.96);
+
+    // ── Alliance formation ────────────────────────────────────────────────
+    if (rel.state === 'peace' &&
+        rel.opinion >= ALLIANCE_OPINION_MIN &&
+        rel.animosity < 30 &&
+        rng.nextFloat() < 0.2) {
+      rel.state = 'alliance';
+      rel.opinion = Math.min(100, rel.opinion + 10);
+      rel.animosity = Math.max(0, rel.animosity - 15);
 
       events.push(createEvent({
-        tick,
-        year,
-        subject: winner.id,
-        action: 'conquered',
-        object: loser.id,
+        tick: year, year,
+        subject: fA.id,
+        action:  'alliance_formed',
+        object:  fB.id,
         causedBy: null,
-        significance: 7,
+        significance: 4,
         playerCaused: false,
-        description: `${winner.name} conquered territory from ${loser.name}`,
+        description: `${fA.name} and ${fB.name} formed a formal alliance`,
+        motivation: pickMotivation('alliance_formed', rng),
+        statDeltas: [
+          { factionId: fA.id, stat: 'stability', delta: 5 },
+          { factionId: fB.id, stat: 'stability', delta: 5 },
+        ],
       }));
+    }
 
-      // Shift territory (simplified: reduce loser aggression)
-      loser.aggression = Math.max(10, loser.aggression - 15);
-      rel.opinion = -80; // deep hostility after war
+    // ── War exhaustion → peace ────────────────────────────────────────────
+    if (rel.state === 'war') {
+      rel.animosity = Math.max(0, rel.animosity - 8); // war burns animosity
+      rel.opinion -= 3; // but deepens hatred
 
-      // Actually transfer territory on the map
-      const TILES_TO_TRANSFER_PERCENT = 0.2; // 20% of territory
-      const loserTiles: {x: number, y: number}[] = [];
-      for (let y = 0; y < world.map.height; y++) {
-        for (let x = 0; x < world.map.width; x++) {
-          if (world.map.tiles[y][x].factionId === loser.id) {
-            loserTiles.push({x, y});
-          }
+      const warExhausted = fA.military < 15 || fB.military < 15 ||
+        (fA.stability < 25 && fB.stability < 25);
+      const peaceProbability = warExhausted ? 0.5 : 0.12;
+
+      if (rng.nextFloat() < peaceProbability) {
+        const tributePaid = (fA.military < fB.military * 0.5) ||
+                            (fB.military < fA.military * 0.5);
+        rel.state = tributePaid ? 'tribute' : 'peace';
+        rel.animosity = Math.max(0, rel.animosity - 20);
+
+        const [loser, winner] = fA.military < fB.military ? [fA, fB] : [fB, fA];
+
+        if (tributePaid) {
+          events.push(createEvent({
+            tick: year, year,
+            subject: winner.id,
+            action:  'peace_tribute',
+            object:  loser.id,
+            causedBy: null,
+            significance: 4,
+            playerCaused: false,
+            description: `${loser.name} submitted to ${winner.name} and agreed to pay tribute`,
+            motivation: pickMotivation('peace_tribute', rng),
+            statDeltas: [
+              { factionId: loser.id,   stat: 'stability', delta: -10 },
+              { factionId: winner.id,  stat: 'wealth',    delta: 10 },
+            ],
+          }));
+        } else {
+          events.push(createEvent({
+            tick: year, year,
+            subject: fA.id,
+            action:  'peace_treaty',
+            object:  fB.id,
+            causedBy: null,
+            significance: 3,
+            playerCaused: false,
+            description: `${fA.name} and ${fB.name} negotiated an uneasy peace`,
+            motivation: pickMotivation('peace_treaty', rng),
+            statDeltas: [],
+          }));
         }
-      }
-
-      const tilesToTransferCount = Math.floor(loserTiles.length * TILES_TO_TRANSFER_PERCENT);
-      for (let i = 0; i < tilesToTransferCount; i++) {
-        if (loserTiles.length === 0) break;
-        const tileIndex = rng.nextInt(loserTiles.length);
-        const tileCoords = loserTiles[tileIndex];
-        world.map.tiles[tileCoords.y][tileCoords.x].factionId = winner.id;
-        loserTiles.splice(tileIndex, 1);
       }
     }
   }
@@ -145,62 +392,347 @@ function phaseConflict(
   return events;
 }
 
-/** Phase 3: Propagate player-caused events forward via cascade rules. */
+// ─── Phase 4: Conflict ───────────────────────────────────────────────────
+// War declaration: animosity × aggression × ruler ambition vs threshold.
+// Territory transfer is geographic (border tiles), not random.
+
+function phaseConflict(
+  world: WorldState, year: number, rng: SeededRNG, _priorEvents: GameEvent[],
+): GameEvent[] {
+  const events: GameEvent[] = [];
+
+  for (const rel of world.relationships) {
+    if (rel.state === 'war') continue; // already at war
+
+    const fA = world.factions.find(f => f.id === rel.factionA);
+    const fB = world.factions.find(f => f.id === rel.factionB);
+    if (!fA || !fB) continue;
+
+    // ── War declaration check ─────────────────────────────────────────────
+    // Leader ambition modifies the effective threshold
+    const leaderA = world.historicalFigures.find(hf => hf.id === fA.leaderId);
+    const leaderB = world.historicalFigures.find(hf => hf.id === fB.leaderId);
+    const ambiA = leaderA?.values.ambition ?? 0;
+    const ambiB = leaderB?.values.ambition ?? 0;
+
+    // High aggression + high animosity + ambitious leader → lower threshold
+    const warScoreA = rel.animosity * (1 + fA.aggression / 100) * (1 + ambiA / 100);
+    const warScoreB = rel.animosity * (1 + fB.aggression / 100) * (1 + ambiB / 100);
+    const warScore  = Math.max(warScoreA, warScoreB);
+
+    // Ethics check: expansion-embracing factions more likely to start wars
+    const expansionMultiplier =
+      (fA.ethics.expansion === 'embraced' || fB.ethics.expansion === 'embraced') ? 1.3 : 1.0;
+
+    if (warScore * expansionMultiplier < WAR_ANIMOSITY_THRESHOLD) continue;
+    if (rng.nextFloat() > 0.25) continue; // 25% chance even when threshold met
+
+    // ── War declaration ───────────────────────────────────────────────────
+    const attacker = warScoreA >= warScoreB ? fA : fB;
+    const defender = attacker === fA ? fB : fA;
+
+    rel.state = 'war';
+    rel.opinion = Math.min(rel.opinion, -40);
+
+    events.push(createEvent({
+      tick: year, year,
+      subject: attacker.id,
+      action:  'declared_war',
+      object:  defender.id,
+      causedBy: null,
+      significance: 6,
+      playerCaused: false,
+      description: `${attacker.name} declared war on ${defender.name}`,
+      motivation: pickMotivation('war_declared', rng),
+      statDeltas: [],
+    }));
+
+    // ── Battle resolution ─────────────────────────────────────────────────
+    const atkStrength = attacker.military + rng.nextInt(25);
+    const defStrength = defender.military + rng.nextInt(25) + 10; // defender bonus
+    const attackerWins = atkStrength > defStrength;
+
+    const winner = attackerWins ? attacker : defender;
+    const loser  = attackerWins ? defender : attacker;
+
+    // Territory transfer: geographic border tiles
+    const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
+    const transferCount = Math.max(1, Math.floor(borderTiles.length * 0.3));
+    const transferred = borderTiles.slice(0, transferCount);
+
+    for (const pos of transferred) {
+      world.map.tiles[pos.y][pos.x].factionId = winner.id;
+    }
+
+    // Both sides pay military cost; loser pays more
+    const winnerMilDelta  = -Math.round(winner.military * 0.15);
+    const loserMilDelta   = -Math.round(loser.military  * 0.30);
+    const loserPopDelta   = -Math.round(loser.population * 0.08);
+    const loserStabDelta  = -20;
+    const winnerWealthDelta = Math.round(loser.wealth * 0.15);
+
+    const deltas: StatDelta[] = [
+      { factionId: winner.id, stat: 'military',   delta: winnerMilDelta },
+      { factionId: winner.id, stat: 'wealth',     delta: winnerWealthDelta },
+      { factionId: loser.id,  stat: 'military',   delta: loserMilDelta },
+      { factionId: loser.id,  stat: 'population', delta: loserPopDelta },
+      { factionId: loser.id,  stat: 'stability',  delta: loserStabDelta },
+    ];
+
+    events.push(createEvent({
+      tick: year, year,
+      subject: winner.id,
+      action:  'conquered',
+      object:  loser.id,
+      causedBy: null,
+      significance: 7,
+      playerCaused: false,
+      description: `${winner.name} defeated ${loser.name} in battle and seized border territory`,
+      motivation: pickMotivation('conquered', rng),
+      statDeltas: deltas,
+    }));
+  }
+
+  return events;
+}
+
+// ─── Phase 5: Cascade ────────────────────────────────────────────────────
+// Player-caused events mutate faction stats via statDeltas.
+// Downstream consequences are DERIVED from actual state crossings,
+// not picked from a random template list.
+
 function phaseCascade(
   world: WorldState,
   recentEvents: GameEvent[],
-  tick: number,
   year: number,
   rng: SeededRNG,
 ): GameEvent[] {
   const cascadeEvents: GameEvent[] = [];
 
-  // Find significant player-caused events that haven't been cascaded yet
+  // Look at all player-caused events (historical + this jump)
   const playerEvents = [...world.events, ...recentEvents].filter(
-    e => e.playerCaused && e.significance >= CASCADE_MIN_SIGNIFICANCE,
+    e => e.playerCaused && e.significance >= CASCADE_SIGNIFICANCE_MIN,
   );
 
-  for (const event of playerEvents) {
-    // Each significant event has a chance to spawn a consequence
-    if (rng.nextFloat() > 0.3) continue; // 30% chance per year
+  for (const trigger of playerEvents) {
+    if (rng.nextFloat() > 0.4) continue; // 40% chance per year per qualifying event
 
-    const consequence = generateConsequence(event, world, tick, year, rng);
-    if (consequence) {
-      cascadeEvents.push(consequence);
+    // Derive consequences from the state changes this event caused
+    for (const delta of trigger.statDeltas) {
+      const faction = world.factions.find(f => f.id === delta.factionId);
+      if (!faction) continue;
+
+      const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
+      if (consequence) cascadeEvents.push(consequence);
     }
+  }
+
+  // Also check for threshold crossings independent of specific deltas
+  for (const faction of world.factions) {
+    const spontaneous = checkThresholdEvents(faction, year, rng, playerEvents);
+    cascadeEvents.push(...spontaneous);
   }
 
   return cascadeEvents;
 }
 
-/** Generate a downstream consequence of a player-caused event. */
-function generateConsequence(
+/** Derive a consequence from a stat change crossing a meaningful threshold. */
+function deriveConsequence(
+  faction: Faction,
+  delta: StatDelta,
   parentEvent: GameEvent,
   world: WorldState,
-  tick: number,
   year: number,
   rng: SeededRNG,
 ): GameEvent | null {
-  const templates = [
-    { action: 'sparked_rebellion', desc: 'sparked a rebellion' },
-    { action: 'caused_migration', desc: 'caused a wave of refugees' },
-    { action: 'inspired_alliance', desc: 'inspired an unexpected alliance' },
-    { action: 'triggered_famine', desc: 'triggered economic collapse and famine' },
-    { action: 'elevated_leader', desc: 'elevated a new faction leader' },
-  ];
 
-  const template = templates[rng.nextInt(templates.length)];
-  const targetFaction = world.factions[rng.nextInt(world.factions.length)];
+  const stat = delta.stat;
+  const newValue = getFactionStat(faction, stat);
 
-  return createEvent({
-    tick,
-    year,
-    subject: parentEvent.object,
-    action: template.action,
-    object: targetFaction.id,
-    causedBy: parentEvent.id,
-    significance: Math.max(1, parentEvent.significance - 1),
-    playerCaused: true, // downstream of player action
-    description: `The aftermath of "${parentEvent.description}" ${template.desc} in ${targetFaction.name}`,
-  });
+  // Stability crossed below rebellion threshold
+  if (stat === 'stability' && delta.delta < 0 && newValue < REBELLION_STABILITY_MIN) {
+    const deltas: StatDelta[] = [
+      { factionId: faction.id, stat: 'stability',  delta: -10 },
+      { factionId: faction.id, stat: 'military',   delta: -8 },
+      { factionId: faction.id, stat: 'population', delta: -30 },
+    ];
+    return createEvent({
+      tick: year, year,
+      subject: faction.id,
+      action:  'internal_rebellion',
+      object:  faction.id,
+      causedBy: parentEvent.id,
+      significance: Math.max(1, parentEvent.significance - 1),
+      playerCaused: true,
+      description: `Instability within ${faction.name} erupted into open rebellion`,
+      motivation: pickMotivation('rebellion', rng),
+      statDeltas: deltas,
+    });
+  }
+
+  // Culture crossed a spread threshold
+  if (stat === 'culture' && delta.delta > 0 && newValue > 65 && rng.nextFloat() < 0.4) {
+    // Find a neighboring faction to receive cultural pressure
+    const neighbors = getNeighboringFactions(world, faction.id);
+    if (neighbors.length === 0) return null;
+    const target = neighbors[rng.nextInt(neighbors.length)];
+
+    const deltas: StatDelta[] = [
+      { factionId: faction.id, stat: 'culture',   delta: 5 },
+      { factionId: target.id,  stat: 'stability', delta: -5 }, // cultural disruption
+    ];
+    return createEvent({
+      tick: year, year,
+      subject: faction.id,
+      action:  'cultural_spread',
+      object:  target.id,
+      causedBy: parentEvent.id,
+      significance: Math.max(1, parentEvent.significance - 1),
+      playerCaused: true,
+      description: `The influence of ${faction.name} spread into ${target.name}'s territory`,
+      motivation: pickMotivation('cultural_spread', rng),
+      statDeltas: deltas,
+    });
+  }
+
+  // Military buildup crossing expansion threshold
+  if (stat === 'military' && delta.delta > 0 && newValue > 70) {
+    const rel = world.relationships.find(r =>
+      (r.factionA === faction.id || r.factionB === faction.id) &&
+      r.state !== 'war' && r.opinion < -20,
+    );
+    if (!rel) return null;
+
+    const targetId = rel.factionA === faction.id ? rel.factionB : rel.factionA;
+    const target = world.factions.find(f => f.id === targetId);
+    if (!target) return null;
+
+    rel.animosity = Math.min(200, rel.animosity + 20);
+
+    return createEvent({
+      tick: year, year,
+      subject: faction.id,
+      action:  'military_buildup',
+      object:  target.id,
+      causedBy: parentEvent.id,
+      significance: Math.max(1, parentEvent.significance - 1),
+      playerCaused: true,
+      description: `${faction.name}'s military buildup alarmed ${target.name}`,
+      motivation: 'as their growing armies cast long shadows over neighboring lands',
+      statDeltas: [{ factionId: target.id, stat: 'stability', delta: -5 }],
+    });
+  }
+
+  return null;
+}
+
+/** Check for threshold-crossing events that emerge independently of specific deltas. */
+function checkThresholdEvents(
+  faction: Faction,
+  year: number,
+  rng: SeededRNG,
+  playerEvents: GameEvent[],
+): GameEvent[] {
+  const events: GameEvent[] = [];
+
+  // Spontaneous rebellion if stability critically low AND there was a player-caused precursor
+  if (faction.stability < REBELLION_STABILITY_MIN &&
+      rng.nextFloat() < 0.35) {
+    const precursor = playerEvents.find(e =>
+      e.statDeltas.some(d => d.factionId === faction.id && d.stat === 'stability'),
+    );
+    if (precursor) {
+      const deltas: StatDelta[] = [
+        { factionId: faction.id, stat: 'stability',  delta: -8 },
+        { factionId: faction.id, stat: 'population', delta: -20 },
+      ];
+      events.push(createEvent({
+        tick: year, year,
+        subject: faction.id,
+        action:  'internal_rebellion',
+        object:  faction.id,
+        causedBy: precursor.id,
+        significance: 5,
+        playerCaused: true,
+        description: `${faction.name} tore itself apart in civil strife`,
+        motivation: pickMotivation('rebellion', rng),
+        statDeltas: deltas,
+      }));
+    }
+  }
+
+  return events;
+}
+
+// ─── Spatial Helpers ─────────────────────────────────────────────────────
+
+/** Get all tiles owned by a faction. */
+function getTilesForFaction(map: GameMap, factionId: string): { biome: string }[] {
+  const tiles: { biome: string }[] = [];
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.tiles[y][x].factionId === factionId) {
+        tiles.push(map.tiles[y][x]);
+      }
+    }
+  }
+  return tiles;
+}
+
+/** Get border tiles of loserFactionId that are adjacent to winnerFactionId tiles. */
+function getBorderTilesOf(map: GameMap, loserFactionId: string, winnerFactionId: string): Position[] {
+  const border: Position[] = [];
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.tiles[y][x].factionId !== loserFactionId) continue;
+
+      // Check if any orthogonal neighbor belongs to winner
+      const neighbors = [
+        { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
+      ];
+      const adjacentToWinner = neighbors.some(n =>
+        n.x >= 0 && n.y >= 0 && n.x < map.width && n.y < map.height &&
+        map.tiles[n.y][n.x].factionId === winnerFactionId,
+      );
+      if (adjacentToWinner) border.push({ x, y });
+    }
+  }
+  return border;
+}
+
+/** Count tiles where factions A and B share a border. */
+function countSharedBorderTiles(map: GameMap, factionAId: string, factionBId: string): number {
+  let count = 0;
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.tiles[y][x].factionId !== factionAId) continue;
+      const neighbors = [
+        { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
+      ];
+      if (neighbors.some(n =>
+        n.x >= 0 && n.y >= 0 && n.x < map.width && n.y < map.height &&
+        map.tiles[n.y][n.x].factionId === factionBId,
+      )) count++;
+    }
+  }
+  return count;
+}
+
+/** Get factions that share a border with the given faction. */
+function getNeighboringFactions(world: WorldState, factionId: string): Faction[] {
+  const neighborIds = new Set<string>();
+  for (let y = 0; y < world.map.height; y++) {
+    for (let x = 0; x < world.map.width; x++) {
+      if (world.map.tiles[y][x].factionId !== factionId) continue;
+      const neighbors = [
+        { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
+      ];
+      for (const n of neighbors) {
+        if (n.x < 0 || n.y < 0 || n.x >= world.map.width || n.y >= world.map.height) continue;
+        const nId = world.map.tiles[n.y][n.x].factionId;
+        if (nId && nId !== factionId) neighborIds.add(nId);
+      }
+    }
+  }
+  return world.factions.filter(f => neighborIds.has(f.id));
 }

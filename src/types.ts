@@ -1,4 +1,4 @@
-// ─── Cascade POC — Shared Type Definitions ─────────────────────────────
+// ─── Cascade — Shared Type Definitions ─────────────────────────────────
 // Single file for POC. Split into types/ directory when complexity warrants it.
 
 // ─── Geometry ───────────────────────────────────────────────────────────
@@ -33,20 +33,69 @@ export interface GameMap {
   tiles: Tile[][];      // tiles[y][x]
 }
 
+// ─── Faction Ethics ──────────────────────────────────────────────────────
+// Simplified DF ethics system: 5 categories, 3 stances each.
+// Divergence between faction ethics pairs accumulates animosity.
+
+export type EthicStance = 'embraced' | 'neutral' | 'shunned';
+
+export interface FactionEthics {
+  violence:  EthicStance;   // how they treat enemies
+  expansion: EthicStance;   // right to take territory
+  trade:     EthicStance;   // openness to commerce
+  tradition: EthicStance;   // respect for hierarchy / history
+  mercy:     EthicStance;   // treatment of defeated
+}
+
 // ─── Factions ───────────────────────────────────────────────────────────
 
 export interface Faction {
   id: string;
   name: string;
-  color: string;        // hex color for territory rendering
-  aggression: number;   // 0-100, drives conflict probability
+  color: string;          // hex color for territory rendering
+  aggression: number;     // 0-100, war-proneness (ruler personality modifier)
   settlements: string[];
+
+  // Simulation stats — pressure values that drive events
+  population:   number;   // 0-1000, grows/shrinks with territory quality
+  stability:    number;   // 0-100, internal cohesion; <20 = rebellion risk
+  wealth:       number;   // 0-100, economic power; feeds military upkeep
+  military:     number;   // 0-100, fighting strength
+  culture:      number;   // 0-100, cultural influence; spreads to neighbors
+
+  ethics:       FactionEthics;
+  leaderId:     string | null;  // HistoricalFigure ID of current ruler
 }
+
+// ─── Diplomacy ──────────────────────────────────────────────────────────
+
+export type DiplomaticState = 'peace' | 'war' | 'tribute' | 'alliance';
 
 export interface FactionRelationship {
   factionA: string;
   factionB: string;
-  opinion: number;      // -100 (hostile) to +100 (allied)
+  opinion:   number;          // -100 (hostile) to +100 (allied)
+  animosity: number;          // 0-200, accumulates via ethics divergence → war
+  state:     DiplomaticState;
+}
+
+// ─── Historical Figures ──────────────────────────────────────────────────
+// Two-tier population: fully-tracked rulers/generals + abstract pop counts.
+// Only figures that generate events need full simulation state.
+
+export interface HistoricalFigure {
+  id:       string;
+  name:     string;
+  factionId: string;
+  role:     'ruler' | 'general';
+  values: {
+    ambition:    number;   // -50 to +50, high = lower war threshold
+    loyalty:     number;   // -50 to +50
+    compassion:  number;   // -50 to +50, high = raises war threshold
+    cunning:     number;   // -50 to +50
+  };
+  bornYear:  number;
+  diedYear:  number | null;
 }
 
 // ─── Entities ───────────────────────────────────────────────────────────
@@ -94,12 +143,25 @@ export interface KnowledgeEntry {
   discoveredYear: number;
 }
 
+// ─── Stat Delta ─────────────────────────────────────────────────────────
+// Records what numerical changes an event caused. Enables mechanically-
+// derived cascade consequences instead of random template selection.
+
+export type FactionStatKey = 'population' | 'stability' | 'wealth' | 'military' | 'culture';
+
+export interface StatDelta {
+  factionId: string;
+  stat: FactionStatKey;
+  delta: number;
+}
+
 // ─── Events & Causal Graph ──────────────────────────────────────────────
 
 export interface GameEvent {
   id: string;
   tick: number;
   year: number;
+  secondsOffset: number;       // 0-11999, sub-year narrative texture (cheap)
   subject: string;             // who did it (entity or faction ID)
   action: string;              // what happened
   object: string;              // who/what was affected
@@ -107,6 +169,8 @@ export interface GameEvent {
   significance: number;        // 0-10, gates cascade propagation
   playerCaused: boolean;       // true if player action or downstream
   description: string;         // human-readable summary
+  motivation: string;          // post-hoc rationalization (Caves of Qud pattern)
+  statDeltas: StatDelta[];      // world state changes this event caused
 }
 
 export interface CausalChain {
@@ -141,6 +205,7 @@ export interface WorldState {
   map: GameMap;
   factions: Faction[];
   relationships: FactionRelationship[];
+  historicalFigures: HistoricalFigure[];
   settlements: Settlement[];
   npcs: NPC[];
   items: Item[];

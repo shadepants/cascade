@@ -1,13 +1,22 @@
 // ─── Event Log & Causal Graph ───────────────────────────────────────────
 // Manages the event history and builds causal chains for cascade scoring.
 // Events are SAO triples (Subject-Action-Object) with caused_by pointers.
+//
+// DF insight: attribution is a query over the event log, not a stored field.
+// Every event references actors by stable ID; narrative is reconstructed by
+// filtering, not by pre-computing "because" relationships.
 
-import type { GameEvent, CausalChain, CausalNode } from '../types.ts';
-import { SeededRNG } from '../utils/rng.ts';
+import type { GameEvent, CausalChain, CausalNode, StatDelta } from '../types.ts';
 
 let nextEventId = 0;
 
-/** Create a new event and return it. Does NOT add to any store — caller does that. */
+// Sub-year offsets give narrative texture without simulating every day.
+// Deterministic: same event always lands at same time-of-year.
+function secondsOffset(id: number): number {
+  return (id * 7919) % 12000; // prime scatter, 0-11999
+}
+
+/** Create a new event. Does NOT add to any store — caller does that. */
 export function createEvent(params: {
   tick: number;
   year: number;
@@ -18,58 +27,30 @@ export function createEvent(params: {
   significance: number;
   playerCaused: boolean;
   description: string;
+  motivation?: string;
+  statDeltas?: StatDelta[];
 }): GameEvent {
+  const id = nextEventId++;
   return {
-    id: `evt_${nextEventId++}`,
-    ...params,
+    id: `evt_${id}`,
+    tick: params.tick,
+    year: params.year,
+    secondsOffset: secondsOffset(id),
+    subject: params.subject,
+    action: params.action,
+    object: params.object,
+    causedBy: params.causedBy,
+    significance: params.significance,
+    playerCaused: params.playerCaused,
+    description: params.description,
+    motivation: params.motivation ?? '',
+    statDeltas: params.statDeltas ?? [],
   };
-}
-
-/** Generate pre-history events (before the player arrives). */
-export function generatePreHistory(
-  factionIds: string[],
-  years: number,
-  seed: number,
-): GameEvent[] {
-  const rng = new SeededRNG(seed + 4000);
-  const events: GameEvent[] = [];
-
-  // Generate a handful of historical events per faction
-  for (let year = 0; year < years; year += Math.floor(years / 10)) {
-    const faction = factionIds[rng.nextInt(factionIds.length)];
-    const target = factionIds[rng.nextInt(factionIds.length)];
-
-    const templates = [
-      { action: 'raided', desc: `${faction} raided ${target}'s border villages` },
-      { action: 'allied_with', desc: `${faction} formed a temporary alliance with ${target}` },
-      { action: 'discovered', desc: `${faction} discovered ancient ruins in the wilderness` },
-      { action: 'built', desc: `${faction} built a new watchtower on the frontier` },
-      { action: 'lost', desc: `${faction} lost a sacred relic to bandits` },
-    ];
-
-    const template = templates[rng.nextInt(templates.length)];
-
-    events.push(createEvent({
-      tick: year,
-      year,
-      subject: faction,
-      action: template.action,
-      object: target !== faction ? target : 'wilderness',
-      causedBy: null,
-      significance: 2 + rng.nextInt(5),
-      playerCaused: false,
-      description: template.desc,
-    }));
-  }
-
-  return events;
 }
 
 /** Build causal chains starting from all player-caused root events. */
 export function buildCausalChains(events: GameEvent[]): CausalChain[] {
-  // Find player root actions (playerCaused && causedBy === null)
   const playerRoots = events.filter(e => e.playerCaused && e.causedBy === null);
-
   return playerRoots.map(root => buildChainFromRoot(root.id, events));
 }
 
@@ -104,7 +85,7 @@ function buildChainFromRoot(rootId: string, events: GameEvent[]): CausalChain {
   return { rootEventId: rootId, nodes, totalDepth, score };
 }
 
-/** Reset the event ID counter (for new games). */
+/** Reset the event ID counter (call at start of each new game). */
 export function resetEventIds(): void {
   nextEventId = 0;
 }
