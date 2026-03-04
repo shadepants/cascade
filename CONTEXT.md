@@ -15,24 +15,31 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] POC MVP (18 files, 6 bugs fixed)
 - [x] Git initialized, all code committed
 - [x] 5-phase DF-inspired simulation engine (tick.ts)
-- [x] Player action writes statDeltas — cascade phase can fire consequences (ActionMenu fix)
+- [x] Player action writes statDeltas — cascade phase can fire consequences
 - [x] Heavy simulation upgrade: WebWorker engine, Gossip system, Visual DAG, Legendary Artifacts
-- [x] Build errors from heavy upgrade fixed (73b50f6)
-- [ ] Console logging added to tick.ts + worldgen.ts + ActionMenu.tsx — NOT yet committed or build-verified
-- [ ] Playtest to verify cascade chain end-to-end
-- [ ] Anti-snowball mechanics (overstretch penalty, rebellion trigger)
-- [ ] Pressure fracture visibility (NPC tension lines, artifact significance score)
-- [ ] Action budget (5-7 actions per era)
-- [ ] Zustand migration (useReducer + 7 subscribers is overdue)
-- [ ] React 19 canvas fix (useLayoutEffect + rAF cleanup in GameCanvas.tsx)
+- [x] Phase 6 Stability: imperial overstretch penalty + fractureFaction() civil wars
+- [x] Socratic Gate: LLM-powered NPC dialogue (Anthropic API via Vite proxy, localStorage key)
+- [x] IndexedDB save/load (Dexie) — auto-save on jump, Resume button on title
+- [x] Ghost of History layer (hold H) — dashed faction borders + ruins from previous era
+- [x] Action budget: 6 actions per era, counter in HUD + ActionMenu, resets on jump
+- [x] React 19 canvas fix: useLayoutEffect eliminates flash-of-unrendered-canvas
+- [ ] Zustand migration (useReducer + many subscribers — defer until perf is felt)
 - [ ] Tauri wrapper (Phase 3)
 
+## Roadmap
+- **Next:** Playtest the full cascade chain end-to-end (give item → jump → talk to NPC)
+- **Polish:** Artifact significance score visible in ActionMenu tooltip
+- **Gameplay:** NPC tension lines on map (show faction animosity as coloured borders)
+
 ## Don't Forget
-- `runSimulation(world, jumpYears): GameEvent[]` — external contract must stay unchanged (called in App.tsx)
-- NPC now uses `knowledge: NPCKnowledge[]` (not old `knownEvents: string[]`) — all callers updated
-- Phase 5 CASCADE only fires if player events have non-empty `statDeltas` — ActionMenu fix was critical
-- Cascade chain: player gives item → statDeltas on event → Phase 5 reads deltas → threshold crossing → consequence event with `causedBy` → NPC dialogue notifies player
-- `getCausalDepth()` in DialoguePanel walks the causedBy chain to show ripple depth
+- `runSimulation(world, jumpYears): GameEvent[]` — external contract must stay unchanged
+- NPC uses `knowledge: NPCKnowledge[]` (not old `knownEvents: string[]`)
+- Phase 5 CASCADE only fires if player events have non-empty `statDeltas`
+- Cascade chain: player gives item → statDeltas → Phase 5 threshold → consequence with `causedBy`
+- `getCausalDepth()` in DialoguePanel walks causedBy chain to show ripple depth
 - Geographic territory transfer (border tiles only) — not random tile reassignment
-- Post-hoc motivation: event fires from state, then motivation string attached (Caves of Qud pattern)
-- Build at ~228KB (Vite, no tree-shaking issues)
+- Post-hoc motivation: event fires from state, then motivation string attached
+- Build at ~519KB (xyflow/react drives bundle; chunk warning is expected)
+- MAX_ACTIONS_PER_ERA = 6 in types.ts — reset in App.tsx after each jump
+- LLM config stored in localStorage as `cascade_llm_config` (provider/apiKey/model)
+- Vite proxy: `/api/anthropic` → `api.anthropic.com` (dev only; prod needs real proxy)
