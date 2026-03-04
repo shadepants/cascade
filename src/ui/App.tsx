@@ -3,7 +3,6 @@
 
 import { useReducer, useEffect } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
-import { runSimulation } from '../simulation';
 import { TitleScreen } from './TitleScreen.tsx';
 import { GameCanvas } from './GameCanvas.tsx';
 import { DialoguePanel } from './DialoguePanel.tsx';
@@ -56,12 +55,14 @@ export function App() {
         }
 
         // Update history of all items in player inventory
-        for (const item of newWorld.player.inventory) {
-          if (!item.history) item.history = [];
-          item.history.push({ 
-            year: state.world.currentYear, 
-            ownerName: state.world.player.name 
-          });
+        if (state.world) {
+          for (const item of newWorld.player.inventory) {
+            if (!item.history) item.history = [];
+            item.history.push({ 
+              year: state.world.currentYear, 
+              ownerName: state.world.player.name 
+            });
+          }
         }
 
         // SET_WORLD transitions phase → 'exploring'

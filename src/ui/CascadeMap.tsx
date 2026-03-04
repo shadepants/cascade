@@ -8,11 +8,11 @@ import {
   Background,
   Controls,
   Panel,
-  Node,
-  Edge,
   Position,
   useNodesState,
   useEdgesState,
+  type Node,
+  type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { GameEvent, CausalChain } from '../types.ts';
