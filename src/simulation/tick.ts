@@ -20,6 +20,7 @@ import type {
   WorldState, GameEvent, Faction,
   StatDelta, FactionStatKey, GameMap, Position,
 } from '../types.ts';
+import { defaultStorytellerState } from '../types.ts';
 import { createEvent } from '../world/events.ts';
 import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
@@ -75,6 +76,11 @@ function pickMotivation(key: string, rng: SeededRNG): string {
 export function runSimulation(world: WorldState, jumpYears: number): GameEvent[] {
   const rng = new SeededRNG(world.seed + world.currentYear);
   const allNewEvents: GameEvent[] = [];
+
+  // Save-compatibility guard: old saves lack world.storyteller
+  if (!world.storyteller) {
+    world.storyteller = defaultStorytellerState();
+  }
 
   console.log(`[SIM] Starting ${jumpYears}-year run from year ${world.currentYear}. Factions: ${world.factions.map(f => `${f.name}(mil:${f.military} stab:${f.stability})`).join(', ')}`);
 
