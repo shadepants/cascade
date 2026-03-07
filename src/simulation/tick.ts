@@ -26,7 +26,8 @@ import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
 import {
   computeTension, decayTension, pruneCooldowns,
-  getCascadeThreshold,
+  getCascadeThreshold, getGossipBoost,
+  shouldSuppressEvent, registerHighSigEvent,
   accumulateDebt, fireDebtIntervention, applyIntervention,
 } from './storyteller.ts';
 
@@ -68,6 +69,13 @@ const MOTIVATIONS: Record<string, string[]> = {
 function pickMotivation(key: string, rng: SeededRNG): string {
   const pool = MOTIVATIONS[key] ?? ['for reasons lost to history'];
   return pool[rng.nextInt(pool.length)];
+}
+
+/** Helper to conditionally emit events based on storyteller suppression/pacing. */
+function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
+  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
+  pool.push(event);
+  registerHighSigEvent(world.storyteller, event, year);
 }
 
 // ─── Main Entry Point ────────────────────────────────────────────────────
@@ -210,7 +218,7 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
         { factionId: faction.id, stat: 'stability',  delta: -15 },
         { factionId: faction.id, stat: 'wealth',     delta: -10 },
       ];
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: faction.id,
         action:  'suffered_famine',
@@ -221,7 +229,7 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
         description: `${faction.name} suffered a devastating famine`,
         motivation: pickMotivation('famine', rng),
         statDeltas: deltas,
-      }));
+      }), year);
     }
 
     // Population boom: good territory + low population (room to grow)
@@ -230,7 +238,7 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
         { factionId: faction.id, stat: 'population', delta: 60 },
         { factionId: faction.id, stat: 'stability',  delta: 5 },
       ];
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: faction.id,
         action:  'population_growth',
@@ -241,7 +249,7 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
         description: `${faction.name} experienced a period of population growth`,
         motivation: pickMotivation('population_boom', rng),
         statDeltas: deltas,
-      }));
+      }), year);
     }
 
     // Apply small annual wealth drift from biome (separate from events)
@@ -295,7 +303,7 @@ function phaseEconomics(
       { factionId: fA.id, stat: 'wealth', delta: tradeValue },
       { factionId: fB.id, stat: 'wealth', delta: tradeValue },
     ];
-    events.push(createEvent({
+    emitEvent(world, events, createEvent({
       tick: year, year,
       subject: fA.id,
       action:  'trade_agreement',
@@ -306,7 +314,7 @@ function phaseEconomics(
       description: `${fA.name} and ${fB.name} engaged in prosperous trade`,
       motivation: pickMotivation('trade_boom', rng),
       statDeltas: deltas,
-    }));
+    }), year);
 
     rel.opinion = Math.min(100, rel.opinion + 3);
   }
@@ -359,7 +367,7 @@ function phasePolitics(
       rel.opinion = Math.min(100, rel.opinion + 10);
       rel.animosity = Math.max(0, rel.animosity - 15);
 
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: fA.id,
         action:  'alliance_formed',
@@ -373,7 +381,7 @@ function phasePolitics(
           { factionId: fA.id, stat: 'stability', delta: 5 },
           { factionId: fB.id, stat: 'stability', delta: 5 },
         ],
-      }));
+      }), year);
     }
 
     // ── War exhaustion → peace ────────────────────────────────────────────
@@ -394,7 +402,7 @@ function phasePolitics(
         const [loser, winner] = fA.military < fB.military ? [fA, fB] : [fB, fA];
 
         if (tributePaid) {
-          events.push(createEvent({
+          emitEvent(world, events, createEvent({
             tick: year, year,
             subject: winner.id,
             action:  'peace_tribute',
@@ -408,9 +416,9 @@ function phasePolitics(
               { factionId: loser.id,   stat: 'stability', delta: -10 },
               { factionId: winner.id,  stat: 'wealth',    delta: 10 },
             ],
-          }));
+          }), year);
         } else {
-          events.push(createEvent({
+          emitEvent(world, events, createEvent({
             tick: year, year,
             subject: fA.id,
             action:  'peace_treaty',
@@ -421,7 +429,7 @@ function phasePolitics(
             description: `${fA.name} and ${fB.name} negotiated an uneasy peace`,
             motivation: pickMotivation('peace_treaty', rng),
             statDeltas: [],
-          }));
+          }), year);
         }
       }
     }
@@ -472,7 +480,7 @@ function phaseConflict(
     rel.state = 'war';
     rel.opinion = Math.min(rel.opinion, -40);
 
-    events.push(createEvent({
+    emitEvent(world, events, createEvent({
       tick: year, year,
       subject: attacker.id,
       action:  'declared_war',
@@ -483,7 +491,7 @@ function phaseConflict(
       description: `${attacker.name} declared war on ${defender.name}`,
       motivation: pickMotivation('war_declared', rng),
       statDeltas: [],
-    }));
+    }), year);
 
     // ── Battle resolution ─────────────────────────────────────────────────
     const atkStrength = attacker.military + rng.nextInt(25);
@@ -517,7 +525,7 @@ function phaseConflict(
       { factionId: loser.id,  stat: 'stability',  delta: loserStabDelta },
     ];
 
-    events.push(createEvent({
+    emitEvent(world, events, createEvent({
       tick: year, year,
       subject: winner.id,
       action:  'conquered',
@@ -528,7 +536,7 @@ function phaseConflict(
       description: `${winner.name} defeated ${loser.name} in battle and seized border territory`,
       motivation: pickMotivation('conquered', rng),
       statDeltas: deltas,
-    }));
+    }), year);
   }
 
   return events;
@@ -554,7 +562,7 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
       const severity = Math.floor((controlFraction - 0.4) * 100);
       const stabilityDelta = -Math.max(5, severity);
 
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: faction.id,
         action:  'imperial_overstretch',
@@ -567,18 +575,18 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
         statDeltas: [
           { factionId: faction.id, stat: 'stability', delta: stabilityDelta },
         ],
-      }));
+      }), year);
     }
 
     // 2. Fracture Trigger: Critical instability shatters the empire
     if (faction.stability < REBELLION_STABILITY_MIN && tiles.length > 10) {
       const fracture = fractureFaction(world, faction, year, rng);
-      if (fracture) events.push(fracture);
+      if (fracture) emitEvent(world, events, fracture, year);
     }
 
     // 3. Spontaneous recovery for stable factions
     if (faction.stability < 40 && faction.wealth > 70 && rng.nextFloat() < 0.1) {
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: faction.id,
         action:  'administrative_reform',
@@ -592,7 +600,7 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
           { factionId: faction.id, stat: 'stability', delta: 15 },
           { factionId: faction.id, stat: 'wealth',    delta: -20 },
         ],
-      }));
+      }), year);
     }
   }
 
@@ -735,7 +743,8 @@ function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent
       const npcB = settlementNpcs[(i + 1) % settlementNpcs.length];
 
       // NPC A tells NPC B something they know
-      if (npcA.knowledge.length > 0 && rng.nextFloat() < 0.3) {
+      const gossipProb = getGossipBoost(world.storyteller, npcA.factionId, year);
+      if (npcA.knowledge.length > 0 && rng.nextFloat() < gossipProb) {
         const knowledgeToShare = npcA.knowledge[rng.nextInt(npcA.knowledge.length)];
         
         // Check if NPC B already knows this
@@ -812,14 +821,13 @@ function phaseCascade(
       if (!faction) continue;
 
       const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
-      if (consequence) cascadeEvents.push(consequence);
+      if (consequence) emitEvent(world, cascadeEvents, consequence, year);
     }
   }
 
   // Also check for threshold crossings independent of specific deltas
   for (const faction of world.factions) {
-    const spontaneous = checkThresholdEvents(faction, year, rng, playerEvents);
-    cascadeEvents.push(...spontaneous);
+    checkThresholdEvents(world, faction, year, rng, playerEvents, cascadeEvents);
   }
 
   return cascadeEvents;
@@ -917,13 +925,13 @@ function deriveConsequence(
 
 /** Check for threshold-crossing events that emerge independently of specific deltas. */
 function checkThresholdEvents(
+  world: WorldState,
   faction: Faction,
   year: number,
   rng: SeededRNG,
   playerEvents: GameEvent[],
-): GameEvent[] {
-  const events: GameEvent[] = [];
-
+  events: GameEvent[],
+): void {
   // Spontaneous rebellion if stability critically low AND there was a player-caused precursor
   if (faction.stability < REBELLION_STABILITY_MIN &&
       rng.nextFloat() < 0.35) {
@@ -935,7 +943,7 @@ function checkThresholdEvents(
         { factionId: faction.id, stat: 'stability',  delta: -8 },
         { factionId: faction.id, stat: 'population', delta: -20 },
       ];
-      events.push(createEvent({
+      emitEvent(world, events, createEvent({
         tick: year, year,
         subject: faction.id,
         action:  'internal_rebellion',
@@ -946,11 +954,9 @@ function checkThresholdEvents(
         description: `${faction.name} tore itself apart in civil strife`,
         motivation: pickMotivation('rebellion', rng),
         statDeltas: deltas,
-      }));
+      }), year);
     }
   }
-
-  return events;
 }
 
 // ─── Spatial Helpers ─────────────────────────────────────────────────────
