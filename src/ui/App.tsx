@@ -93,7 +93,28 @@ export function App() {
       const result = event.data;
 
       if (result.type === 'SIMULATION_COMPLETE') {
-        const { world: newWorld } = result;
+        const { world: newWorld, events: newEvents } = result;
+
+        // Distribute new player-caused cascade events to NPCs
+        // so they can tell the player about consequences after the jump
+        const cascadeEvents = newEvents.filter((e: { playerCaused: boolean }) => e.playerCaused);
+        if (cascadeEvents.length > 0) {
+          for (const npc of newWorld.npcs) {
+            if (npc.alive) {
+              const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
+              for (const event of toLearn) {
+                if (!npc.knowledge.some((k: { eventId: string }) => k.eventId === event.id)) {
+                  npc.knowledge.push({
+                    eventId: event.id,
+                    discoveredYear: newWorld.currentYear,
+                    accuracy: 0.8, // gossip is less accurate than direct witnessing
+                    sourceId: 'history',
+                  });
+                }
+              }
+            }
+          }
+        }
 
         // Update history of all items in player inventory
         if (state.world) {
@@ -109,15 +130,17 @@ export function App() {
         // Reset action budget for the new era
         newWorld.player.actionsThisEra = [];
 
-        // Storyteller Director — check for pending notifications from interventions
-        const st = newWorld.storyteller as typeof newWorld.storyteller & { pendingNotification?: string };
-        if (st?.pendingNotification) {
-          dispatch({ type: 'SHOW_NOTIFICATION', text: st.pendingNotification });
-          delete st.pendingNotification;
-        }
+        // Capture and clear any storyteller-queued notification before it enters state
+        const pendingNotification = newWorld.storyteller.pendingNotification;
+        newWorld.storyteller.pendingNotification = undefined;
 
         // SET_WORLD transitions phase → 'exploring'
         dispatch({ type: 'SET_WORLD', world: newWorld });
+
+        // Surface the storyteller notification (if any) after the jump lands
+        if (pendingNotification) {
+          dispatch({ type: 'SHOW_NOTIFICATION', text: pendingNotification });
+        }
 
         if (newWorld.currentYear >= MAX_YEARS) {
           dispatch({ type: 'SET_PHASE', phase: 'score' });

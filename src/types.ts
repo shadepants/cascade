@@ -249,6 +249,9 @@ export interface StorytellerState {
   lastHighSigYear: number;
   consecutiveQuietYears: number;
   playerActionCount: number;
+
+  // FORCE_NOTIFICATION signal — set by storyteller for the UI layer to display and then clear
+  pendingNotification?: string;
 }
 
 export function defaultStorytellerState(mode: StorytellerMode = 'clio'): StorytellerState {

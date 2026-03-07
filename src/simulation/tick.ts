@@ -821,7 +821,19 @@ function phaseCascade(
       if (!faction) continue;
 
       const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
-      if (consequence) emitEvent(world, cascadeEvents, consequence, year);
+      if (consequence && !shouldSuppressEvent(world.storyteller, year, consequence.significance)) {
+        cascadeEvents.push(consequence);
+        registerHighSigEvent(world.storyteller, consequence, year);
+        // Apply deferred animosity mutation for military_buildup (moved from deriveConsequence
+        // so it only fires when the event is not suppressed).
+        if (consequence.action === 'military_buildup') {
+          const rel = world.relationships.find(r =>
+            (r.factionA === consequence.subject || r.factionB === consequence.subject) &&
+            (r.factionA === consequence.object  || r.factionB === consequence.object),
+          );
+          if (rel) rel.animosity = Math.min(200, rel.animosity + 20);
+        }
+      }
     }
   }
 
@@ -903,8 +915,6 @@ function deriveConsequence(
     const targetId = rel.factionA === faction.id ? rel.factionB : rel.factionA;
     const target = world.factions.find(f => f.id === targetId);
     if (!target) return null;
-
-    rel.animosity = Math.min(200, rel.animosity + 20);
 
     return createEvent({
       tick: year, year,
