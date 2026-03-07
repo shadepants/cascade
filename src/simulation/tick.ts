@@ -71,11 +71,14 @@ function pickMotivation(key: string, rng: SeededRNG): string {
   return pool[rng.nextInt(pool.length)];
 }
 
-/** Helper to conditionally emit events based on storyteller suppression/pacing. */
-function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
-  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
+/** Helper to conditionally emit events based on storyteller suppression/pacing.
+ *  Returns true if the event was emitted, false if it was suppressed.
+ *  Callers must gate coupled world mutations on the return value. */
+function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): boolean {
+  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return false;
   pool.push(event);
   registerHighSigEvent(world.storyteller, event, year);
+  return true;
 }
 
 // ─── Main Entry Point ────────────────────────────────────────────────────
@@ -580,8 +583,10 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
 
     // 2. Fracture Trigger: Critical instability shatters the empire
     if (faction.stability < REBELLION_STABILITY_MIN && tiles.length > 10) {
-      const fracture = fractureFaction(world, faction, year, rng);
-      if (fracture) emitEvent(world, events, fracture, year);
+      const fracture = planFractureFaction(world, faction, year, rng);
+      if (fracture && emitEvent(world, events, fracture.event, year)) {
+        fracture.commit();
+      }
     }
 
     // 3. Spontaneous recovery for stable factions
@@ -608,15 +613,17 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
 }
 
 /** 
- * Shatter a faction into two. A new rival faction takes ~30% of the territory.
+ * Plan a faction fracture: compute the event and a commit callback that applies
+ * all world mutations. The caller must invoke commit() only after confirming the
+ * event was emitted, so that world state stays consistent when events are suppressed.
  * BFS starts from the tile furthest from the capital (first settlement).
  */
-function fractureFaction(
-  world: WorldState, 
-  original: Faction, 
-  year: number, 
+function planFractureFaction(
+  world: WorldState,
+  original: Faction,
+  year: number,
   rng: SeededRNG
-): GameEvent | null {
+): { event: GameEvent; commit: () => void } | null {
   const tiles = getTilesWithPosForFaction(world.map, original.id);
   if (tiles.length < 10) return null;
 
@@ -660,44 +667,10 @@ function fractureFaction(
     }
   }
 
-  // Create the Rebel Faction
-  const newFaction: Faction = {
-    ...original,
-    id: newFactionId,
-    name: `${original.name} Remnant`,
-    color: `#${Math.floor(rng.nextFloat()*16777215).toString(16)}`,
-    stability: 50,
-    military: Math.round(original.military * 0.4),
-    wealth: Math.round(original.wealth * 0.3),
-    settlements: [], // will be updated if a settlement was in the stolen tiles
-  };
+  const newFactionName = `${original.name} Remnant`;
+  const newFactionColor = `#${Math.floor(rng.nextFloat()*16777215).toString(16)}`;
 
-  // Transfer tiles
-  for (const pos of newTiles) {
-    const tile = world.map.tiles[pos.y][pos.x];
-    tile.factionId = newFactionId;
-    if (tile.settlementId) {
-      const s = world.settlements.find(set => set.id === tile.settlementId);
-      if (s) {
-        s.factionId = newFactionId;
-        newFaction.settlements.push(s.id);
-        original.settlements = original.settlements.filter(id => id !== s.id);
-      }
-    }
-  }
-
-  world.factions.push(newFaction);
-
-  // Set to War immediately
-  world.relationships.push({
-    factionA: original.id,
-    factionB: newFactionId,
-    opinion: -100,
-    animosity: 150,
-    state: 'war'
-  });
-
-  return createEvent({
+  const event = createEvent({
     tick: year, year,
     subject: original.id,
     action:  'civil_war_fracture',
@@ -705,13 +678,54 @@ function fractureFaction(
     causedBy: null,
     significance: 8,
     playerCaused: false,
-    description: `A civil war shattered ${original.name}, as the ${newFaction.name} seized the frontier`,
+    description: `A civil war shattered ${original.name}, as the ${newFactionName} seized the frontier`,
     motivation: 'sparked by the collapse of central authority and long-held regional grievances',
     statDeltas: [
       { factionId: original.id, stat: 'stability', delta: -30 },
       { factionId: original.id, stat: 'military',  delta: -20 },
     ],
   });
+
+  const commit = () => {
+    // Create the Rebel Faction
+    const newFaction: Faction = {
+      ...original,
+      id: newFactionId,
+      name: newFactionName,
+      color: newFactionColor,
+      stability: 50,
+      military: Math.round(original.military * 0.4),
+      wealth: Math.round(original.wealth * 0.3),
+      settlements: [], // will be updated if a settlement was in the stolen tiles
+    };
+
+    // Transfer tiles and settlements
+    for (const pos of newTiles) {
+      const tile = world.map.tiles[pos.y][pos.x];
+      tile.factionId = newFactionId;
+      if (tile.settlementId) {
+        const s = world.settlements.find(set => set.id === tile.settlementId);
+        if (s) {
+          s.factionId = newFactionId;
+          newFaction.settlements.push(s.id);
+          original.settlements = original.settlements.filter(id => id !== s.id);
+        }
+      }
+    }
+
+    world.factions.push(newFaction);
+
+    // Set to War immediately
+    world.relationships.push({
+      factionA: original.id,
+      factionB: newFactionId,
+      opinion: -100,
+      animosity: 150,
+      state: 'war'
+    });
+  };
+
+  return { event, commit };
 }
 
 /** Helper to get tiles with their coordinates. */
