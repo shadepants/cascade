@@ -1,4 +1,4 @@
-﻿// ─── Root App Component ─────────────────────────────────────────────────
+// ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
 import { useReducer, useEffect, useRef, useState } from 'react';
@@ -130,8 +130,17 @@ export function App() {
         // Reset action budget for the new era
         newWorld.player.actionsThisEra = [];
 
+        // Capture and clear any storyteller-queued notification before it enters state
+        const pendingNotification = newWorld.storyteller.pendingNotification;
+        newWorld.storyteller.pendingNotification = undefined;
+
         // SET_WORLD transitions phase → 'exploring'
         dispatch({ type: 'SET_WORLD', world: newWorld });
+
+        // Surface the storyteller notification (if any) after the jump lands
+        if (pendingNotification) {
+          dispatch({ type: 'SHOW_NOTIFICATION', text: pendingNotification });
+        }
 
         if (newWorld.currentYear >= MAX_YEARS) {
           dispatch({ type: 'SET_PHASE', phase: 'score' });

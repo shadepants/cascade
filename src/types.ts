@@ -250,7 +250,7 @@ export interface StorytellerState {
   consecutiveQuietYears: number;
   playerActionCount: number;
 
-  // FORCE_NOTIFICATION signal — set by storyteller, consumed by App.tsx after jump
+  // FORCE_NOTIFICATION signal — set by storyteller for the UI layer to display and then clear
   pendingNotification?: string;
 }
 
