@@ -71,11 +71,17 @@ function pickMotivation(key: string, rng: SeededRNG): string {
   return pool[rng.nextInt(pool.length)];
 }
 
-/** Helper to conditionally emit events based on storyteller suppression/pacing. */
-function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
-  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
+/**
+ * Helper to conditionally emit events based on storyteller suppression/pacing.
+ * Returns true if the event was emitted, false if it was suppressed.
+ * Callers that have coupled world mutations should only apply those mutations
+ * when this returns true, to keep world state consistent with the event log.
+ */
+function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): boolean {
+  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return false;
   pool.push(event);
   registerHighSigEvent(world.storyteller, event, year);
+  return true;
 }
 
 // ─── Main Entry Point ────────────────────────────────────────────────────
@@ -474,13 +480,12 @@ function phaseConflict(
     if (rng.nextFloat() > 0.25) continue; // 25% chance even when threshold met
 
     // ── War declaration ───────────────────────────────────────────────────
+    // Emit the event BEFORE applying mutations. If the storyteller suppresses
+    // the event, skip all associated world mutations to keep state consistent.
     const attacker = warScoreA >= warScoreB ? fA : fB;
     const defender = attacker === fA ? fB : fA;
 
-    rel.state = 'war';
-    rel.opinion = Math.min(rel.opinion, -40);
-
-    emitEvent(world, events, createEvent({
+    const warDeclared = emitEvent(world, events, createEvent({
       tick: year, year,
       subject: attacker.id,
       action:  'declared_war',
@@ -493,6 +498,12 @@ function phaseConflict(
       statDeltas: [],
     }), year);
 
+    // If the war declaration was suppressed, skip all related mutations.
+    if (!warDeclared) continue;
+
+    rel.state = 'war';
+    rel.opinion = Math.min(rel.opinion, -40);
+
     // ── Battle resolution ─────────────────────────────────────────────────
     const atkStrength = attacker.military + rng.nextInt(25);
     const defStrength = defender.military + rng.nextInt(25) + 10; // defender bonus
@@ -500,15 +511,6 @@ function phaseConflict(
 
     const winner = attackerWins ? attacker : defender;
     const loser  = attackerWins ? defender : attacker;
-
-    // Territory transfer: geographic border tiles
-    const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
-    const transferCount = Math.max(1, Math.floor(borderTiles.length * 0.3));
-    const transferred = borderTiles.slice(0, transferCount);
-
-    for (const pos of transferred) {
-      world.map.tiles[pos.y][pos.x].factionId = winner.id;
-    }
 
     // Both sides pay military cost; loser pays more
     const winnerMilDelta  = -Math.round(winner.military * 0.15);
@@ -525,7 +527,9 @@ function phaseConflict(
       { factionId: loser.id,  stat: 'stability',  delta: loserStabDelta },
     ];
 
-    emitEvent(world, events, createEvent({
+    // Emit the conquered event before applying tile mutations. Territory only
+    // transfers (and stat deltas only apply) when the event is not suppressed.
+    const conqueredEmitted = emitEvent(world, events, createEvent({
       tick: year, year,
       subject: winner.id,
       action:  'conquered',
@@ -537,6 +541,16 @@ function phaseConflict(
       motivation: pickMotivation('conquered', rng),
       statDeltas: deltas,
     }), year);
+
+    // Territory transfer: geographic border tiles — only when event was emitted.
+    if (conqueredEmitted) {
+      const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
+      const transferCount = Math.max(1, Math.floor(borderTiles.length * 0.3));
+      const transferred = borderTiles.slice(0, transferCount);
+      for (const pos of transferred) {
+        world.map.tiles[pos.y][pos.x].factionId = winner.id;
+      }
+    }
   }
 
   return events;
