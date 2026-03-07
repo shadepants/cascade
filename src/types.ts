@@ -11,12 +11,15 @@ export interface Position {
 // ─── Map & Terrain ──────────────────────────────────────────────────────
 
 export type Biome =
-  | 'plains'
+  | 'ocean'
+  | 'coast'
+  | 'grassland'
   | 'forest'
-  | 'mountain'
+  | 'rainforest'
+  | 'arid'
   | 'desert'
   | 'tundra'
-  | 'water';
+  | 'mountain';
 
 export interface Tile {
   biome: Biome;
@@ -65,6 +68,17 @@ export interface Faction {
 
   ethics:       FactionEthics;
   leaderId:     string | null;  // HistoricalFigure ID of current ruler
+  
+  // Interest groups — internal coalitions
+  interestGroups: InterestGroup[];
+}
+
+export interface InterestGroup {
+  id: string;
+  name: string;
+  type: 'merchant' | 'military' | 'religious' | 'labor' | 'scholar';
+  power: number;          // 0-100, influence within faction
+  ethicsBias: Partial<FactionEthics>; // how they want to shift faction ethics
 }
 
 // ─── Diplomacy ──────────────────────────────────────────────────────────
@@ -94,9 +108,19 @@ export interface HistoricalFigure {
     compassion:  number;   // -50 to +50, high = raises war threshold
     cunning:     number;   // -50 to +50
   };
+  traits: RulerTrait[];    // mechanical modifiers
   bornYear:  number;
   diedYear:  number | null;
+  legitimacy: number;      // 0-100, drops on controversial actions
 }
+
+export type RulerTrait = 
+  | 'bloodthirsty' // +aggression, +military growth
+  | 'industrious'  // +wealth growth
+  | 'xenophobic'   // +animosity gain
+  | 'diplomatic'   // +opinion gain
+  | 'pious'        // +culture growth
+  | 'corrupt';     // -stability, +wealth gain
 
 // ─── Entities ───────────────────────────────────────────────────────────
 
@@ -199,7 +223,7 @@ export interface CausalNode {
   children: string[];          // event IDs caused by this event
 }
 
-// ─── Settlements ────────────────────────────────────────────────────────
+// ─── Settlements & Ruins ────────────────────────────────────────────────
 
 export interface Settlement {
   id: string;
@@ -208,6 +232,21 @@ export interface Settlement {
   factionId: string;
   npcs: string[];              // NPC IDs stationed here
   items: string[];             // Item IDs available here
+}
+
+export interface Ruin {
+  id: string;
+  name: string;
+  position: Position;
+  formerFactionId: string;
+  collapsedYear: number;
+}
+
+export interface ResourceNode {
+  id: string;
+  type: 'iron' | 'gold' | 'relic';
+  position: Position;
+  value: number; // 0-100
 }
 
 // ─── Storyteller Director ────────────────────────────────────────────────
@@ -286,6 +325,8 @@ export interface WorldState {
   relationships: FactionRelationship[];
   historicalFigures: HistoricalFigure[];
   settlements: Settlement[];
+  ruins: Ruin[];
+  resourceNodes: ResourceNode[];
   npcs: NPC[];
   items: Item[];
   events: GameEvent[];
@@ -308,11 +349,11 @@ export interface WorldConfig {
 
 export const DEFAULT_CONFIG: WorldConfig = {
   seed: 0,           // 0 = random at runtime
-  mapSize: 24,
-  numFactions: 3,
-  numSettlementsPerFaction: 1,
+  mapSize: 128,
+  numFactions: 6,      // increased for larger map
+  numSettlementsPerFaction: 2, // increased for larger map
   npcsPerSettlement: 3,
-  pregenYears: 100,
+  pregenYears: 500,
   ticksPerYear: 1,
   storytellerMode: 'clio' as StorytellerMode,
 };
@@ -350,10 +391,11 @@ export interface Camera {
   y: number;
   viewportWidth: number;   // in tiles
   viewportHeight: number;
+  zoom: number;            // zoom level (1.0 = normal)
 }
 
 // ─── Renderer Config ────────────────────────────────────────────────────
 
-export const TILE_SIZE = 24;       // pixels per tile
-export const VIEWPORT_TILES = 24;  // tiles visible in each direction
+export const TILE_SIZE = 24;       // base pixels per tile
+export const VIEWPORT_TILES = 32;  // tiles visible in each direction (increased from 24)
 export const MAX_ACTIONS_PER_ERA = 6; // player action budget per time jump

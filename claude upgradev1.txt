@@ -1,0 +1,105 @@
+Session Changes — Cascade Simulation
+
+  File: src/ui/KnowledgeLog.tsx
+
+  Removed dead grouped Map block (lines 16–21)
+  The map was computed but never rendered. Clean-up only — no behavioral change.
+
+  ---
+  File: src/simulation/tick.ts — 6 separate fixes
+
+  1. Infinite re-cascade (Bug — exponential event growth)
+
+  Added CASCADE_LOOKBACK_YEARS = 12 + year filter in phaseCascade
+
+  Before: [...world.events, ...recentEvents] — ALL history entered the cascade
+  pool every year. A player action from year 1 re-triggered cascades every year
+  forever.
+
+  After: Only events from the last 12 years are eligible. Ripple effects play out
+  for a decade then stop. Prevents event list from exploding across a long run.
+
+  ---
+  2. Inverted cascade probability (Bug — cascades were suppressed, not amplified)
+
+  Changed rng.nextFloat() > threshold → rng.nextFloat() < threshold in
+  phaseCascade
+
+  Before: > 0.40 meant cascade fired only 40% of the time. Spotlight lowered
+  threshold to 0.25, meaning only 25% — the opposite of "lower = more likely."
+
+  After: < 0.40 = 60% base cascade rate. Spotlight at 0.25 = 75%. Lower threshold
+  now correctly means more cascades.
+
+  ---
+  3. Spotlight never activated (Bug — spotlight discount was dead code)
+
+  Changed trigger.subject → trigger.object in getCascadeThreshold call
+
+  Before: Player give events have subject = 'player'. Spotlight was set to the
+  faction ID. Comparing spotlightFactionId !== 'player' was always true → BASE
+  threshold always returned.
+
+  After: Uses trigger.object (the faction that received the gift), which matches
+  the spotlight. Giving an item to a faction now correctly boosts cascade
+  probability for that faction's events.
+
+  ---
+  4. NPCs never learned about player actions (Bug — KnowledgeLog always empty)
+
+  Fixed seedEventKnowledge to use event.object for player-give events
+
+  Before: affectedFactionId = event.subject = 'player'. Filtering npcs by
+  factionId === 'player' always returned empty. No NPC ever got the event seeded.
+  Gossip had nothing to spread. Player could never hear about their own
+  consequences.
+
+  After: When event.subject === 'player', uses event.object (the target faction).
+  NPCs in that faction now know about the event and can share it with the player
+  through dialogue → KnowledgeLog populates.
+
+  ---
+  5. Artifact gifts produced zero cascades (Bug — most common action had no
+  effect)
+
+  Lowered culture cascade threshold: > 65 → > 45, roll 0.4 → 0.5
+
+  Before: Artifacts give +culture. Faction culture typically starts 40–55. 56 > 65
+   is false — no cultural cascade ever fired for a normal gift.
+
+  After: 56 > 45 is true. Cultural spread now fires ~50% of the time when culture
+  passes 45, making artifacts consistently produce ripple effects.
+
+  ---
+  6. No positive-delta cascade paths (Design gap — half the stat space was dead)
+
+  Added two new consequence branches in deriveConsequence
+
+  ┌────────────┬────────────────────────┬─────────────────────────────────────┐
+  │   Delta    │       Condition        │             Consequence             │
+  ├────────────┼────────────────────────┼─────────────────────────────────────┤
+  │            │ faction reaches ≥ 65   │ alliance_formed — diplomatic state  │
+  │ +stability │ AND a neighbor has     │ set to alliance, both factions gain │
+  │            │ opinion ≥ 55           │  stability                          │
+  ├────────────┼────────────────────────┼─────────────────────────────────────┤
+  │ +wealth    │ wealth crosses 50, 45% │ trade_boom — wealth spreads to a    │
+  │            │  roll                  │ neighboring faction                 │
+  └────────────┴────────────────────────┴─────────────────────────────────────┘
+
+  Before: Only negative actions cascaded (stability < 20 → rebellion, military >
+  70 → buildup). Giving an artifact that boosted a faction produced exactly zero
+  derived consequences.
+
+  After: Beneficial player actions now have mechanical downstream effects. A gift
+  can produce an alliance, which can produce further stability changes, which can
+  produce further cascades — full chain.
+
+  ---
+  Net effect on gameplay
+
+  A player giving a mid-significance artifact to a faction with typical starting
+  stats should now produce 2–4 cascade events over the following 12 simulated
+  years (cultural diffusion, trade boom, or alliance formation), which NPCs in the
+   affected faction will know about and can tell the player. Before these fixes,
+  the same action produced zero cascade events and empty NPC dialogue.
+

@@ -1,0 +1,43 @@
+1. GEOLOGICAL FOUNDATION
+   * Fractal Elevation: Implemented 4-octave FBM (Fractal Brownian Motion) for
+     natural, jagged terrain.
+   * Tectonic Plates: Added Voronoi plate simulation; mountain ranges form at
+     continental collisions, trenches at oceanic boundaries.
+   * Moisture Transport: Implemented wind-driven climate simulation; prevailing
+     winds create realistic rain shadows (deserts) behind mountain ranges.
+2. DEEP HISTORY & RUINS
+   * Ancient Era Simulation: Worldgen now simulates a 500-year "Ancient Era" that
+     collapses before the modern game begins.
+   * Fossilization: Extinct civilizations leave behind weathered Ruins (♜) on the
+     map.
+   * Legendary Artifacts: Ruins contain high-significance items (e.g., Shattered
+     Crowns, Obsidian Seals) providing mythic targets for players.
+
+  3. FACTION & LEADERSHIP LOGIC
+   * Internal Interest Groups: Factions now contain competing coalitions
+     (Merchant Guilds, High Commands) that shift faction ethics over time.
+   * Ruler Traits: Leaders gain traits like 'Bloodthirsty', 'Industrious', or
+     'Xenophobic' that mechanically alter war thresholds and economic growth.
+   * Dynastic Succession: Added legitimacy stats and aging; ruler deaths trigger
+     succession crises and potential civil war fractures.
+4. DYNAMIC WORLD SYSTEMS
+   * Strategic Resources: Added resource nodes (Iron, Gold, Relics) that act as
+     geographic conflict magnets for recursive warfare.
+   * Colonization: Factions now found new colonies every 20 years based on
+     population pressure and wealth.
+   * Settlement Growth: Towns now scale in size (1-5) and can be abandoned into
+     ruins based on simulation stressors.
+
+  5. HIGH-FIDELITY VISUALS
+   * Painterly Rendering: Implemented Lambertian Hillshading for 3D depth and
+     seeded Micro-Textures for a rich topographical feel.
+   * Animated Entities: Replaced flat glyphs with animated procedural figures
+     (capes, robes, heads) featuring idle bobbing and drop shadows.
+   * Interactive Camera: Added full zoom support (+/- keys) and an animated
+     atmospheric cloud/fog layer.
+6. SCALE & PERFORMANCE
+   * Map Size: Increased grid from 24x24 (576 tiles) to 128x128 (16,384 tiles).
+   * Debug Visualization: Added 'M' key toggle to cycle between Normal, Elevation
+     (Heightmap), and Moisture (Rainfall) views.
+   * Technical Status: Zero-error build; optimized culling ensures high
+     performance at 128x128 scale.

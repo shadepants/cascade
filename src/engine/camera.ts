@@ -12,6 +12,7 @@ export function createCamera(center: Position, map: GameMap): Camera {
       y: center.y - Math.floor(VIEWPORT_TILES / 2),
       viewportWidth: VIEWPORT_TILES,
       viewportHeight: VIEWPORT_TILES,
+      zoom: 1.0,
     },
     map,
   );

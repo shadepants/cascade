@@ -3,7 +3,7 @@
 // POC: plain TypeScript objects, no ECS.
 
 import type {
-  NPC, Player, Item, Settlement, Faction, NPCPersonality, Position, GameMap,
+  NPC, Player, Item, Settlement, Faction, NPCPersonality, Position, GameMap, Ruin,
 } from '../types.ts';
 import { NPC_NAMES, ITEM_TEMPLATES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
@@ -60,9 +60,10 @@ export function createPlayer(startPosition: Position): Player {
   };
 }
 
-/** Create interactable items placed at settlements. */
+/** Create interactable items placed at settlements and ruins. */
 export function generateItems(
   settlements: Settlement[],
+  ruins: Ruin[],
   map: GameMap,
   npcPositions: Position[],
   seed: number,
@@ -70,26 +71,49 @@ export function generateItems(
   const rng = new SeededRNG(seed + 3000);
   const items: Item[] = [];
 
-  // Place one key item at a random settlement for POC
-  const targetSettlement = settlements[rng.nextInt(settlements.length)];
-  const template = ITEM_TEMPLATES[rng.nextInt(ITEM_TEMPLATES.length)];
+  // 1. Place items at settlements
+  for (const settlement of settlements) {
+    if (rng.nextFloat() < 0.6) { // 60% chance per settlement
+      const template = ITEM_TEMPLATES[rng.nextInt(ITEM_TEMPLATES.length)];
+      const position = findItemPosition(map, settlement.position, npcPositions, rng);
 
-  // Find a walkable tile near the settlement that isn't occupied by an NPC
-  const position = findItemPosition(map, targetSettlement.position, npcPositions, rng);
+      const item: Item = {
+        id: `item_s_${settlement.id}_${items.length}`,
+        name: template.name,
+        description: template.description,
+        type: template.type as any,
+        significance: template.significance,
+        position,
+        history: [],
+      };
 
-  const item: Item = {
-    id: `item_0`,
-    name: template.name,
-    description: template.description,
-    type: template.type as any,
-    significance: template.significance,
-    position,
-    history: [],
-  };
+      settlement.items.push(item.id);
+      items.push(item);
+    }
+  }
 
+  // 2. Place high-significance items at ruins (Legendary Artifacts)
+  for (const ruin of ruins) {
+    if (rng.nextFloat() < 0.8) { // 80% chance per ruin
+      // Filter for high-sig templates
+      const highSigTemplates = ITEM_TEMPLATES.filter(t => t.significance >= 6);
+      const template = highSigTemplates[rng.nextInt(highSigTemplates.length)];
+      
+      const position = findItemPosition(map, ruin.position, npcPositions, rng);
 
-  targetSettlement.items.push(item.id);
-  items.push(item);
+      const item: Item = {
+        id: `item_r_${ruin.id}_${items.length}`,
+        name: template.name,
+        description: template.description,
+        type: template.type as any,
+        significance: template.significance + 1, // extra significance for being ancient
+        position,
+        history: [{ year: ruin.collapsedYear, ownerName: `The Fallen of ${ruin.formerFactionId}` }],
+      };
+
+      items.push(item);
+    }
+  }
 
   return items;
 }

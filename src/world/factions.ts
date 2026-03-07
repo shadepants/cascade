@@ -8,7 +8,7 @@
 
 import type {
   Faction, FactionRelationship, FactionEthics, EthicStance,
-  Settlement, GameMap, Position,
+  Settlement, GameMap, Position, InterestGroup,
 } from '../types.ts';
 import { FACTION_TEMPLATES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
@@ -58,7 +58,8 @@ export function generateFactions(
   const factions: Faction[] = centers.map((_pos, i) => {
     const template = FACTION_TEMPLATES[i % FACTION_TEMPLATES.length];
     const archetype = archetypes[i % archetypes.length];
-    return {
+    
+    const faction: Faction = {
       id: `faction_${i}`,
       name: template.name,
       color: template.color,
@@ -74,7 +75,11 @@ export function generateFactions(
       ethics:   generateEthics(archetype, rng),
       leaderId: null, // set by worldgen after HistoricalFigures are created
       settlements: [],
+      interestGroups: [], // initially empty
     };
+
+    faction.interestGroups = generateInterestGroups(faction, rng);
+    return faction;
   });
 
   assignTerritory(map, centers, factions);
@@ -82,6 +87,38 @@ export function generateFactions(
   const relationships = generateRelationships(factions, rng);
 
   return { factions, relationships, settlements };
+}
+
+/** Spawn 2-3 interest groups per faction. */
+function generateInterestGroups(faction: Faction, rng: SeededRNG): InterestGroup[] {
+  const types: InterestGroup['type'][] = ['merchant', 'military', 'religious', 'labor', 'scholar'];
+  const count = 2 + rng.nextInt(2); // 2 or 3 groups
+  const groups: InterestGroup[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const type = types[rng.nextInt(types.length)];
+    if (groups.some(g => g.type === type)) continue;
+
+    groups.push({
+      id: `ig_${faction.id}_${type}`,
+      name: `${type.charAt(0).toUpperCase() + type.slice(1)} Council`,
+      type,
+      power: 20 + rng.nextInt(30),
+      ethicsBias: getEthicsBiasForType(type),
+    });
+  }
+  return groups;
+}
+
+function getEthicsBiasForType(type: InterestGroup['type']): Partial<FactionEthics> {
+  switch (type) {
+    case 'military':  return { violence: 'embraced', expansion: 'embraced' };
+    case 'merchant':  return { trade: 'embraced', expansion: 'neutral' };
+    case 'religious': return { tradition: 'embraced', mercy: 'embraced' };
+    case 'labor':     return { tradition: 'shunned', trade: 'shunned' };
+    case 'scholar':   return { tradition: 'neutral', trade: 'embraced' };
+    default: return {};
+  }
 }
 
 /** Pick N well-spaced positions on walkable tiles. */

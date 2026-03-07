@@ -3,7 +3,7 @@
 // The payoff moment — "look what your actions caused."
 
 import { useGame } from '../store.ts';
-import { calculateCascade } from '../simulation/cascade.ts';
+import { calculateCascade, formatChainAsTree } from '../simulation/cascade.ts';
 import { CascadeMap } from './CascadeMap.tsx';
 
 export function CascadeScore() {
@@ -38,6 +38,15 @@ export function CascadeScore() {
           <span className="stat-label">Max Depth</span>
         </div>
       </div>
+
+      {result.longestChain && (
+        <div className="longest-chain-display">
+          <h3>Longest Causal Chain</h3>
+          <pre>
+            {formatChainAsTree(result.longestChain, world.events)}
+          </pre>
+        </div>
+      )}
 
       {result.chains.length > 0 ? (
         <div className="causal-chains">

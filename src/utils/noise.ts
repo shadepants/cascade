@@ -39,6 +39,40 @@ export function createNoise2D(seed: number): (x: number, y: number) => number {
   };
 }
 
+/**
+ * Create a 2D Fractal Brownian Motion (FBM) noise function.
+ * Sums multiple octaves of Perlin noise for more natural, jagged texture.
+ */
+export function createFBM2D(
+  seed: number,
+  octaves: number = 4,
+  persistence: number = 0.5,
+  lacunarity: number = 2.0
+): (x: number, y: number) => number {
+  const noiseFuncs: ((x: number, y: number) => number)[] = [];
+  for (let i = 0; i < octaves; i++) {
+    // Offset each octave seed to ensure they are uncorrelated
+    noiseFuncs.push(createNoise2D(seed + i * 1337 + 500));
+  }
+
+  return function fbm2D(x: number, y: number): number {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      total += noiseFuncs[i](x * frequency, y * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    // Result is in [-1, 1]
+    return total / maxValue;
+  };
+}
+
 /** Generate a seeded permutation table (0-255 shuffled). */
 function generatePermutation(seed: number): number[] {
   const p = Array.from({ length: 256 }, (_, i) => i);

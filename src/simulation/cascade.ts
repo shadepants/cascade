@@ -10,6 +10,7 @@ export interface CascadeResult {
   totalScore: number;
   totalEvents: number;
   maxDepth: number;
+  longestChain: CausalChain | null;
   tier: CascadeTier;
 }
 
@@ -23,8 +24,10 @@ export function calculateCascade(events: GameEvent[]): CascadeResult {
   const totalEvents = chains.reduce((sum, c) => sum + c.nodes.length, 0);
   const maxDepth = Math.max(0, ...chains.map(c => c.totalDepth));
   const tier = scoreTier(maxDepth);
+  
+  const longestChain = chains.find(c => c.totalDepth === maxDepth) || null;
 
-  return { chains, totalScore, totalEvents, maxDepth, tier };
+  return { chains, totalScore, totalEvents, maxDepth, longestChain, tier };
 }
 
 /** Map max depth to a cascade tier. */

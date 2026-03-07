@@ -23,6 +23,7 @@ export const initialState: GameStore = {
     y: 0,
     viewportWidth: VIEWPORT_TILES,
     viewportHeight: VIEWPORT_TILES,
+    zoom: 1.0,
   },
 };
 
@@ -33,6 +34,7 @@ export type GameStoreAction =
   | { type: 'SET_WORLD'; world: WorldState }
   | { type: 'SET_PREVIOUS_WORLD'; world: WorldState }
   | { type: 'SET_CAMERA'; camera: Camera }
+  | { type: 'UPDATE_CAMERA'; updater: (camera: Camera) => Camera }
   | { type: 'OPEN_DIALOGUE'; npc: NPC }
   | { type: 'CLOSE_DIALOGUE' }
   | { type: 'OPEN_ACTION'; item: Item }
@@ -57,6 +59,9 @@ export function gameReducer(state: GameStore, action: GameStoreAction): GameStor
 
     case 'SET_CAMERA':
       return { ...state, camera: action.camera };
+
+    case 'UPDATE_CAMERA':
+      return { ...state, camera: action.updater(state.camera) };
 
     case 'OPEN_DIALOGUE':
       return { ...state, activeNpc: action.npc, phase: 'dialogue' };

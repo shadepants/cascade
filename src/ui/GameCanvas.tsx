@@ -15,9 +15,11 @@ export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { state, dispatch } = useGame();
   const [showHistory, setShowHistory] = useState(false);
+  const [debugMode, setDebugMode] = useState<'none' | 'elevation' | 'rainfall'>('none');
 
-  const canvasWidth = state.camera.viewportWidth * TILE_SIZE;
-  const canvasHeight = state.camera.viewportHeight * TILE_SIZE;
+  const zoom = state.camera.zoom || 1.0;
+  const canvasWidth = state.camera.viewportWidth * TILE_SIZE * zoom;
+  const canvasHeight = state.camera.viewportHeight * TILE_SIZE * zoom;
 
   // Track 'H' key for Ghost of History layer
   useEffect(() => {
@@ -47,16 +49,45 @@ export function GameCanvas() {
       player: state.world.player,
       npcs: state.world.npcs,
       settlements: state.world.settlements,
+      ruins: state.world.ruins,
+      resourceNodes: state.world.resourceNodes,
       items: state.world.items,
       factions: state.world.factions,
       previousWorld: showHistory ? state.previousWorld : null,
+      debugMode,
     });
-  }, [state.world, state.camera, showHistory, state.previousWorld]);
+  }, [state.world, state.camera, showHistory, state.previousWorld, debugMode]);
 
   // Handle keyboard input
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!state.world) return;
     if (e.key.toLowerCase() === 'h') return; // Handled by history toggle
+
+    // Debug View Toggle
+    if (e.key.toLowerCase() === 'm') {
+      setDebugMode(prev => {
+        if (prev === 'none') return 'elevation';
+        if (prev === 'elevation') return 'rainfall';
+        return 'none';
+      });
+      return;
+    }
+
+    // Zoom Controls
+    if (e.key === '=' || e.key === '+') {
+      dispatch({ 
+        type: 'UPDATE_CAMERA', 
+        updater: (c) => ({ ...c, zoom: Math.min(2.0, (c.zoom || 1.0) + 0.1) }) 
+      });
+      return;
+    }
+    if (e.key === '-' || e.key === '_') {
+      dispatch({ 
+        type: 'UPDATE_CAMERA', 
+        updater: (c) => ({ ...c, zoom: Math.max(0.2, (c.zoom || 1.0) - 0.1) }) 
+      });
+      return;
+    }
 
     const action = mapKeyToAction(e.key, state.phase);
 

@@ -52,8 +52,8 @@ export function App() {
   // Dev-only test hook — exposes state + dispatch for Playwright
   useEffect(() => {
     if (import.meta.env.DEV) {
-      (window as Record<string, unknown>).__CASCADE_STATE   = state;
-      (window as Record<string, unknown>).__CASCADE_DISPATCH = dispatch;
+      (window as any).__CASCADE_STATE   = state;
+      (window as any).__CASCADE_DISPATCH = dispatch;
     }
   });
   // Always-current world ref — avoids stale closure in WebWorker effect

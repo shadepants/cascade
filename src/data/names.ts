@@ -45,4 +45,22 @@ export const ITEM_TEMPLATES: {
     type: 'key',
     significance: 5,
   },
+  {
+    name: 'Shattered Crown',
+    description: 'A broken symbol of authority found in the ruins of a forgotten empire.',
+    type: 'artifact',
+    significance: 9,
+  },
+  {
+    name: 'Obsidian Seal',
+    description: 'A dark, heavy seal used to authenticate decrees of the ancient high command.',
+    type: 'artifact',
+    significance: 7,
+  },
+  {
+    name: 'Ancestral Blade',
+    description: 'A rusted sword that still hums with the memory of a hundred battles.',
+    type: 'artifact',
+    significance: 6,
+  },
 ];

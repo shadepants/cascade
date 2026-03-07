@@ -13,7 +13,7 @@
 // player arrives — not hand-authored templates.
 
 import type {
-  WorldState, WorldConfig, Position, HistoricalFigure, Faction,
+  WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode,
 } from '../types.ts';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
@@ -34,6 +34,9 @@ export function generateWorld(config: WorldConfig): WorldState {
   // ── Step 1: Terrain ────────────────────────────────────────────────────
   const map = generateTerrain(seed, config.mapSize);
 
+  // ── Step 1.5: Strategic Resources ──────────────────────────────────────
+  const resourceNodes = generateResourceNodes(map, rng);
+
   // ── Step 2: Factions + territory + settlements ─────────────────────────
   const { factions, relationships, settlements } =
     generateFactions(map, config.numFactions, seed);
@@ -47,10 +50,9 @@ export function generateWorld(config: WorldConfig): WorldState {
     if (faction) faction.leaderId = hf.id;
   }
 
-  // ── Step 4: NPCs + items ───────────────────────────────────────────────
+  // ── Step 4: NPCs ──────────────────────────────────────────────────────
   const npcs = generateNPCs(settlements, factions, config.npcsPerSettlement, map, seed);
   const npcPositions = npcs.map(n => n.position);
-  const items = generateItems(settlements, map, npcPositions, seed);
 
   // ── Step 5: Pre-history simulation ────────────────────────────────────
   // Build an initial world stub and run the real tick engine.
@@ -66,8 +68,10 @@ export function generateWorld(config: WorldConfig): WorldState {
     relationships,
     historicalFigures,
     settlements,
+    ruins: [],
+    resourceNodes,
     npcs,
-    items,
+    items: [], // initially empty
     events: [],
     player,
     storyteller: defaultStorytellerState(config.storytellerMode ?? 'clio'),
@@ -75,9 +79,14 @@ export function generateWorld(config: WorldConfig): WorldState {
 
   // Run the pre-history simulation — this is what makes history real.
   // Events are world-state-driven, not templates.
-  console.log(`[WORLDGEN] Running ${config.pregenYears}-year pre-history simulation...`);
-  runSimulation(worldStub, config.pregenYears);
-  console.log(`[WORLDGEN] Pre-history complete. ${worldStub.events.length} events generated over ${config.pregenYears} years.`);
+  console.log(`[WORLDGEN] Running ${config.pregenYears}-year deep history simulation (headless)...`);
+  runSimulation(worldStub, config.pregenYears, true);
+  console.log(`[WORLDGEN] Deep history complete. ${worldStub.events.length} events generated.`);
+
+  // ── Step 5.5: Seed items into settlements and ruins ───────────────────
+  const items = generateItems(settlements, worldStub.ruins, map, npcPositions, seed);
+  worldStub.items = items;
+  console.log(`[WORLDGEN] Seeded ${items.length} items across the world.`);
   console.log(`[WORLDGEN] Faction states: ${worldStub.factions.map(f => `${f.name}(pop:${f.population} mil:${f.military} stab:${f.stability} wealth:${f.wealth})`).join(', ')}`);
 
   // ── Step 6: Assign NPC knowledge from pre-history ──────────────────────
@@ -87,11 +96,36 @@ export function generateWorld(config: WorldConfig): WorldState {
   return worldStub;
 }
 
+/** Spawn strategic resource nodes across the map. */
+function generateResourceNodes(map: { width: number; height: number; tiles: any[][] }, rng: SeededRNG): ResourceNode[] {
+  const nodes: ResourceNode[] = [];
+  const types: ResourceNode['type'][] = ['iron', 'gold', 'relic'];
+  const count = Math.floor((map.width * map.height) / 400); // density scaling
+
+  for (let i = 0; i < count; i++) {
+    const x = rng.nextInt(map.width);
+    const y = rng.nextInt(map.height);
+    const tile = map.tiles[y][x];
+    
+    if (tile.walkable && tile.biome !== 'ocean' && tile.biome !== 'coast') {
+      const type = types[rng.nextInt(types.length)];
+      nodes.push({
+        id: `node_${i}`,
+        type,
+        position: { x, y },
+        value: 40 + rng.nextInt(60),
+      });
+    }
+  }
+  return nodes;
+}
+
 // ─── Historical Figure Generation ────────────────────────────────────────
 
 /** Spawn one ruler per faction. Rulers' personality values modulate war. */
 function spawnRulers(factions: Faction[], _seed: number, rng: SeededRNG): HistoricalFigure[] {
   const usedNames = new Set<string>();
+  const traitPool: RulerTrait[] = ['bloodthirsty', 'industrious', 'xenophobic', 'diplomatic', 'pious', 'corrupt'];
 
   return factions.map(faction => {
     let name = NPC_NAMES[rng.nextInt(NPC_NAMES.length)];
@@ -114,8 +148,10 @@ function spawnRulers(factions: Faction[], _seed: number, rng: SeededRNG): Histor
         compassion: rng.nextInt(101) - 50,
         cunning:    rng.nextInt(101) - 50,
       },
+      traits: [traitPool[rng.nextInt(traitPool.length)]],
       bornYear: -(rng.nextInt(30) + 20), // 20-50 years before world start
       diedYear: null,
+      legitimacy: 80 + rng.nextInt(20),
     };
   });
 }
