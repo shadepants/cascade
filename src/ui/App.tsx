@@ -110,10 +110,9 @@ export function App() {
         newWorld.player.actionsThisEra = [];
 
         // Storyteller Director — check for pending notifications from interventions
-        const st = newWorld.storyteller as typeof newWorld.storyteller & { pendingNotification?: string };
-        if (st?.pendingNotification) {
-          dispatch({ type: 'SHOW_NOTIFICATION', text: st.pendingNotification });
-          delete st.pendingNotification;
+        if (newWorld.storyteller?.pendingNotification) {
+          dispatch({ type: 'SHOW_NOTIFICATION', text: newWorld.storyteller.pendingNotification });
+          newWorld.storyteller = { ...newWorld.storyteller, pendingNotification: undefined };
         }
 
         // SET_WORLD transitions phase → 'exploring'

@@ -249,6 +249,9 @@ export interface StorytellerState {
   lastHighSigYear: number;
   consecutiveQuietYears: number;
   playerActionCount: number;
+
+  // Transient: set by Storyteller interventions, consumed by App.tsx after each simulation run
+  pendingNotification?: string;
 }
 
 export function defaultStorytellerState(mode: StorytellerMode = 'clio'): StorytellerState {

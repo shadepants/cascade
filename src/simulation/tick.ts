@@ -71,8 +71,12 @@ function pickMotivation(key: string, rng: SeededRNG): string {
   return pool[rng.nextInt(pool.length)];
 }
 
-/** Helper to conditionally emit events based on storyteller suppression/pacing. */
+/** Helper to conditionally emit events based on storyteller suppression/pacing.
+ *  Stat deltas are applied unconditionally so mechanical effects always take hold;
+ *  suppression only prevents the event from entering the visible narrative pool. */
 function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
+  // Always apply mechanical effects regardless of whether the narrative is suppressed
+  applyStatDeltas(world, event.statDeltas);
   if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
   pool.push(event);
   registerHighSigEvent(world.storyteller, event, year);
@@ -121,10 +125,8 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
       }
     }
 
-    // Apply stat deltas from all events this year
-    for (const event of yearEvents) {
-      applyStatDeltas(world, event.statDeltas);
-    }
+    // Stat deltas are applied inside emitEvent as each event is created,
+    // so no batch application is needed here.
 
     world.events.push(...yearEvents);
     allNewEvents.push(...yearEvents);

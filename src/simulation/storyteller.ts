@@ -342,8 +342,7 @@ export function applyIntervention(
       // Here we just log it. App.tsx reads world.storyteller for this signal.
       console.log(`[STORYTELLER] FORCE_NOTIFICATION — "${event.description}" (sig:${event.significance})`);
       // Store on storyteller so UI can pick it up
-      (world.storyteller as StorytellerState & { pendingNotification?: string })
-        .pendingNotification = `Rumors reach you of upheaval — your past choices echo: "${event.description}"`;
+      world.storyteller.pendingNotification = `Rumors reach you of upheaval — your past choices echo: "${event.description}"`;
       break;
     }
   }
