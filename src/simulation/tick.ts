@@ -1,20 +1,20 @@
-﻿// ─── 5-Phase Simulation Tick ─────────────────────────────────────────────
+﻿// --- 5-Phase Simulation Tick ---------------------------------------------
 // Advances world state by N years. Each year runs 5 phases:
 //
-//   1. ECOLOGY   — biome-driven population growth, famine
-//   2. ECONOMICS — wealth from territory, trade, military upkeep
-//   3. POLITICS  — structural animosity accumulation, alliances
-//   4. CONFLICT  — ethics divergence → war → geographic territory transfer
-//   5. CASCADE   — player-caused state changes → derived consequences
+//   1. ECOLOGY   � biome-driven population growth, famine
+//   2. ECONOMICS � wealth from territory, trade, military upkeep
+//   3. POLITICS  � structural animosity accumulation, alliances
+//   4. CONFLICT  � ethics divergence ? war ? geographic territory transfer
+//   5. CASCADE   � player-caused state changes ? derived consequences
 //
 // DF design principles applied:
 //   - Events are derived from state changes, not random template selection
 //   - Every event carries statDeltas (what actually changed)
-//   - Attribution is a forward-causal chain: root → children
+//   - Attribution is a forward-causal chain: root ? children
 //   - War requires geographic adjacency; territory transfer follows borders
 //   - Post-hoc motivation rationalization: event fires, then reason attached
 //
-// External contract (unchanged): runSimulation(world, jumpYears) → GameEvent[]
+// External contract (unchanged): runSimulation(world, jumpYears) ? GameEvent[]
 
 import type {
   WorldState, GameEvent, Faction,
@@ -31,16 +31,16 @@ import {
   shouldSuppressEvent, registerHighSigEvent,
 } from './storyteller.ts';
 
-// ─── Thresholds ──────────────────────────────────────────────────────────
+// --- Thresholds ----------------------------------------------------------
 
 const WAR_ANIMOSITY_THRESHOLD = 80;    // animosity needed to declare war
 const FAMINE_DESERT_THRESHOLD  = 0.55; // fraction of territory that's harsh
 const FAMINE_POPULATION_MIN    = 300;  // must have enough people to suffer
-const REBELLION_STABILITY_MIN  = 20;   // below this → rebellion risk
+const REBELLION_STABILITY_MIN  = 20;   // below this ? rebellion risk
 const ALLIANCE_OPINION_MIN     = 55;   // opinion needed to form alliance
 const CASCADE_SIGNIFICANCE_MIN = 3;    // only propagate events above this
 
-// ─── Biome pressure modifiers (applied per tile, normalized by territory) ─
+// --- Biome pressure modifiers (applied per tile, normalized by territory) -
 
 const BIOME_POP_DELTA: Record<string, number> = {
   plains: 2, forest: 0.5, mountain: -1, desert: -2, tundra: -2, water: 0,
@@ -49,7 +49,7 @@ const BIOME_WEALTH_DELTA: Record<string, number> = {
   plains: 1, forest: 2, mountain: 0.5, desert: -1, tundra: -1, water: 0,
 };
 
-// ─── Post-hoc motivation library ─────────────────────────────────────────
+// --- Post-hoc motivation library -----------------------------------------
 // Caves of Qud pattern: generate event from state, then attach best-matching
 // reason. Text system is separate from simulation logic.
 
@@ -71,7 +71,7 @@ function pickMotivation(key: string, rng: SeededRNG): string {
   return pool[rng.nextInt(pool.length)];
 }
 
-// ─── Main Entry Point ────────────────────────────────────────────────────
+// --- Main Entry Point ----------------------------------------------------
 
 /** Run simulation for jumpYears. Mutates world in place. Returns new events. */
 export function runSimulation(world: WorldState, jumpYears: number): GameEvent[] {
@@ -88,7 +88,7 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
   for (let i = 0; i < jumpYears; i++) {
     const year = world.currentYear + i + 1;
 
-    // Storyteller Director — per-year hooks
+    // Storyteller Director � per-year hooks
     pruneCooldowns(world.storyteller, year);
     world.storyteller.highSigEventsThisYear = 0;
     world.storyteller.tension = computeTension(world.storyteller, world);
@@ -107,10 +107,10 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
     if (yearEvents.length > 0) {
       console.log(`[TICK y=${year}] eco:${eco.length} econ:${econ.length} pol:${pol.length} conflict:${con.length} stab:${stab.length} cascade:${cas.length}`);
       for (const e of con) {
-        console.log(`  [CONFLICT] ${e.action}: ${e.subject} → ${e.object} — "${e.description}"`);
+        console.log(`  [CONFLICT] ${e.action}: ${e.subject} ? ${e.object} � "${e.description}"`);
       }
       for (const e of cas) {
-        console.log(`  [CASCADE] ${e.action} on ${e.object} causedBy=${e.causedBy ?? 'none'} — "${e.description}"`);
+        console.log(`  [CASCADE] ${e.action} on ${e.object} causedBy=${e.causedBy ?? 'none'} � "${e.description}"`);
       }
     }
 
@@ -122,7 +122,7 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
     world.events.push(...yearEvents);
     allNewEvents.push(...yearEvents);
 
-    // Storyteller Director — year-end hooks
+    // Storyteller Director � year-end hooks
     decayTension(world.storyteller);
     accumulateDebt(world.storyteller, world, year);
     const intervention = fireDebtIntervention(world.storyteller, world, rng);
@@ -135,7 +135,7 @@ export function runSimulation(world: WorldState, jumpYears: number): GameEvent[]
 }
 
 
-// ─── Typed Stat Accessors ─────────────────────────────────────────────────
+// --- Typed Stat Accessors -------------------------------------------------
 // Avoids unsafe Record<string,number> casts for dynamic stat access.
 
 function getFactionStat(faction: Faction, stat: FactionStatKey): number {
@@ -171,7 +171,7 @@ function applyStatDeltas(world: WorldState, deltas: StatDelta[]): void {
   }
 }
 
-// ─── Phase 1: Ecology ────────────────────────────────────────────────────
+// --- Phase 1: Ecology ----------------------------------------------------
 // Biome composition of each faction's territory drives population change.
 // Famine fires when too much territory is harsh AND population is high.
 
@@ -259,7 +259,7 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
   return events;
 }
 
-// ─── Phase 2: Economics ──────────────────────────────────────────────────
+// --- Phase 2: Economics --------------------------------------------------
 // Trade between peaceful neighbors. Military upkeep drains wealth.
 // Cultural drift grows when stable and wealthy.
 
@@ -319,7 +319,7 @@ function phaseEconomics(
   return events;
 }
 
-// ─── Phase 3: Politics ───────────────────────────────────────────────────
+// --- Phase 3: Politics ---------------------------------------------------
 // Structural animosity: border pressure + ethics divergence.
 // Alliance formation when opinion is high and mutual interest exists.
 // War-state decay (wars eventually exhaust both sides).
@@ -334,7 +334,7 @@ function phasePolitics(
     const fB = world.factions.find(f => f.id === rel.factionB);
     if (!fA || !fB) continue;
 
-    // ── Animosity accumulation ───────────────────────────────────────────
+    // -- Animosity accumulation -------------------------------------------
     // Border pressure: factions sharing territory naturally build tension
     const sharedBorderTiles = countSharedBorderTiles(world.map, fA.id, fB.id);
     const borderPressure = sharedBorderTiles * 0.2;
@@ -355,7 +355,7 @@ function phasePolitics(
     // Opinion drift toward center (forgetting)
     rel.opinion = Math.round(rel.opinion * 0.96);
 
-    // ── Alliance formation ────────────────────────────────────────────────
+    // -- Alliance formation ------------------------------------------------
     if (rel.state === 'peace' &&
         rel.opinion >= ALLIANCE_OPINION_MIN &&
         rel.animosity < 30 &&
@@ -381,7 +381,7 @@ function phasePolitics(
       }));
     }
 
-    // ── War exhaustion → peace ────────────────────────────────────────────
+    // -- War exhaustion ? peace --------------------------------------------
     if (rel.state === 'war') {
       rel.animosity = Math.max(0, rel.animosity - 8); // war burns animosity
       rel.opinion -= 3; // but deepens hatred
@@ -435,8 +435,8 @@ function phasePolitics(
   return events;
 }
 
-// ─── Phase 4: Conflict ───────────────────────────────────────────────────
-// War declaration: animosity × aggression × ruler ambition vs threshold.
+// --- Phase 4: Conflict ---------------------------------------------------
+// War declaration: animosity � aggression � ruler ambition vs threshold.
 // Territory transfer is geographic (border tiles), not random.
 
 function phaseConflict(
@@ -451,14 +451,14 @@ function phaseConflict(
     const fB = world.factions.find(f => f.id === rel.factionB);
     if (!fA || !fB) continue;
 
-    // ── War declaration check ─────────────────────────────────────────────
+    // -- War declaration check ---------------------------------------------
     // Leader ambition modifies the effective threshold
     const leaderA = world.historicalFigures.find(hf => hf.id === fA.leaderId);
     const leaderB = world.historicalFigures.find(hf => hf.id === fB.leaderId);
     const ambiA = leaderA?.values.ambition ?? 0;
     const ambiB = leaderB?.values.ambition ?? 0;
 
-    // High aggression + high animosity + ambitious leader → lower threshold
+    // High aggression + high animosity + ambitious leader ? lower threshold
     const warScoreA = rel.animosity * (1 + fA.aggression / 100) * (1 + ambiA / 100);
     const warScoreB = rel.animosity * (1 + fB.aggression / 100) * (1 + ambiB / 100);
     const warScore  = Math.max(warScoreA, warScoreB);
@@ -473,7 +473,7 @@ function phaseConflict(
     // Storyteller budget gate: limit war events per year
     if (shouldSuppressEvent(world.storyteller, year, 6)) continue;
 
-    // ── War declaration ───────────────────────────────────────────────────
+    // -- War declaration ---------------------------------------------------
     const attacker = warScoreA >= warScoreB ? fA : fB;
     const defender = attacker === fA ? fB : fA;
 
@@ -495,7 +495,7 @@ function phaseConflict(
     events.push(warEvt);
     registerHighSigEvent(world.storyteller, warEvt, year);
 
-    // ── Battle resolution ─────────────────────────────────────────────────
+    // -- Battle resolution -------------------------------------------------
     const atkStrength = attacker.military + rng.nextInt(25);
     const defStrength = defender.military + rng.nextInt(25) + 10; // defender bonus
     const attackerWins = atkStrength > defStrength;
@@ -546,7 +546,7 @@ function phaseConflict(
   return events;
 }
 
-// ─── Phase 6: Stability ──────────────────────────────────────────────────
+// --- Phase 6: Stability --------------------------------------------------
 // Imperial overstretch: factions controlling too much territory suffer
 // stability penalties, potentially leading to fragmentation or rebellion.
 
@@ -736,7 +736,7 @@ function getTilesWithPosForFaction(map: GameMap, factionId: string): (Position &
   return tiles;
 }
 
-// ─── Phase 7: Gossip ─────────────────────────────────────────────────────
+// --- Phase 7: Gossip -----------------------------------------------------
 // NPCs in the same settlement trade knowledge. Accuracy degrades with 
 // each transfer. This creates the 'Telephone Game' effect across history.
 
@@ -771,9 +771,9 @@ function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent
   return events;
 }
 
-// ─── Knowledge Seeding ───────────────────────────────────────────────────
+// --- Knowledge Seeding ---------------------------------------------------
 // Cascade events are routed into the knowledge of NPCs who belong to the
-// affected faction. Without this, phaseGossip has nothing to spread —
+// affected faction. Without this, phaseGossip has nothing to spread �
 // NPC knowledge arrays stay empty and dialogue never references cascade events.
 
 function seedEventKnowledge(
@@ -790,7 +790,7 @@ function seedEventKnowledge(
     for (const npc of witnessNpcs) {
       if (npc.knowledge.some(k => k.eventId === event.id)) continue;
       // Faction members who witnessed the event have high accuracy.
-      // Add a small random spread (0.75–1.0) so tiers vary in dialogue.
+      // Add a small random spread (0.75�1.0) so tiers vary in dialogue.
       const accuracy = 0.75 + rng.nextFloat() * 0.25;
       npc.knowledge.push({
         eventId:        event.id,
@@ -802,7 +802,7 @@ function seedEventKnowledge(
   }
 }
 
-// ─── Phase 5: Cascade ────────────────────────────────────────────────────
+// --- Phase 5: Cascade ----------------------------------------------------
 // Player-caused events mutate faction stats via statDeltas.
 // Downstream consequences are DERIVED from actual state crossings,
 // not picked from a random template list.
@@ -832,6 +832,15 @@ function phaseCascade(
       if (consequence && !shouldSuppressEvent(world.storyteller, year, consequence.significance)) {
         cascadeEvents.push(consequence);
         registerHighSigEvent(world.storyteller, consequence, year);
+        // Apply deferred animosity mutation for military_buildup (moved from deriveConsequence
+        // so it only fires when the event is not suppressed).
+        if (consequence.action === 'military_buildup') {
+          const rel = world.relationships.find(r =>
+            (r.factionA === consequence.subject || r.factionB === consequence.subject) &&
+            (r.factionA === consequence.object  || r.factionB === consequence.object),
+          );
+          if (rel) rel.animosity = Math.min(200, rel.animosity + 20);
+        }
       }
     }
   }
@@ -920,8 +929,6 @@ function deriveConsequence(
     const target = world.factions.find(f => f.id === targetId);
     if (!target) return null;
 
-    rel.animosity = Math.min(200, rel.animosity + 20);
-
     return createEvent({
       tick: year, year,
       subject: faction.id,
@@ -977,7 +984,7 @@ function checkThresholdEvents(
   return events;
 }
 
-// ─── Spatial Helpers ─────────────────────────────────────────────────────
+// --- Spatial Helpers -----------------------------------------------------
 
 /** Get all tiles owned by a faction. */
 function getTilesForFaction(map: GameMap, factionId: string): { biome: string }[] {
