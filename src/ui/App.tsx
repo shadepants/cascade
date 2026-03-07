@@ -49,6 +49,13 @@ function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: n
 
 export function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  // Dev-only test hook — exposes state + dispatch for Playwright
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      (window as Record<string, unknown>).__CASCADE_STATE   = state;
+      (window as Record<string, unknown>).__CASCADE_DISPATCH = dispatch;
+    }
+  });
   // Always-current world ref — avoids stale closure in WebWorker effect
   const worldRef = useRef(state.world);
   useEffect(() => { worldRef.current = state.world; }, [state.world]);
