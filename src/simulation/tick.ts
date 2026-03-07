@@ -71,11 +71,14 @@ function pickMotivation(key: string, rng: SeededRNG): string {
   return pool[rng.nextInt(pool.length)];
 }
 
-/** Helper to conditionally emit events based on storyteller suppression/pacing. */
-function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
-  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
+/** Helper to conditionally emit events based on storyteller suppression/pacing.
+ * Returns true if the event was emitted, false if suppressed.
+ */
+function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): boolean {
+  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return false;
   pool.push(event);
   registerHighSigEvent(world.storyteller, event, year);
+  return true;
 }
 
 // ─── Main Entry Point ────────────────────────────────────────────────────
@@ -821,7 +824,18 @@ function phaseCascade(
       if (!faction) continue;
 
       const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
-      if (consequence) emitEvent(world, cascadeEvents, consequence, year);
+      if (consequence) {
+        const emitted = emitEvent(world, cascadeEvents, consequence, year);
+        // Defer animosity mutation until after emission is confirmed, so suppressed
+        // events don't leave partial world state (animosity up but stability delta lost).
+        if (emitted && consequence.action === 'military_buildup') {
+          const rel = world.relationships.find(r =>
+            (r.factionA === consequence.subject || r.factionB === consequence.subject) &&
+            (r.factionA === consequence.object  || r.factionB === consequence.object),
+          );
+          if (rel) rel.animosity = Math.min(200, rel.animosity + 20);
+        }
+      }
     }
   }
 
@@ -903,8 +917,6 @@ function deriveConsequence(
     const targetId = rel.factionA === faction.id ? rel.factionB : rel.factionA;
     const target = world.factions.find(f => f.id === targetId);
     if (!target) return null;
-
-    rel.animosity = Math.min(200, rel.animosity + 20);
 
     return createEvent({
       tick: year, year,
