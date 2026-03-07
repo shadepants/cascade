@@ -338,12 +338,10 @@ export function applyIntervention(
     }
 
     case 'FORCE_NOTIFICATION': {
-      // This is handled at the UI layer — tick returns it as a flag.
-      // Here we just log it. App.tsx reads world.storyteller for this signal.
+      // Store on storyteller so App.tsx can surface it after the jump completes.
       console.log(`[STORYTELLER] FORCE_NOTIFICATION — "${event.description}" (sig:${event.significance})`);
-      // Store on storyteller so UI can pick it up
-      (world.storyteller as StorytellerState & { pendingNotification?: string })
-        .pendingNotification = `Rumors reach you of upheaval — your past choices echo: "${event.description}"`;
+      world.storyteller.pendingNotification =
+        `Rumors reach you of upheaval — your past choices echo: "${event.description}"`;
       break;
     }
   }

@@ -26,8 +26,9 @@ import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
 import {
   computeTension, decayTension, pruneCooldowns,
-  getCascadeThreshold,
+  getCascadeThreshold, getGossipBoost,
   accumulateDebt, fireDebtIntervention, applyIntervention,
+  shouldSuppressEvent, registerHighSigEvent,
 } from './storyteller.ts';
 
 // ─── Thresholds ──────────────────────────────────────────────────────────
@@ -205,23 +206,27 @@ function phaseEcology(world: WorldState, year: number, rng: SeededRNG): GameEven
         faction.population > FAMINE_POPULATION_MIN &&
         rng.nextFloat() < 0.35) {
 
-      const deltas: StatDelta[] = [
-        { factionId: faction.id, stat: 'population', delta: -80 },
-        { factionId: faction.id, stat: 'stability',  delta: -15 },
-        { factionId: faction.id, stat: 'wealth',     delta: -10 },
-      ];
-      events.push(createEvent({
-        tick: year, year,
-        subject: faction.id,
-        action:  'suffered_famine',
-        object:  'wilderness',
-        causedBy: null,
-        significance: 5,
-        playerCaused: false,
-        description: `${faction.name} suffered a devastating famine`,
-        motivation: pickMotivation('famine', rng),
-        statDeltas: deltas,
-      }));
+      if (!shouldSuppressEvent(world.storyteller, year, 5)) {
+        const deltas: StatDelta[] = [
+          { factionId: faction.id, stat: 'population', delta: -80 },
+          { factionId: faction.id, stat: 'stability',  delta: -15 },
+          { factionId: faction.id, stat: 'wealth',     delta: -10 },
+        ];
+        const famineEvt = createEvent({
+          tick: year, year,
+          subject: faction.id,
+          action:  'suffered_famine',
+          object:  'wilderness',
+          causedBy: null,
+          significance: 5,
+          playerCaused: false,
+          description: `${faction.name} suffered a devastating famine`,
+          motivation: pickMotivation('famine', rng),
+          statDeltas: deltas,
+        });
+        events.push(famineEvt);
+        registerHighSigEvent(world.storyteller, famineEvt, year);
+      }
     }
 
     // Population boom: good territory + low population (room to grow)
@@ -465,6 +470,9 @@ function phaseConflict(
     if (warScore * expansionMultiplier < WAR_ANIMOSITY_THRESHOLD) continue;
     if (rng.nextFloat() > 0.25) continue; // 25% chance even when threshold met
 
+    // Storyteller budget gate: limit war events per year
+    if (shouldSuppressEvent(world.storyteller, year, 6)) continue;
+
     // ── War declaration ───────────────────────────────────────────────────
     const attacker = warScoreA >= warScoreB ? fA : fB;
     const defender = attacker === fA ? fB : fA;
@@ -472,7 +480,7 @@ function phaseConflict(
     rel.state = 'war';
     rel.opinion = Math.min(rel.opinion, -40);
 
-    events.push(createEvent({
+    const warEvt = createEvent({
       tick: year, year,
       subject: attacker.id,
       action:  'declared_war',
@@ -483,7 +491,9 @@ function phaseConflict(
       description: `${attacker.name} declared war on ${defender.name}`,
       motivation: pickMotivation('war_declared', rng),
       statDeltas: [],
-    }));
+    });
+    events.push(warEvt);
+    registerHighSigEvent(world.storyteller, warEvt, year);
 
     // ── Battle resolution ─────────────────────────────────────────────────
     const atkStrength = attacker.military + rng.nextInt(25);
@@ -517,7 +527,7 @@ function phaseConflict(
       { factionId: loser.id,  stat: 'stability',  delta: loserStabDelta },
     ];
 
-    events.push(createEvent({
+    const conquestEvt = createEvent({
       tick: year, year,
       subject: winner.id,
       action:  'conquered',
@@ -528,7 +538,9 @@ function phaseConflict(
       description: `${winner.name} defeated ${loser.name} in battle and seized border territory`,
       motivation: pickMotivation('conquered', rng),
       statDeltas: deltas,
-    }));
+    });
+    events.push(conquestEvt);
+    registerHighSigEvent(world.storyteller, conquestEvt, year);
   }
 
   return events;
@@ -572,8 +584,13 @@ function phaseStability(world: WorldState, year: number, rng: SeededRNG): GameEv
 
     // 2. Fracture Trigger: Critical instability shatters the empire
     if (faction.stability < REBELLION_STABILITY_MIN && tiles.length > 10) {
-      const fracture = fractureFaction(world, faction, year, rng);
-      if (fracture) events.push(fracture);
+      if (!shouldSuppressEvent(world.storyteller, year, 8)) {
+        const fracture = fractureFaction(world, faction, year, rng);
+        if (fracture) {
+          events.push(fracture);
+          registerHighSigEvent(world.storyteller, fracture, year);
+        }
+      }
     }
 
     // 3. Spontaneous recovery for stable factions
@@ -735,7 +752,7 @@ function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent
       const npcB = settlementNpcs[(i + 1) % settlementNpcs.length];
 
       // NPC A tells NPC B something they know
-      if (npcA.knowledge.length > 0 && rng.nextFloat() < 0.3) {
+      if (npcA.knowledge.length > 0 && rng.nextFloat() < getGossipBoost(world.storyteller, settlement.factionId, year)) {
         const knowledgeToShare = npcA.knowledge[rng.nextInt(npcA.knowledge.length)];
         
         // Check if NPC B already knows this
@@ -812,14 +829,21 @@ function phaseCascade(
       if (!faction) continue;
 
       const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
-      if (consequence) cascadeEvents.push(consequence);
+      if (consequence && !shouldSuppressEvent(world.storyteller, year, consequence.significance)) {
+        cascadeEvents.push(consequence);
+        registerHighSigEvent(world.storyteller, consequence, year);
+      }
     }
   }
 
   // Also check for threshold crossings independent of specific deltas
   for (const faction of world.factions) {
-    const spontaneous = checkThresholdEvents(faction, year, rng, playerEvents);
-    cascadeEvents.push(...spontaneous);
+    for (const e of checkThresholdEvents(faction, year, rng, playerEvents)) {
+      if (!shouldSuppressEvent(world.storyteller, year, e.significance)) {
+        cascadeEvents.push(e);
+        registerHighSigEvent(world.storyteller, e, year);
+      }
+    }
   }
 
   return cascadeEvents;

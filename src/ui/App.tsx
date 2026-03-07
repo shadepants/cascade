@@ -1,4 +1,4 @@
-// ─── Root App Component ─────────────────────────────────────────────────
+﻿// ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
 import { useReducer, useEffect, useRef, useState } from 'react';
