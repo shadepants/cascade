@@ -4,6 +4,7 @@
 // can be dropped into App.tsx without touching game logic.
 //
 // Phase 1 scope: terrain tiles + settlements/ruins + player/NPCs.
+// Phase 2 scope: Ghost of History overlay (H key — dashed faction borders from previousWorld).
 // NOT wired into App.tsx yet — that swap happens in Phase 5.
 //
 // Performance note: sprites are rebuilt from scratch on every world/camera
@@ -11,7 +12,7 @@
 // Texture pooling is deferred to Phase 3.
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Application, Assets, Container, Sprite, Texture, Rectangle } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import { useGame } from '../store.ts';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
@@ -42,6 +43,40 @@ interface Layers {
   terrain: Container;
   mid:     Container;
   top:     Container;
+  ghost:   Container; // Phase 2: Ghost of History overlay
+}
+
+// ─── Ghost layer helpers ─────────────────────────────────────────────────
+
+/**
+ * Accumulate moveTo/lineTo pairs for one tile-edge as a dashed line,
+ * matching Canvas renderer's setLineDash([4, 4]) ghost territory effect.
+ * Does NOT call g.stroke() — the caller batches multiple edges per faction
+ * color and strokes them all in one call for efficiency.
+ */
+function strokeDashedEdge(
+  g: Graphics,
+  x1: number, y1: number,
+  x2: number, y2: number,
+): void {
+  const DASH = 4;
+  const GAP  = 4;
+  const horiz = y1 === y2;
+  const total = horiz ? Math.abs(x2 - x1) : Math.abs(y2 - y1);
+  let pos  = 0;
+  let draw = true;
+  while (pos < total) {
+    const len = Math.min(draw ? DASH : GAP, total - pos);
+    if (draw) {
+      if (horiz) {
+        g.moveTo(x1 + pos, y1).lineTo(x1 + pos + len, y1);
+      } else {
+        g.moveTo(x1, y1 + pos).lineTo(x1, y1 + pos + len);
+      }
+    }
+    pos  += len;
+    draw = !draw;
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────
@@ -102,15 +137,16 @@ export function PixiViewport() {
       canvas.style.display = 'block';
       containerRef.current?.appendChild(canvas);
 
-      // Three-layer stage: terrain → mid (structures) → top (characters)
+      // Four-layer stage: terrain → mid (structures) → top (characters) → ghost (history overlay)
       const terrainLayer = new Container();
       const midLayer     = new Container();
       const topLayer     = new Container();
-      app.stage.addChild(terrainLayer, midLayer, topLayer);
+      const ghostLayer   = new Container();
+      app.stage.addChild(terrainLayer, midLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
       sheetsRef.current = { terrain, settlement, character, player };
-      layersRef.current = { terrain: terrainLayer, mid: midLayer, top: topLayer };
+      layersRef.current = { terrain: terrainLayer, mid: midLayer, top: topLayer, ghost: ghostLayer };
 
       setReady(true);
     })();
@@ -132,11 +168,11 @@ export function PixiViewport() {
     appRef.current?.renderer.resize(canvasWidth, canvasHeight);
   }, [canvasWidth, canvasHeight]);
 
-  // ── Rebuild sprites on world / camera change ──────────────────────────
+  // ── Rebuild sprites on world / camera / history change ───────────────
   useEffect(() => {
     if (!ready || !state.world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
 
-    const { terrain, mid, top } = layersRef.current;
+    const { terrain, mid, top, ghost } = layersRef.current;
     const sheets  = sheetsRef.current;
     const { world, camera } = state;
     const tileDisplay = TILE_SIZE * zoom;
@@ -160,6 +196,7 @@ export function PixiViewport() {
     terrain.removeChildren();
     mid.removeChildren();
     top.removeChildren();
+    ghost.removeChildren();
 
     // ── Layer 1: terrain ────────────────────────────────────────────────
     for (let row = 0; row < camera.viewportHeight; row++) {
@@ -203,8 +240,71 @@ export function PixiViewport() {
       top.addChild(makeSprite(sheets.player, PLAYER_TILE, px, py));
     }
 
-  }, [state.world, state.camera, ready, showHistory, zoom]);
-  // showHistory is intentionally in deps — Phase 2 will add the ghost layer here.
+    // ── Layer 4: Ghost of History ─────────────────────────────────────────
+    // Renders dashed faction-border lines from previousWorld at 0.4 alpha when
+    // the player holds H. Matches Canvas renderer's setLineDash([4, 4]) effect.
+    // Edges are batched per faction color so each color costs one g.stroke() call.
+    if (showHistory && state.previousWorld) {
+      const prevWorld = state.previousWorld;
+
+      // Build color lookup: faction id → 0xRRGGBB integer (PixiJS format)
+      const prevFactionColors = new Map<string, number>();
+      for (const f of prevWorld.factions) {
+        prevFactionColors.set(f.id, parseInt(f.color.replace('#', ''), 16));
+      }
+
+      // Collect border edge segments grouped by faction color
+      const segsByColor = new Map<number, Array<[number, number, number, number]>>();
+
+      for (let row = 0; row < camera.viewportHeight; row++) {
+        for (let col = 0; col < camera.viewportWidth; col++) {
+          const wx = camera.x + col;
+          const wy = camera.y + row;
+          if (wx < 0 || wy < 0 || wx >= prevWorld.map.width || wy >= prevWorld.map.height) continue;
+          const tile = prevWorld.map.tiles[wy][wx];
+          if (!tile.factionId) continue;
+
+          const color = prevFactionColors.get(tile.factionId) ?? 0xffffff;
+          const sx = col * tileDisplay;
+          const sy = row * tileDisplay;
+
+          // Check all 4 edges — emit border where neighbor belongs to a different faction
+          const edgeCandidates = [
+            { dx: 0, dy: -1, x1: sx,             y1: sy,              x2: sx + tileDisplay, y2: sy              },
+            { dx: 0, dy:  1, x1: sx,             y1: sy + tileDisplay, x2: sx + tileDisplay, y2: sy + tileDisplay },
+            { dx: -1, dy: 0, x1: sx,             y1: sy,              x2: sx,               y2: sy + tileDisplay },
+            { dx:  1, dy: 0, x1: sx + tileDisplay, y1: sy,            x2: sx + tileDisplay, y2: sy + tileDisplay },
+          ];
+
+          for (const e of edgeCandidates) {
+            const nx = wx + e.dx;
+            const ny = wy + e.dy;
+            const neighborFaction = (nx >= 0 && ny >= 0 && nx < prevWorld.map.width && ny < prevWorld.map.height)
+              ? prevWorld.map.tiles[ny][nx].factionId
+              : null;
+            if (neighborFaction !== tile.factionId) {
+              if (!segsByColor.has(color)) segsByColor.set(color, []);
+              segsByColor.get(color)!.push([e.x1, e.y1, e.x2, e.y2]);
+            }
+          }
+        }
+      }
+
+      // Draw all edges — one Graphics object, batched per faction color
+      if (segsByColor.size > 0) {
+        const g = new Graphics();
+        for (const [color, segs] of segsByColor) {
+          for (const [x1, y1, x2, y2] of segs) {
+            strokeDashedEdge(g, x1, y1, x2, y2);
+          }
+          // stroke() in PixiJS v8 commits all accumulated moveTo/lineTo as a single draw command
+          g.stroke({ color, width: 2, alpha: 0.4 });
+        }
+        ghost.addChild(g);
+      }
+    }
+
+  }, [state.world, state.camera, state.previousWorld, ready, showHistory, zoom]);
 
   // ── H key: Ghost of History toggle (mirrors GameCanvas) ──────────────
   useEffect(() => {
