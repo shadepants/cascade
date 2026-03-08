@@ -7,9 +7,13 @@ import { MAX_ACTIONS_PER_ERA } from '../types.ts';
 
 export function HUD() {
   const { state, dispatch } = useGame();
-  const { world, notification, phase } = state;
+  const { world, notification, phase, config } = state;
 
   if (!world) return null;
+
+  // Era year: relative to when the player entered (pregenYears = year 0 of player time).
+  // pregenYears = 500 → game starts at "Era Year 1", ends at "Era Year ~200".
+  const eraYear = world.currentYear - config.pregenYears + 1;
 
   const actionsUsed = world.player.actionsThisEra.length;
   const actionsLeft = MAX_ACTIONS_PER_ERA - actionsUsed;
@@ -22,7 +26,7 @@ export function HUD() {
   return (
     <div className="hud">
       <div className="hud-left">
-        <span className="hud-year">Year {world.currentYear}</span>
+        <span className="hud-year">Era Year {eraYear}</span>
         <span className="hud-pos">
           ({world.player.position.x}, {world.player.position.y})
         </span>

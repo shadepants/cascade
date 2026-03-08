@@ -12,7 +12,7 @@ import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
 import { saveGame } from '../data/db.ts';
 
-/** High-speed year counter overlay for the 'jumping' phase. */
+/** High-speed era year counter overlay for the 'jumping' phase. */
 function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: number }) {
   const [displayYear, setDisplayYear] = useState(startYear);
 
@@ -41,7 +41,7 @@ function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: n
 
   return (
     <div className="jumping-overlay">
-      <div className="year-counter">Year {displayYear}</div>
+      <div className="year-counter">Era Year {displayYear}</div>
       <div className="jumping-label">Temporal Cascade in Progress</div>
     </div>
   );
@@ -172,6 +172,9 @@ export function App() {
     return () => clearTimeout(timer);
   }, [state.notification, dispatch]);
 
+  // Relative era year for the jump overlay (starts at 1 for the player)
+  const eraYearOffset = state.config.pregenYears - 1;
+
   return (
     <GameContext.Provider value={{ state, dispatch }}>
       <div className="app">
@@ -195,8 +198,8 @@ export function App() {
             {/* Overlay panels */}
             {state.phase === 'jumping' && state.world && (
               <TemporalOverlay 
-                startYear={state.world.currentYear} 
-                endYear={state.world.currentYear + 10} 
+                startYear={state.world.currentYear - eraYearOffset}
+                endYear={state.world.currentYear - eraYearOffset + 10}
               />
             )}
             {state.phase === 'dialogue' && <DialoguePanel />}

@@ -15,6 +15,7 @@ import { useGame } from '../store.ts';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
 import { TILE_SIZE } from '../types.ts';
+import type { Biome } from '../types.ts';
 import type { TileRegion } from '../engine/tileMap.ts';
 import {
   SHEET_TERRAIN,
@@ -95,6 +96,57 @@ function strokeDashedEdge(
   }
 }
 
+// ─── Terrain tinting ─────────────────────────────────────────────────────
+
+/**
+ * Returns a PixiJS tint value (0xRRGGBB) for a terrain tile.
+ * 0xffffff = no change. Subtle shifts based on elevation/rainfall
+ * add visual variety without additional sprite sheets.
+ */
+function terrainTint(biome: Biome, elevation: number, rainfall: number): number {
+  switch (biome) {
+    case 'ocean':
+    case 'coast': {
+      // Deeper (lower elevation) = darker blue, shallower = lighter
+      const v = Math.floor(160 + elevation * 80); // 160–240
+      return (v << 16) | (v << 8) | 0xff;
+    }
+    case 'mountain': {
+      if (elevation > 0.75) {
+        // Snow-capped peaks: cool grey-white tint
+        const v = Math.floor(215 + elevation * 40); // 215–255
+        return (v << 16) | (v << 8) | 0xff;
+      }
+      return 0xffffff;
+    }
+    case 'grassland':
+    case 'forest':
+    case 'rainforest': {
+      // Higher rainfall → richer green (slightly reduce red channel)
+      const r = Math.floor(255 - rainfall * 28); // 227–255
+      return (r << 16) | 0x00ffff;
+    }
+    case 'arid': {
+      // Drier = warmer/redder (reduce blue channel slightly)
+      const b = Math.floor(255 - (1 - rainfall) * 35); // 220–255
+      return (0xff << 16) | (0xff << 8) | b;
+    }
+    case 'desert': {
+      // Higher elevation = slightly cooler sand
+      const b = Math.floor(180 + elevation * 50); // 180–230
+      return (0xff << 16) | (0xee << 8) | b;
+    }
+    case 'tundra': {
+      // Higher elevation = icier blue-white
+      const b = Math.floor(220 + elevation * 35); // 220–255
+      const r = Math.floor(210 + elevation * 30); // 210–240
+      return (r << 16) | (0xe0 << 8) | b;
+    }
+    default:
+      return 0xffffff;
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────
 
 export function PixiViewport() {
@@ -112,6 +164,14 @@ export function PixiViewport() {
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
   const [debugMode, setDebugMode] = useState<'none' | 'elevation' | 'rainfall'>('none');
+
+  // Hover tooltip state
+  const [tooltip, setTooltip] = useState<{
+    label: string;
+    detail: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const zoom         = state.camera.zoom ?? 1.0;
   const canvasWidth  = state.camera.viewportWidth  * TILE_SIZE * zoom;
@@ -251,7 +311,10 @@ export function PixiViewport() {
         const wy = camera.y + row;
         if (wx >= world.map.width || wy >= world.map.height) continue;
         const tile = world.map.tiles[wy][wx];
-        terrain.addChild(makeSprite('terrain', BIOME_TILES[tile.biome], col, row));
+        const sprite = makeSprite('terrain', BIOME_TILES[tile.biome], col, row);
+        // Apply subtle elevation/rainfall tint for visual variety
+        sprite.tint = terrainTint(tile.biome, tile.elevation, tile.rainfall);
+        terrain.addChild(sprite);
       }
     }
 
@@ -264,7 +327,13 @@ export function PixiViewport() {
         const tile = world.map.tiles[wy][wx];
         const treeRegion = TREE_TILES[tile.biome];
         if (treeRegion) {
-          mid.addChild(makeSprite('tree', treeRegion, col, row));
+          const sprite = makeSprite('tree', treeRegion, col, row);
+          // Vary tree tint slightly by position for visual diversity
+          const hash = (wx * 7 + wy * 13) & 0xff; // 0–255
+          const tintShift = Math.floor(hash * 0.06); // 0–15
+          const r = Math.max(200, 240 - tintShift);
+          sprite.tint = (r << 16) | (0xff << 8) | (r & 0xaa);
+          mid.addChild(sprite);
         }
       }
     }
@@ -482,9 +551,79 @@ export function PixiViewport() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // ── Mouse hover: biome tooltip ────────────────────────────────────────
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!state.world) { setTooltip(null); return; }
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const tileDisplay = TILE_SIZE * zoom;
+    const col = Math.floor((e.clientX - rect.left) / tileDisplay);
+    const row = Math.floor((e.clientY - rect.top)  / tileDisplay);
+    const wx = state.camera.x + col;
+    const wy = state.camera.y + row;
+    const { world } = state;
+    if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) {
+      setTooltip(null);
+      return;
+    }
+    const tile = world.map.tiles[wy][wx];
+    const biomeName = tile.biome.charAt(0).toUpperCase() + tile.biome.slice(1);
+    const faction   = tile.factionId ? world.factions.find(f => f.id === tile.factionId) : null;
+    const settlement = world.settlements.find(s => s.position.x === wx && s.position.y === wy);
+    const ruin       = world.ruins.find(r => r.position.x === wx && r.position.y === wy);
+    const resource   = world.resourceNodes.find(n => n.position.x === wx && n.position.y === wy);
+
+    let label = biomeName;
+    if (settlement) label = `${settlement.name}`;
+    else if (ruin)  label = `Ruins`;
+
+    const details: string[] = [biomeName];
+    details.push(`Elev ${tile.elevation.toFixed(2)}  Rain ${tile.rainfall.toFixed(2)}`);
+    if (faction) details.push(`Territory: ${faction.name}`);
+    if (resource) details.push(`Resource: ${resource.type}`);
+
+    setTooltip({ label, detail: details.join('\n'), x: e.clientX, y: e.clientY });
+  }, [state, zoom]);
+
+  const handleMouseLeave = useCallback(() => setTooltip(null), []);
+
   // debugMode is read here for future use (elevation/rainfall overlay in Phase 3+).
   // Suppress unused-variable lint until then.
   void debugMode;
 
-  return <div ref={containerRef} style={{ display: 'block' }} />;
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div ref={containerRef} style={{ display: 'block' }} />
+      {tooltip && (
+        <div style={{
+          position:   'fixed',
+          left:       tooltip.x + 14,
+          top:        tooltip.y + 14,
+          background: 'rgba(8, 12, 20, 0.92)',
+          color:      '#b8ccdd',
+          padding:    '6px 10px',
+          borderRadius: '4px',
+          fontSize:   '11px',
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+          zIndex:     9999,
+          border:     '1px solid #2a3a4a',
+          lineHeight: '1.6',
+          whiteSpace: 'pre-line',
+          boxShadow:  '0 2px 8px rgba(0,0,0,0.6)',
+          minWidth:   '120px',
+        }}>
+          <div style={{ color: '#ddeeff', fontWeight: 'bold', marginBottom: '2px' }}>
+            {tooltip.label}
+          </div>
+          <div style={{ color: '#6a8a9a', fontSize: '10px' }}>
+            {tooltip.detail}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
