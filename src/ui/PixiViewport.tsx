@@ -5,11 +5,8 @@
 //
 // Phase 1 scope: terrain tiles + settlements/ruins + player/NPCs.
 // Phase 2 scope: Ghost of History overlay (H key — dashed faction borders from previousWorld).
+// Phase 3 scope: Texture pooling (sub-textures reused across turns; no per-turn GPU allocs).
 // NOT wired into App.tsx yet — that swap happens in Phase 5.
-//
-// Performance note: sprites are rebuilt from scratch on every world/camera
-// change. Turn-based game means at most one rebuild per keypress — acceptable.
-// Texture pooling is deferred to Phase 3.
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
@@ -45,6 +42,9 @@ interface Layers {
   top:     Container;
   ghost:   Container; // Phase 2: Ghost of History overlay
 }
+
+/** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
+type SheetKey = keyof Sheets;
 
 // ─── Ghost layer helpers ─────────────────────────────────────────────────
 
@@ -86,6 +86,9 @@ export function PixiViewport() {
   const appRef       = useRef<Application | null>(null);
   const sheetsRef    = useRef<Sheets | null>(null);
   const layersRef    = useRef<Layers | null>(null);
+  // Phase 3: sub-texture pool — reuse one Texture per (sheet, frame) across turns.
+  // Key: `sheetKey:region.x:region.y` — unique per sprite type in each sheet.
+  const texPoolRef   = useRef<Map<string, Texture>>(new Map());
 
   const [ready, setReady] = useState(false);
   const { state, dispatch } = useGame();
@@ -153,6 +156,9 @@ export function PixiViewport() {
 
     return () => {
       mounted = false;
+      // Destroy pooled sub-textures before the app (GPU resources freed by app.destroy).
+      texPoolRef.current.forEach(tex => tex.destroy());
+      texPoolRef.current.clear();
       // Remove canvas from DOM manually before destroy
       const canvas = appRef.current?.canvas as HTMLCanvasElement | undefined;
       canvas?.parentElement?.removeChild(canvas);
@@ -174,16 +180,23 @@ export function PixiViewport() {
 
     const { terrain, mid, top, ghost } = layersRef.current;
     const sheets  = sheetsRef.current;
+    const texPool = texPoolRef.current;
     const { world, camera } = state;
     const tileDisplay = TILE_SIZE * zoom;
 
-    // Helper: create a sub-texture sprite from a sheet at screen position col/row.
-    // TODO Phase 3: pool Texture objects keyed by sheet+frame to avoid per-turn allocs.
-    function makeSprite(sheet: Texture, region: TileRegion, col: number, row: number): Sprite {
-      const tex = new Texture({
-        source: sheet.source,
-        frame:  new Rectangle(region.x, region.y, region.w, region.h),
-      });
+    // Create a Sprite from a pooled sub-texture.
+    // Pool key: `sheetKey:region.x:region.y` — same frame always returns the same Texture,
+    // so PixiJS can batch draw calls for repeated tiles (e.g. grassland) automatically.
+    function makeSprite(sheetKey: SheetKey, region: TileRegion, col: number, row: number): Sprite {
+      const poolKey = `${sheetKey}:${region.x}:${region.y}`;
+      let tex = texPool.get(poolKey);
+      if (!tex) {
+        tex = new Texture({
+          source: sheets[sheetKey].source,
+          frame:  new Rectangle(region.x, region.y, region.w, region.h),
+        });
+        texPool.set(poolKey, tex);
+      }
       const sprite = new Sprite(tex);
       sprite.x      = col * tileDisplay;
       sprite.y      = row * tileDisplay;
@@ -205,7 +218,7 @@ export function PixiViewport() {
         const wy = camera.y + row;
         if (wx >= world.map.width || wy >= world.map.height) continue;
         const tile = world.map.tiles[wy][wx];
-        terrain.addChild(makeSprite(sheets.terrain, BIOME_TILES[tile.biome], col, row));
+        terrain.addChild(makeSprite('terrain', BIOME_TILES[tile.biome], col, row));
       }
     }
 
@@ -214,14 +227,14 @@ export function PixiViewport() {
       const col = settlement.position.x - camera.x;
       const row = settlement.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      mid.addChild(makeSprite(sheets.settlement, SETTLEMENT_TILE, col, row));
+      mid.addChild(makeSprite('settlement', SETTLEMENT_TILE, col, row));
     }
 
     for (const ruin of world.ruins) {
       const col = ruin.position.x - camera.x;
       const row = ruin.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      mid.addChild(makeSprite(sheets.settlement, RUIN_TILE, col, row));
+      mid.addChild(makeSprite('settlement', RUIN_TILE, col, row));
     }
 
     // ── Layer 3: NPCs ────────────────────────────────────────────────────
@@ -230,14 +243,14 @@ export function PixiViewport() {
       const col = npc.position.x - camera.x;
       const row = npc.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      top.addChild(makeSprite(sheets.character, NPC_TILE, col, row));
+      top.addChild(makeSprite('character', NPC_TILE, col, row));
     }
 
     // ── Layer 3: player ──────────────────────────────────────────────────
     const px = world.player.position.x - camera.x;
     const py = world.player.position.y - camera.y;
     if (px >= 0 && py >= 0 && px < camera.viewportWidth && py < camera.viewportHeight) {
-      top.addChild(makeSprite(sheets.player, PLAYER_TILE, px, py));
+      top.addChild(makeSprite('player', PLAYER_TILE, px, py));
     }
 
     // ── Layer 4: Ghost of History ─────────────────────────────────────────
@@ -404,7 +417,7 @@ export function PixiViewport() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // debugMode is read here for future use (elevation/rainfall overlay in Phase 3).
+  // debugMode is read here for future use (elevation/rainfall overlay in Phase 3+).
   // Suppress unused-variable lint until then.
   void debugMode;
 
