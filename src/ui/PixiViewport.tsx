@@ -6,7 +6,7 @@
 // Phase 1 scope: terrain tiles + settlements/ruins + player/NPCs.
 // Phase 2 scope: Ghost of History overlay (H key — dashed faction borders from previousWorld).
 // Phase 3 scope: Texture pooling (sub-textures reused across turns; no per-turn GPU allocs).
-// Phase 5 scope: Tree canopy layer + items-on-ground layer (sprite expansion).
+// Phase 5 scope: Tree canopy + items + resource nodes (ore/relic) sprite layers.
 // NOT wired into App.tsx yet — that swap happens in Phase 5.
 
 import { useRef, useEffect, useCallback, useState } from 'react';
@@ -22,6 +22,7 @@ import {
   SHEET_CHARACTER,
   SHEET_PLAYER,
   SHEET_TREE,
+  SHEET_ORE,
   SHEET_ITEM_AMULET,
   SHEET_ITEM_SCROLL,
   SHEET_ITEM_KEY,
@@ -31,6 +32,7 @@ import {
   NPC_TILE,
   PLAYER_TILE,
   TREE_TILES,
+  RESOURCE_SPRITE,
   ITEM_SPRITE,
 } from '../engine/tileMap.ts';
 
@@ -42,17 +44,19 @@ interface Sheets {
   character:  Texture;
   player:     Texture;
   tree:       Texture;
+  ore:        Texture;
   itemAmulet: Texture;
   itemScroll: Texture;
   itemKey:    Texture;
 }
 
 interface Layers {
-  terrain: Container;
-  mid:     Container;  // settlements, ruins, tree canopy
-  items:   Container;  // items lying on the ground
-  top:     Container;  // characters (NPCs + player)
-  ghost:   Container;  // Phase 2: Ghost of History overlay
+  terrain:   Container;
+  mid:       Container;  // settlements, ruins, tree canopy
+  resources: Container;  // ore deposits and relic sites
+  items:     Container;  // pickup items (artifacts, letters, keys)
+  top:       Container;  // characters (NPCs + player)
+  ghost:     Container;  // Phase 2: Ghost of History overlay
 }
 
 /** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
@@ -134,13 +138,14 @@ export function PixiViewport() {
       }
 
       // Parallel texture load — never await sequentially (React best-practice)
-      const [terrain, settlement, character, player, tree, itemAmulet, itemScroll, itemKey] =
+      const [terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey] =
         await Promise.all([
           Assets.load<Texture>(SHEET_TERRAIN),
           Assets.load<Texture>(SHEET_SETTLEMENT),
           Assets.load<Texture>(SHEET_CHARACTER),
           Assets.load<Texture>(SHEET_PLAYER),
           Assets.load<Texture>(SHEET_TREE),
+          Assets.load<Texture>(SHEET_ORE),
           Assets.load<Texture>(SHEET_ITEM_AMULET),
           Assets.load<Texture>(SHEET_ITEM_SCROLL),
           Assets.load<Texture>(SHEET_ITEM_KEY),
@@ -157,22 +162,24 @@ export function PixiViewport() {
       canvas.style.display = 'block';
       containerRef.current?.appendChild(canvas);
 
-      // Five-layer stage: terrain → mid (structures + trees) → items → top (characters) → ghost
-      const terrainLayer = new Container();
-      const midLayer     = new Container();
-      const itemsLayer   = new Container();
-      const topLayer     = new Container();
-      const ghostLayer   = new Container();
-      app.stage.addChild(terrainLayer, midLayer, itemsLayer, topLayer, ghostLayer);
+      // Six-layer stage: terrain → mid → resources → items → top (chars) → ghost
+      const terrainLayer   = new Container();
+      const midLayer       = new Container();
+      const resourcesLayer = new Container();
+      const itemsLayer     = new Container();
+      const topLayer       = new Container();
+      const ghostLayer     = new Container();
+      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
-      sheetsRef.current = { terrain, settlement, character, player, tree, itemAmulet, itemScroll, itemKey };
+      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey };
       layersRef.current = {
-        terrain: terrainLayer,
-        mid:     midLayer,
-        items:   itemsLayer,
-        top:     topLayer,
-        ghost:   ghostLayer,
+        terrain:   terrainLayer,
+        mid:       midLayer,
+        resources: resourcesLayer,
+        items:     itemsLayer,
+        top:       topLayer,
+        ghost:     ghostLayer,
       };
 
       setReady(true);
@@ -202,7 +209,7 @@ export function PixiViewport() {
   useEffect(() => {
     if (!ready || !state.world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
 
-    const { terrain, mid, items, top, ghost } = layersRef.current;
+    const { terrain, mid, resources, items, top, ghost } = layersRef.current;
     const sheets  = sheetsRef.current;
     const texPool = texPoolRef.current;
     const { world, camera } = state;
@@ -232,6 +239,7 @@ export function PixiViewport() {
     // Clear all layers
     terrain.removeChildren();
     mid.removeChildren();
+    resources.removeChildren();
     items.removeChildren();
     top.removeChildren();
     ghost.removeChildren();
@@ -276,7 +284,16 @@ export function PixiViewport() {
       mid.addChild(makeSprite('settlement', RUIN_TILE, col, row));
     }
 
-    // ── Layer 3: items on the ground ─────────────────────────────────────
+    // ── Layer 3: resource nodes (ore deposits + relic sites) ─────────────
+    for (const node of world.resourceNodes) {
+      const col = node.position.x - camera.x;
+      const row = node.position.y - camera.y;
+      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
+      const { sheetKey, region } = RESOURCE_SPRITE[node.type];
+      resources.addChild(makeSprite(sheetKey, region, col, row));
+    }
+
+    // ── Layer 4: items on the ground ─────────────────────────────────────
     for (const item of world.items) {
       const col = item.position.x - camera.x;
       const row = item.position.y - camera.y;
@@ -285,7 +302,7 @@ export function PixiViewport() {
       items.addChild(makeSprite(sheetKey, region, col, row));
     }
 
-    // ── Layer 4: NPCs ────────────────────────────────────────────────────
+    // ── Layer 5: NPCs ────────────────────────────────────────────────────
     for (const npc of world.npcs) {
       if (!npc.alive) continue;
       const col = npc.position.x - camera.x;
@@ -294,14 +311,14 @@ export function PixiViewport() {
       top.addChild(makeSprite('character', NPC_TILE, col, row));
     }
 
-    // ── Layer 4: player ──────────────────────────────────────────────────
+    // ── Layer 5: player ──────────────────────────────────────────────────
     const px = world.player.position.x - camera.x;
     const py = world.player.position.y - camera.y;
     if (px >= 0 && py >= 0 && px < camera.viewportWidth && py < camera.viewportHeight) {
       top.addChild(makeSprite('player', PLAYER_TILE, px, py));
     }
 
-    // ── Layer 5: Ghost of History ─────────────────────────────────────────
+    // ── Layer 6: Ghost of History ─────────────────────────────────────────
     // Renders dashed faction-border lines from previousWorld at 0.4 alpha when
     // the player holds H. Matches Canvas renderer's setLineDash([4, 4]) effect.
     // Edges are batched per faction color so each color costs one g.stroke() call.

@@ -34,6 +34,7 @@ export const SHEET_SETTLEMENT = "/assets/ToenMedieval/Tile-set - Toen's Medieval
 export const SHEET_CHARACTER  = '/assets/DawnLike/Characters/Humanoid0.png';
 export const SHEET_PLAYER     = '/assets/DawnLike/Characters/Player0.png';
 export const SHEET_TREE       = '/assets/DawnLike/Objects/Tree0.png';
+export const SHEET_ORE        = '/assets/DawnLike/Objects/Ore0.png';
 export const SHEET_ITEM_AMULET = '/assets/DawnLike/Items/Amulet.png';
 export const SHEET_ITEM_SCROLL = '/assets/DawnLike/Items/Scroll.png';
 export const SHEET_ITEM_KEY    = '/assets/DawnLike/Items/Key.png';
@@ -77,6 +78,21 @@ export const RUIN_TILE:       TileRegion = { x: 16, y:  0, w: 16, h: 16 }; // de
 
 export const NPC_TILE:    TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Humanoid0
 export const PLAYER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Player0
+
+// ─── Resource nodes — DawnLike/Objects/Ore0.png + Items/Amulet.png ───────
+// iron/gold pull from Ore0.png; relic reuses the itemAmulet sheet.
+// TODO CALIBRATE: open Ore0.png and verify exact column positions.
+
+export type ResourceNodeType = 'iron' | 'gold' | 'relic';
+
+export const RESOURCE_SPRITE: Record<ResourceNodeType, {
+  sheetKey: 'ore' | 'itemAmulet';
+  region: TileRegion;
+}> = {
+  iron:  { sheetKey: 'ore',        region: { x:  0, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
+  gold:  { sheetKey: 'ore',        region: { x: 16, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
+  relic: { sheetKey: 'itemAmulet', region: { x:  0, y: 0, w: 16, h: 16 } },
+};
 
 // ─── Items on the ground — DawnLike Items sheets ─────────────────────────
 // Each ItemType maps to a sheet name (used as SheetKey) and a source rectangle.
