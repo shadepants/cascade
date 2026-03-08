@@ -13,7 +13,7 @@
 //   col 6 (x= 96): gold/sandy hex  → desert
 //   col 7 (x=112): solid light blue → ocean
 
-import type { Biome } from '../types.ts';
+import type { Biome, ItemType } from '../types.ts';
 
 /** Native px per tile in all source sheets (DawnLike / Toen Medieval). */
 export const SPRITE_SIZE = 16;
@@ -33,6 +33,10 @@ export const SHEET_TERRAIN    = '/assets/DawnLike/Objects/Tile.png';
 export const SHEET_SETTLEMENT = "/assets/ToenMedieval/Tile-set - Toen's Medieval Strategy (16x16) - v.1.0.png";
 export const SHEET_CHARACTER  = '/assets/DawnLike/Characters/Humanoid0.png';
 export const SHEET_PLAYER     = '/assets/DawnLike/Characters/Player0.png';
+export const SHEET_TREE       = '/assets/DawnLike/Objects/Tree0.png';
+export const SHEET_ITEM_AMULET = '/assets/DawnLike/Items/Amulet.png';
+export const SHEET_ITEM_SCROLL = '/assets/DawnLike/Items/Scroll.png';
+export const SHEET_ITEM_KEY    = '/assets/DawnLike/Items/Key.png';
 
 // ─── Terrain tiles — DawnLike/Objects/Tile.png ───────────────────────────
 // Sheet is 8 cols × 4 rows (128×64 px), each tile 16×16 px.
@@ -51,6 +55,15 @@ export const BIOME_TILES: Record<Biome, TileRegion> = {
   mountain:   { x:  32, y:  0, w: 16, h: 16 }, // grey-teal stone hex
 };
 
+// ─── Tree canopy — DawnLike/Objects/Tree0.png ────────────────────────────
+// Only forest and rainforest biomes get a tree overlay on top of the ground tile.
+// TODO CALIBRATE: open Tree0.png and verify column positions for each tree type.
+
+export const TREE_TILES: Partial<Record<Biome, TileRegion>> = {
+  forest:     { x:  0, y: 0, w: 16, h: 16 }, // deciduous tree (col 0)
+  rainforest: { x: 32, y: 0, w: 16, h: 16 }, // dense canopy (col 2)
+};
+
 // ─── Settlements / Ruins — Toen's Medieval Strategy sheet ────────────────
 // TODO CALIBRATE: open the Toen PNG and identify castle & destroyed-village sprites.
 
@@ -64,3 +77,16 @@ export const RUIN_TILE:       TileRegion = { x: 16, y:  0, w: 16, h: 16 }; // de
 
 export const NPC_TILE:    TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Humanoid0
 export const PLAYER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Player0
+
+// ─── Items on the ground — DawnLike Items sheets ─────────────────────────
+// Each ItemType maps to a sheet name (used as SheetKey) and a source rectangle.
+// TODO CALIBRATE: open each Items PNG and verify row/col for the desired sprite.
+
+export const ITEM_SPRITE: Record<ItemType, {
+  sheetKey: 'itemAmulet' | 'itemScroll' | 'itemKey';
+  region: TileRegion;
+}> = {
+  artifact: { sheetKey: 'itemAmulet', region: { x: 0, y: 0, w: 16, h: 16 } },
+  letter:   { sheetKey: 'itemScroll', region: { x: 0, y: 0, w: 16, h: 16 } },
+  key:      { sheetKey: 'itemKey',    region: { x: 0, y: 0, w: 16, h: 16 } },
+};
