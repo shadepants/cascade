@@ -305,6 +305,14 @@ body {
   font-size: 12px;
 }
 
+.hud-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .hud-year {
   color: var(--accent);
   font-weight: bold;

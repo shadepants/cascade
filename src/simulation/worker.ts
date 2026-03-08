@@ -3,6 +3,7 @@
 // thread to prevent UI freezing.
 
 import { runSimulation } from './tick.ts';
+import { initEventIds } from '../world/events.ts';
 import type { WorldState, GameEvent } from '../types.ts';
 
 // ─── Worker Inbound Messages ───────────────────────────────────────────
@@ -28,6 +29,7 @@ self.onmessage = (event: MessageEvent<SimulationMessage>) => {
       try {
         // Deep copy the world to ensure no thread-safety issues (though worker 
         // receives a cloned object via structuredClone already).
+        initEventIds(world.events.length); // prevent ID collision with worldgen events
         const newEvents = runSimulation(world, years);
         
         self.postMessage({ 
