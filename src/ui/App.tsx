@@ -4,7 +4,7 @@
 import { useReducer, useEffect, useRef, useState } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
 import { TitleScreen } from './TitleScreen.tsx';
-import { GameCanvas } from './GameCanvas.tsx';
+import { PixiViewport } from './PixiViewport.tsx';
 import { DialoguePanel } from './DialoguePanel.tsx';
 import { KnowledgeLog } from './KnowledgeLog.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
@@ -186,7 +186,7 @@ export function App() {
           <div className="game-layout">
             <HUD />
             <div className="game-main">
-              <GameCanvas />
+              <PixiViewport />
               <KnowledgeLog />
             </div>
 
