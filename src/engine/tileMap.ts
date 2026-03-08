@@ -2,9 +2,16 @@
 // Maps game entities to source rectangles in their sprite sheets.
 // All coordinates are pixel offsets into 16×16-sprite sheets.
 //
-// TODO CALIBRATE: These coordinates are estimated from DawnLike's known layout.
-// Open each PNG in an image viewer, verify each biome maps to the correct tile,
-// and update the x/y values accordingly before the Phase 3 polish pass.
+// Calibrated 2026-03-08: verified visually via Chrome DevTools canvas overlay.
+// Tile.png row 0 — 8 hex-pattern terrain fills (x = col*16, y = 0):
+//   col 0 (x=  0): brown earth     → arid
+//   col 1 (x= 16): blue-purple hex → coast
+//   col 2 (x= 32): grey-teal stone → mountain
+//   col 3 (x= 48): ice/snow diag   → tundra
+//   col 4 (x= 64): green leafy hex → grassland / forest
+//   col 5 (x= 80): dark red hex    → rainforest
+//   col 6 (x= 96): gold/sandy hex  → desert
+//   col 7 (x=112): solid light blue → ocean
 
 import type { Biome } from '../types.ts';
 
@@ -21,27 +28,27 @@ export interface TileRegion {
 
 // ─── Asset paths (relative to public/) ──────────────────────────────────
 
-export const SHEET_TERRAIN    = '/assets/DawnLike/Objects/Map0.png';
+export const SHEET_TERRAIN    = '/assets/DawnLike/Objects/Tile.png';
 // Toen's filename contains apostrophe + spaces — keep as a plain string literal.
 export const SHEET_SETTLEMENT = "/assets/ToenMedieval/Tile-set - Toen's Medieval Strategy (16x16) - v.1.0.png";
 export const SHEET_CHARACTER  = '/assets/DawnLike/Characters/Humanoid0.png';
 export const SHEET_PLAYER     = '/assets/DawnLike/Characters/Player0.png';
 
-// ─── Terrain tiles — DawnLike/Objects/Map0.png ───────────────────────────
-// Sheet is 16 columns × N rows, each tile 16×16 px.
-// Column index k → x = k * 16.  Row index r → y = r * 16.
-// TODO CALIBRATE: visually verify each row/col in Map0.png.
+// ─── Terrain tiles — DawnLike/Objects/Tile.png ───────────────────────────
+// Sheet is 8 cols × 4 rows (128×64 px), each tile 16×16 px.
+// All biome ground fills live on row 0 (y = 0).
+// forest shares grassland's green tile — canopy/tree layers differentiate them.
 
 export const BIOME_TILES: Record<Biome, TileRegion> = {
-  ocean:      { x:   0, y:   0, w: 16, h: 16 }, // deep water
-  coast:      { x:  16, y:   0, w: 16, h: 16 }, // shallow water / shoreline
-  grassland:  { x:   0, y:  16, w: 16, h: 16 }, // open grass
-  forest:     { x:  16, y:  16, w: 16, h: 16 }, // pine/deciduous canopy
-  rainforest: { x:  32, y:  16, w: 16, h: 16 }, // dense canopy
-  arid:       { x:   0, y:  32, w: 16, h: 16 }, // dry scrubland
-  desert:     { x:  16, y:  32, w: 16, h: 16 }, // sand dunes
-  tundra:     { x:  32, y:  32, w: 16, h: 16 }, // snow / ice ground
-  mountain:   { x:   0, y:  48, w: 16, h: 16 }, // grey peaks
+  ocean:      { x: 112, y:  0, w: 16, h: 16 }, // solid light blue
+  coast:      { x:  16, y:  0, w: 16, h: 16 }, // blue-purple hex (shallow)
+  grassland:  { x:  64, y:  0, w: 16, h: 16 }, // green leafy hex
+  forest:     { x:  64, y:  0, w: 16, h: 16 }, // same green — tree layer differentiates
+  rainforest: { x:  80, y:  0, w: 16, h: 16 }, // dark red hex (dense canopy)
+  arid:       { x:   0, y:  0, w: 16, h: 16 }, // brown earth
+  desert:     { x:  96, y:  0, w: 16, h: 16 }, // gold/sandy hex
+  tundra:     { x:  48, y:  0, w: 16, h: 16 }, // ice/snow diagonal
+  mountain:   { x:  32, y:  0, w: 16, h: 16 }, // grey-teal stone hex
 };
 
 // ─── Settlements / Ruins — Toen's Medieval Strategy sheet ────────────────
