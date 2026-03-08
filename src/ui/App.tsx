@@ -4,7 +4,7 @@
 import { useReducer, useEffect, useRef, useState } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
 import { TitleScreen } from './TitleScreen.tsx';
-import { GameCanvas } from './GameCanvas.tsx';
+import { PixiViewport } from './PixiViewport.tsx';
 import { DialoguePanel } from './DialoguePanel.tsx';
 import { KnowledgeLog } from './KnowledgeLog.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
@@ -86,8 +86,10 @@ export function App() {
       type: 'module'
     });
 
-    const JUMP_YEARS = 10;
-    const MAX_YEARS = 150;
+    const JUMP_YEARS     = 10;
+    // Game ends MAX_GAME_YEARS after the player enters the world (post-pregen).
+    // pregenYears runs headless before the player arrives, so we offset by that.
+    const MAX_GAME_YEARS = 200;
 
     worker.onmessage = (event) => {
       const result = event.data;
@@ -142,7 +144,7 @@ export function App() {
           dispatch({ type: 'SHOW_NOTIFICATION', text: pendingNotification });
         }
 
-        if (newWorld.currentYear >= MAX_YEARS) {
+        if (newWorld.currentYear >= state.config.pregenYears + MAX_GAME_YEARS) {
           dispatch({ type: 'SET_PHASE', phase: 'score' });
         }
       } else if (result.type === 'SIMULATION_ERROR') {
@@ -186,7 +188,7 @@ export function App() {
           <div className="game-layout">
             <HUD />
             <div className="game-main">
-              <GameCanvas />
+              <PixiViewport />
               <KnowledgeLog />
             </div>
 

@@ -89,3 +89,11 @@ function buildChainFromRoot(rootId: string, events: GameEvent[]): CausalChain {
 export function resetEventIds(): void {
   nextEventId = 0;
 }
+
+
+/** Set the event ID counter to a specific start value.
+ *  Call in WebWorkers before runSimulation so jump-event IDs
+ *  don't collide with main-thread worldgen event IDs. */
+export function initEventIds(startFrom: number): void {
+  nextEventId = startFrom;
+}
