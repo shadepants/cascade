@@ -22,7 +22,7 @@ function makeWorld(): WorldState {
 }
 
 function cloneWorld(world: WorldState): WorldState {
-  return JSON.parse(JSON.stringify(world)) as WorldState;
+  return structuredClone(world);
 }
 
 describe('processSimulationResult', () => {

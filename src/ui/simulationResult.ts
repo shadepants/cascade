@@ -1,6 +1,7 @@
 import type { GameEvent, NPCKnowledge, WorldState } from '../types.ts';
 import { SeededRNG } from '../utils/rng.ts';
 
+// Large prime multiplier helps spread year offsets and reduce seed collisions.
 const YEAR_SEED_MULTIPLIER = 9973;
 
 function formatNotificationValue(value: unknown): string | null {
