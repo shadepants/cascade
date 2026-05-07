@@ -176,13 +176,13 @@ Without clicking any NPCs for 3+ eras, check:
 
 ```javascript
 const st = window.__CASCADE_STATE?.world?.storyteller;
-console.log(`Narrative debt: ${st?.narrativeDebt}`);
+console.log(`Narrative debt years: ${st?.yearsSincePlayerDiscovery}`);
 console.log(`Spotlight: ${st?.spotlightFactionId}`);
 console.log(`Tension: ${st?.tension}`);
 ```
 
 **Pass criteria:**
-- Debt increments each era you don't discover a player-caused cascade event
+- `yearsSincePlayerDiscovery` increments each era you don't discover a player-caused cascade event
 - At debt ≥ 3, a Wandering Chronicler appears in your settlement's NPC list
 - At debt ≥ 5, `forceIntervention` flag triggers dialogue automatically
 
@@ -221,6 +221,15 @@ Start three games with different modes. In each, jump 10 eras with the same arti
 
 ---
 
+## Playtest Run Record
+
+| Date | Build SHA/Branch | Tester | Result (PASS/FAIL) | Notes |
+|------|-------------------|--------|---------------------|-------|
+| 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | FAIL | Initial Playwright run failed: Chromium missing + strict-mode selector collisions in E2E buttons. |
+| 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | PASS (automated) | Playwright rerun passed after installing Chromium and stabilizing selectors (`exact: true`, `.first()`). 1 probabilistic cascade test skipped by design. |
+
+---
+
 ## Failure Diagnosis Tree
 
 ```
@@ -237,8 +246,8 @@ Q: NPC knowledge exists but dialogue is flat/identical?
 Q: Dialogue varies but always "Rumored" tier?
   → seeded accuracy values are all in 0.5–0.8 range; check seedEventKnowledge accuracy logic
 
-Q: Narrative debt stays at 0?
-  → updateStorytellerDebt() not called in tick.ts, or discovery detection is wrong
+Q: yearsSincePlayerDiscovery stays at 0?
+  → storyteller debt accumulation hook is not called in tick.ts, or discovery detection is wrong
 
 Q: Storyteller state undefined?
   → defaultStorytellerState() not added to store.ts initialState

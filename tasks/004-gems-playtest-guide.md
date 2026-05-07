@@ -27,3 +27,8 @@ Run `(window as any).__CASCADE_STATE` in the browser console:
 ## 4. Debug Toggles
 - [ ] **M Key:** Cycle through 'Elevation' (Grayscale) and 'Moisture' (Blue) views. Verify tectonic boundaries (Elevation) and Rain Shadows (Moisture) are visible.
 - [ ] **H Key:** Hold 'H' to view the Ghost of History. Verify it overlays the previous era's borders correctly.
+
+## Run Record
+| Date | Build SHA/Branch | Tester | Result (PASS/FAIL) | Notes |
+|------|-------------------|--------|---------------------|-------|
+|      |                   |        |                     |       |

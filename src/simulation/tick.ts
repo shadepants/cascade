@@ -18,8 +18,8 @@
 
 import type {
   WorldState, GameEvent, Faction,
-  StatDelta, FactionStatKey, GameMap, Position,
-  NPCPersonality, HistoricalFigure, RulerTrait, Settlement, NPC,
+  StatDelta, GameMap, Position,
+  HistoricalFigure, RulerTrait, Settlement, NPC,
   FactionEthics, EthicStance,
 } from '../types.ts';
 import { defaultStorytellerState } from '../types.ts';
@@ -28,53 +28,24 @@ import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';
 import { NPC_NAMES } from '../data/names.ts';
 import {
+  WAR_ANIMOSITY_THRESHOLD,
+  FAMINE_DESERT_THRESHOLD,
+  FAMINE_POPULATION_MIN,
+  REBELLION_STABILITY_MIN,
+  ALLIANCE_OPINION_MIN,
+  BIOME_POP_DELTA,
+  BIOME_WEALTH_DELTA,
+  PERSONALITIES,
+  pickMotivation,
+} from './constants.ts';
+import { applyStatDeltas } from './helpers/stats.ts';
+import { phaseCascade, cascadeTesting } from './phases/cascade.ts';
+import { runKnowledgePipeline } from './phases/knowledge.ts';
+import {
   computeTension, decayTension, pruneCooldowns,
-  getCascadeThreshold, getGossipBoost,
   shouldSuppressEvent, registerHighSigEvent,
   accumulateDebt, fireDebtIntervention, applyIntervention,
 } from './storyteller.ts';
-
-// ─── Thresholds ──────────────────────────────────────────────────────────
-
-const WAR_ANIMOSITY_THRESHOLD = 80;    // animosity needed to declare war
-const FAMINE_DESERT_THRESHOLD  = 0.55; // fraction of territory that's harsh
-const FAMINE_POPULATION_MIN    = 300;  // must have enough people to suffer
-const REBELLION_STABILITY_MIN  = 20;   // below this → rebellion risk
-const ALLIANCE_OPINION_MIN     = 55;   // opinion needed to form alliance
-const CASCADE_SIGNIFICANCE_MIN = 3;    // only propagate events above this
-
-const PERSONALITIES: NPCPersonality[] = ['loyal', 'skeptic', 'zealot', 'pragmatist'];
-
-// ─── Biome pressure modifiers (applied per tile, normalized by territory) ─
-
-const BIOME_POP_DELTA: Record<string, number> = {
-  grassland: 2, forest: 0.5, rainforest: 0.2, mountain: -1, desert: -2, tundra: -2, ocean: 0, coast: 0.5, arid: -0.5,
-};
-const BIOME_WEALTH_DELTA: Record<string, number> = {
-  grassland: 1, forest: 2, rainforest: 1.5, mountain: 0.5, desert: -1, tundra: -1, ocean: 0.5, coast: 1, arid: 0,
-};
-
-// ─── Post-hoc motivation library ─────────────────────────────────────────
-// Caves of Qud pattern: generate event from state, then attach best-matching
-// reason. Text system is separate from simulation logic.
-
-const MOTIVATIONS: Record<string, string[]> = {
-  famine:           ['as drought consumed their lands', 'as harvests failed for the third season', 'as their territory could no longer sustain the growing populace'],
-  trade_boom:       ['as merchants found new routes through the borderlands', 'as peacetime opened old trading paths', 'as their surplus drew buyers from afar'],
-  alliance_formed:  ['bound by mutual fear of a common enemy', 'as shared hardship forged unexpected bonds', 'as their leaders found more to gain together than apart'],
-  war_declared:     ['driven by long-festering territorial grievances', 'as their ruler\'s ambition outweighed caution', 'responding to cultural insults that could no longer be ignored', 'as border skirmishes finally ignited into open war'],
-  conquered:        ['breaking the defenders\' resistance at the frontier', 'exploiting a moment of political weakness', 'as superior numbers overwhelmed the garrison'],
-  peace_tribute:    ['as the defeated had nothing left to offer but compliance', 'as the victor demanded recompense for the costs of war'],
-  peace_treaty:     ['as both sides counted their dead and found the price too high', 'exhausted and depleted, they sought terms'],
-  rebellion:        ['as the people could no longer bear the weight of instability', 'as neglected grievances turned to open defiance', 'sparked by a moment of weakness at the center of power'],
-  cultural_spread:  ['as their way of life proved attractive to neighboring peoples', 'carried by traders, travelers, and refugees into foreign lands'],
-  population_boom:  ['as peaceful years and fertile land bore fruit', 'as prosperity drew settlers from distant regions'],
-};
-
-function pickMotivation(key: string, rng: SeededRNG): string {
-  const pool = MOTIVATIONS[key] ?? ['for reasons lost to history'];
-  return pool[rng.nextInt(pool.length)];
-}
 
 /** Helper to conditionally emit events based on storyteller suppression/pacing. */
 function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
@@ -208,8 +179,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     const stab = phaseStability(world, year, rng);
     const succ = phaseSuccession(world, year, rng);
     const cas  = phaseCascade(world, [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ], year, rng);
-    seedEventKnowledge(world, cas, year, rng);
-    const gos  = phaseGossip(world, year, rng);
+    const gos  = runKnowledgePipeline(world, cas, year, rng);
 
     const yearEvents = [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ, ...cas, ...gos];
 
@@ -244,45 +214,6 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
 }
 
 // ─── Stat Application ────────────────────────────────────────────────────
-
-function getFactionStat(faction: Faction, stat: FactionStatKey): number {
-  switch (stat) {
-    case 'population': return faction.population;
-    case 'stability':  return faction.stability;
-    case 'wealth':     return faction.wealth;
-    case 'military':   return faction.military;
-    case 'culture':    return faction.culture;
-  }
-}
-
-function setFactionStat(faction: Faction, stat: FactionStatKey, value: number): void {
-  switch (stat) {
-    case 'population': faction.population = value; break;
-    case 'stability':  faction.stability  = value; break;
-    case 'wealth':     faction.wealth     = value; break;
-    case 'military':   faction.military   = value; break;
-    case 'culture':    faction.culture    = value; break;
-  }
-}
-
-function applyStatDeltas(world: WorldState, deltas: StatDelta[]): void {
-  for (const delta of deltas) {
-    const faction = world.factions.find(f => f.id === delta.factionId);
-    if (!faction) continue;
-
-    const current = getFactionStat(faction, delta.stat);
-    let newVal = current + delta.delta;
-
-    // Clamp to reasonable ranges
-    if (delta.stat === 'population') {
-      newVal = Math.max(0, Math.min(2000, newVal));
-    } else {
-      newVal = Math.max(0, Math.min(100, newVal));
-    }
-
-    setFactionStat(faction, delta.stat, newVal);
-  }
-}
 
 // ─── Phase 1: Ecology ────────────────────────────────────────────────────
 
@@ -974,248 +905,6 @@ function getTilesWithPosForFaction(map: GameMap, factionId: string): (Position &
   return tiles;
 }
 
-// ─── Phase 7: Gossip ─────────────────────────────────────────────────────
-// NPCs in the same settlement trade knowledge. Accuracy degrades with 
-// each transfer. This creates the 'Telephone Game' effect across history.
-
-function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
-  const events: GameEvent[] = [];
-
-  for (const settlement of world.settlements) {
-    const settlementNpcs = world.npcs.filter(n => settlement.npcs.includes(n.id) && n.alive);
-    if (settlementNpcs.length < 2) continue;
-
-    for (let i = 0; i < settlementNpcs.length; i++) {
-      const npcA = settlementNpcs[i];
-      const npcB = settlementNpcs[(i + 1) % settlementNpcs.length];
-
-      // NPC A tells NPC B something they know
-      const gossipProb = getGossipBoost(world.storyteller, npcA.factionId, year);
-      if (npcA.knowledge.length > 0 && rng.nextFloat() < gossipProb) {
-        const knowledgeToShare = npcA.knowledge[rng.nextInt(npcA.knowledge.length)];
-        
-        // Check if NPC B already knows this
-        if (!npcB.knowledge.some(k => k.eventId === knowledgeToShare.eventId)) {
-          npcB.knowledge.push({
-            eventId:        knowledgeToShare.eventId,
-            discoveredYear: year,
-            accuracy:       knowledgeToShare.accuracy * 0.9, // accuracy degrades
-            sourceId:       npcA.id,
-          });
-        }
-      }
-    }
-  }
-
-  return events;
-}
-
-// ─── Knowledge Seeding ───────────────────────────────────────────────────
-// Cascade events are routed into the knowledge of NPCs who belong to the
-// affected faction. Without this, phaseGossip has nothing to spread —
-// NPC knowledge arrays stay empty and dialogue never references cascade events.
-
-function seedEventKnowledge(
-  world: WorldState,
-  events: GameEvent[],
-  year: number,
-  rng: SeededRNG,
-): void {
-  for (const event of events) {
-    const affectedFactionId = event.subject;
-    const witnessNpcs = world.npcs.filter(
-      n => n.alive && n.factionId === affectedFactionId,
-    );
-    for (const npc of witnessNpcs) {
-      if (npc.knowledge.some(k => k.eventId === event.id)) continue;
-      // Faction members who witnessed the event have high accuracy.
-      // Add a small random spread (0.75–1.0) so tiers vary in dialogue.
-      const accuracy = 0.75 + rng.nextFloat() * 0.25;
-      npc.knowledge.push({
-        eventId:        event.id,
-        discoveredYear: year,
-        accuracy,
-        sourceId:       'direct',
-      });
-    }
-  }
-}
-
-// ─── Phase 5: Cascade ────────────────────────────────────────────────────
-// Player-caused events mutate faction stats via statDeltas.
-// Downstream consequences are DERIVED from actual state crossings,
-// not picked from a random template list.
-
-function phaseCascade(
-  world: WorldState,
-  recentEvents: GameEvent[],
-  year: number,
-  rng: SeededRNG,
-): GameEvent[] {
-  const cascadeEvents: GameEvent[] = [];
-
-  // Look at all player-caused events (historical + this jump)
-  const playerEvents = [...world.events, ...recentEvents].filter(
-    e => e.playerCaused && e.significance >= CASCADE_SIGNIFICANCE_MIN,
-  );
-
-  for (const trigger of playerEvents) {
-    if (rng.nextFloat() > getCascadeThreshold(world.storyteller, trigger.subject, year)) continue;
-
-    // Derive consequences from the state changes this event caused
-    for (const delta of trigger.statDeltas) {
-      const faction = world.factions.find(f => f.id === delta.factionId);
-      if (!faction) continue;
-
-      const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
-      if (consequence && !shouldSuppressEvent(world.storyteller, year, consequence.significance)) {
-        cascadeEvents.push(consequence);
-        registerHighSigEvent(world.storyteller, consequence, year);
-        // Apply deferred animosity mutation for military_buildup (moved from deriveConsequence
-        // so it only fires when the event is not suppressed).
-        if (consequence.action === 'military_buildup') {
-          const rel = world.relationships.find(r =>
-            (r.factionA === consequence.subject || r.factionB === consequence.subject) &&
-            (r.factionA === consequence.object  || r.factionB === consequence.object),
-          );
-          if (rel) rel.animosity = Math.min(200, rel.animosity + 20);
-        }
-      }
-    }
-  }
-
-  // Also check for threshold crossings independent of specific deltas
-  for (const faction of world.factions) {
-    checkThresholdEvents(world, faction, year, rng, playerEvents, cascadeEvents);
-  }
-
-  return cascadeEvents;
-}
-
-/** Derive a consequence from a stat change crossing a meaningful threshold. */
-function deriveConsequence(
-  faction: Faction,
-  delta: StatDelta,
-  parentEvent: GameEvent,
-  world: WorldState,
-  year: number,
-  rng: SeededRNG,
-): GameEvent | null {
-
-  const stat = delta.stat;
-  const newValue = getFactionStat(faction, stat);
-
-  // Stability crossed below rebellion threshold
-  if (stat === 'stability' && delta.delta < 0 && newValue < REBELLION_STABILITY_MIN) {
-    const deltas: StatDelta[] = [
-      { factionId: faction.id, stat: 'stability',  delta: -10 },
-      { factionId: faction.id, stat: 'military',   delta: -8 },
-      { factionId: faction.id, stat: 'population', delta: -30 },
-    ];
-    return createEvent({
-      tick: 0, year,
-      subject: faction.id,
-      action:  'internal_rebellion',
-      object:  faction.id,
-      causedBy: parentEvent.id,
-      significance: Math.max(1, parentEvent.significance - 1),
-      playerCaused: true,
-      description: `Instability within ${faction.name} erupted into open rebellion`,
-      motivation: pickMotivation('rebellion', rng),
-      statDeltas: deltas,
-    });
-  }
-
-  // Culture crossed a spread threshold
-  if (stat === 'culture' && delta.delta > 0 && newValue > 65 && rng.nextFloat() < 0.4) {
-    // Find a neighboring faction to receive cultural pressure
-    const neighbors = getNeighboringFactions(world, faction.id);
-    if (neighbors.length === 0) return null;
-    const target = neighbors[rng.nextInt(neighbors.length)];
-
-    const deltas: StatDelta[] = [
-      { factionId: faction.id, stat: 'culture',   delta: 5 },
-      { factionId: target.id,  stat: 'stability', delta: -5 }, // cultural disruption
-    ];
-    return createEvent({
-      tick: 0, year,
-      subject: faction.id,
-      action:  'cultural_spread',
-      object:  target.id,
-      causedBy: parentEvent.id,
-      significance: Math.max(1, parentEvent.significance - 1),
-      playerCaused: true,
-      description: `The influence of ${faction.name} spread into ${target.name}'s territory`,
-      motivation: pickMotivation('cultural_spread', rng),
-      statDeltas: deltas,
-    });
-  }
-
-  // Military buildup crossing expansion threshold
-  if (stat === 'military' && delta.delta > 0 && newValue > 70) {
-    const rel = world.relationships.find(r =>
-      (r.factionA === faction.id || r.factionB === faction.id) &&
-      r.state !== 'war' && r.opinion < -20,
-    );
-    if (!rel) return null;
-
-    const targetId = rel.factionA === faction.id ? rel.factionB : rel.factionA;
-    const target = world.factions.find(f => f.id === targetId);
-    if (!target) return null;
-
-    return createEvent({
-      tick: 0, year,
-      subject: faction.id,
-      action:  'military_buildup',
-      object:  target.id,
-      causedBy: parentEvent.id,
-      significance: Math.max(1, parentEvent.significance - 1),
-      playerCaused: true,
-      description: `${faction.name}'s military buildup alarmed ${target.name}`,
-      motivation: 'as their growing armies cast long shadows over neighboring lands',
-      statDeltas: [{ factionId: target.id, stat: 'stability', delta: -5 }],
-    });
-  }
-
-  return null;
-}
-
-/** Check for threshold-crossing events that emerge independently of specific deltas. */
-function checkThresholdEvents(
-  world: WorldState,
-  faction: Faction,
-  year: number,
-  rng: SeededRNG,
-  playerEvents: GameEvent[],
-  events: GameEvent[],
-): void {
-  // Spontaneous rebellion if stability critically low AND there was a player-caused precursor
-  if (faction.stability < REBELLION_STABILITY_MIN &&
-      rng.nextFloat() < 0.35) {
-    const precursor = playerEvents.find(e =>
-      e.statDeltas.some(d => d.factionId === faction.id && d.stat === 'stability'),
-    );
-    if (precursor) {
-      const deltas: StatDelta[] = [
-        { factionId: faction.id, stat: 'stability',  delta: -8 },
-        { factionId: faction.id, stat: 'population', delta: -20 },
-      ];
-      emitEvent(world, events, createEvent({
-        tick: 0, year,
-        subject: faction.id,
-        action:  'internal_rebellion',
-        object:  faction.id,
-        causedBy: precursor.id,
-        significance: 5,
-        playerCaused: true,
-        description: `${faction.name} tore itself apart in civil strife`,
-        motivation: pickMotivation('rebellion', rng),
-        statDeltas: deltas,
-      }), year);
-    }
-  }
-}
-
 // ─── Spatial Helpers ─────────────────────────────────────────────────────
 
 /** Get all tiles owned by a faction. */
@@ -1291,6 +980,6 @@ function getNeighboringFactions(world: WorldState, factionId: string): Faction[]
 
 // ─── Test-only exports (tree-shaken in production builds) ─────────────────
 export const _forTesting = {
-  deriveConsequence,
-  phaseCascade,
+  deriveConsequence: cascadeTesting.deriveConsequence,
+  phaseCascade: cascadeTesting.phaseCascade,
 } as const;

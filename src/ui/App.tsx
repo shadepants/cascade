@@ -1,7 +1,7 @@
 // ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
-import { useReducer, useEffect, useRef, useState } from 'react';
+import { useReducer, useEffect, useRef, useState, type Dispatch } from 'react';
 import { GameContext, gameReducer, initialState } from '../store.ts';
 import { TitleScreen } from './TitleScreen.tsx';
 import { PixiViewport } from './PixiViewport.tsx';
@@ -11,6 +11,16 @@ import { ActionMenu } from './ActionMenu.tsx';
 import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
 import { saveGame } from '../data/db.ts';
+import { processSimulationResult } from './simulationResult.ts';
+import type { GameStoreAction } from '../store.ts';
+import type { SimulationResult } from '../simulation/worker.ts';
+
+declare global {
+  interface Window {
+    __CASCADE_STATE?: unknown;
+    __CASCADE_DISPATCH?: Dispatch<GameStoreAction>;
+  }
+}
 
 /** High-speed era year counter overlay for the 'jumping' phase. */
 function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: number }) {
@@ -52,8 +62,8 @@ export function App() {
   // Dev-only test hook — exposes state + dispatch for Playwright
   useEffect(() => {
     if (import.meta.env.DEV) {
-      (window as any).__CASCADE_STATE   = state;
-      (window as any).__CASCADE_DISPATCH = dispatch;
+      window.__CASCADE_STATE = state;
+      window.__CASCADE_DISPATCH = dispatch;
     }
   });
   // Always-current world ref — avoids stale closure in WebWorker effect
@@ -91,50 +101,15 @@ export function App() {
     // pregenYears runs headless before the player arrives, so we offset by that.
     const MAX_GAME_YEARS = 200;
 
-    worker.onmessage = (event) => {
+    worker.onmessage = (event: MessageEvent<SimulationResult>) => {
       const result = event.data;
 
       if (result.type === 'SIMULATION_COMPLETE') {
         const { world: newWorld, events: newEvents } = result;
 
-        // Distribute new player-caused cascade events to NPCs
-        // so they can tell the player about consequences after the jump
-        const cascadeEvents = newEvents.filter((e: { playerCaused: boolean }) => e.playerCaused);
-        if (cascadeEvents.length > 0) {
-          for (const npc of newWorld.npcs) {
-            if (npc.alive) {
-              const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
-              for (const event of toLearn) {
-                if (!npc.knowledge.some((k: { eventId: string }) => k.eventId === event.id)) {
-                  npc.knowledge.push({
-                    eventId: event.id,
-                    discoveredYear: newWorld.currentYear,
-                    accuracy: 0.8, // gossip is less accurate than direct witnessing
-                    sourceId: 'history',
-                  });
-                }
-              }
-            }
-          }
-        }
-
-        // Update history of all items in player inventory
-        if (state.world) {
-          for (const item of newWorld.player.inventory) {
-            if (!item.history) item.history = [];
-            item.history.push({ 
-              year: state.world.currentYear, 
-              ownerName: state.world.player.name 
-            });
-          }
-        }
-
-        // Reset action budget for the new era
-        newWorld.player.actionsThisEra = [];
-
-        // Capture and clear any storyteller-queued notification before it enters state
-        const pendingNotification = newWorld.storyteller.pendingNotification;
-        newWorld.storyteller.pendingNotification = undefined;
+        const pendingNotification = state.world
+          ? processSimulationResult(newWorld, newEvents, state.world).notification
+          : null;
 
         // SET_WORLD transitions phase → 'exploring'
         dispatch({ type: 'SET_WORLD', world: newWorld });
