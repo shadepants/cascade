@@ -178,7 +178,7 @@ describe('phaseCascade — animosity gated on suppression check', () => {
 });
 
 describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
-  function makeSettlement(id: string, x: number, y: number): Settlement {
+  function makeTestSettlement(id: string, x: number, y: number): Settlement {
     return {
       id,
       name: id,
@@ -189,48 +189,52 @@ describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
     };
   }
 
-  it('clears tile settlementId when settlement position indices are valid', () => {
+  function makeSettlementGrowthTestState(settlements: Settlement[]): { world: WorldState; rng: SeededRNG } {
     const faction = makeFaction('A', 'Alpha');
     faction.population = 100;
-    faction.settlements = ['s1', 's2'];
+    faction.settlements = settlements.map(s => s.id);
 
     const world = makeWorld([faction], []);
-    world.map.tiles = [[{ ...world.map.tiles[0][0], settlementId: 's1' }]];
-    world.settlements = [makeSettlement('s1', 0, 0), makeSettlement('s2', 0, 0)];
+    const baseTile = { ...world.map.tiles[0][0] };
+    world.map.tiles = [
+      [{ ...baseTile }, { ...baseTile }],
+      [{ ...baseTile }, { ...baseTile, settlementId: 's1' }],
+    ];
+    world.settlements = settlements;
 
     const rng = new SeededRNG(1);
     vi.spyOn(rng, 'nextFloat').mockReturnValue(0);
     vi.spyOn(rng, 'nextInt').mockReturnValue(0);
 
+    return { world, rng };
+  }
+
+  it('clears tile settlementId when settlement position indices are valid', () => {
+    const { world, rng } = makeSettlementGrowthTestState([
+      makeTestSettlement('s1', 1, 1),
+      makeTestSettlement('s2', 0, 0),
+    ]);
+
     phaseSettlementGrowth(world, 2, rng);
 
-    expect(world.map.tiles[0][0].settlementId).toBeNull();
+    expect(world.map.tiles[1][1].settlementId).toBeNull();
   });
 
   it.each(['__proto__', 'constructor', 'prototype'])(
     'rejects malicious settlement index key %s without prototype pollution',
     (blockedKey) => {
-      const faction = makeFaction('A', 'Alpha');
-      faction.population = 100;
-      faction.settlements = ['s1', 's2'];
-
-      const world = makeWorld([faction], []);
-      world.map.tiles = [[{ ...world.map.tiles[0][0], settlementId: 's1' }]];
-      world.settlements = [
+      const { world, rng } = makeSettlementGrowthTestState([
         {
           id: 's1',
           name: 's1',
+          // Intentionally bypass static typing to simulate hostile runtime input.
           position: { x: blockedKey as unknown as number, y: 0 },
           factionId: 'A',
           npcs: [],
           items: [],
         },
-        makeSettlement('s2', 0, 0),
-      ];
-
-      const rng = new SeededRNG(1);
-      vi.spyOn(rng, 'nextFloat').mockReturnValue(0);
-      vi.spyOn(rng, 'nextInt').mockReturnValue(0);
+        makeTestSettlement('s2', 0, 0),
+      ]);
 
       const hadArrayProto = Object.prototype.hasOwnProperty.call(Array.prototype, 'settlementId');
       const prevArrayProto = (Array.prototype as { settlementId?: unknown }).settlementId;
