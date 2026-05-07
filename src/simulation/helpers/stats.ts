@@ -28,7 +28,7 @@ export function applyStatDeltas(world: WorldState, deltas: StatDelta[]): void {
     const cur = getFactionStat(faction, d.stat);
     const next = cur + d.delta;
 
-    const [min, max] = d.stat === 'population' ? [0, 1000] : [0, 100];
+    const [min, max] = d.stat === 'population' ? [0, 2000] : [0, 100];
     setFactionStat(faction, d.stat, Math.max(min, Math.min(max, next)));
   }
 }
