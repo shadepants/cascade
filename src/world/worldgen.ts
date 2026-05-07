@@ -13,7 +13,7 @@
 // player arrives — not hand-authored templates.
 
 import type {
-  WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode,
+  WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode, GameMap, NPC, GameEvent,
 } from '../types.ts';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
@@ -90,14 +90,14 @@ export function generateWorld(config: WorldConfig): WorldState {
   console.log(`[WORLDGEN] Faction states: ${worldStub.factions.map(f => `${f.name}(pop:${f.population} mil:${f.military} stab:${f.stability} wealth:${f.wealth})`).join(', ')}`);
 
   // ── Step 6: Assign NPC knowledge from pre-history ──────────────────────
-  assignKnowledgeToNPCs(npcs, worldStub.events, seed);
+  assignKnowledgeToNPCs(npcs, worldStub.events);
   console.log(`[WORLDGEN] Assigned pre-history knowledge to ${npcs.length} NPCs.`);
 
   return worldStub;
 }
 
 /** Spawn strategic resource nodes across the map. */
-function generateResourceNodes(map: { width: number; height: number; tiles: any[][] }, rng: SeededRNG): ResourceNode[] {
+function generateResourceNodes(map: GameMap, rng: SeededRNG): ResourceNode[] {
   const nodes: ResourceNode[] = [];
   const types: ResourceNode['type'][] = ['iron', 'gold', 'relic'];
   const count = Math.floor((map.width * map.height) / 400); // density scaling
@@ -159,10 +159,7 @@ function spawnRulers(factions: Faction[], _seed: number, rng: SeededRNG): Histor
 // ─── Spatial Helpers ──────────────────────────────────────────────────────
 
 /** Find a walkable starting position near the center of the map. */
-function findPlayerStart(
-  map: { width: number; height: number; tiles: { walkable: boolean }[][] },
-  mapSize: number,
-): Position {
+function findPlayerStart(map: GameMap, mapSize: number): Position {
   const center = Math.floor(mapSize / 2);
 
   for (let radius = 0; radius < mapSize; radius++) {
@@ -181,9 +178,8 @@ function findPlayerStart(
 
 /** Give each NPC knowledge of 2-4 random historical events. */
 function assignKnowledgeToNPCs(
-  npcs: { knowledge: any[] }[],
-  events: { id: string; year: number }[],
-  _seed: number,
+  npcs: NPC[],
+  events: GameEvent[],
 ): void {
   if (events.length === 0) return;
 

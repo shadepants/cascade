@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Cascade
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Cascade is a browser-based historical simulation roguelike where player actions create long causal chains across centuries.
 
-Currently, two official plugins are available:
+## Stack
+- React 19 + TypeScript + Vite
+- Pure TypeScript simulation engine (`src/simulation`)
+- WebWorker execution for time jumps (`src/simulation/worker.ts`)
+- Canvas renderer (`src/engine/renderer.ts`)
+- IndexedDB persistence via Dexie
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Quick Start
+```bash
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Core Architecture
+- `src/simulation/tick.ts`: yearly orchestrator and storyteller lifecycle
+- `src/simulation/phases/cascade.ts`: cascade consequence derivation
+- `src/simulation/phases/knowledge.ts`: cascade knowledge seeding and gossip spread
+- `src/world/worldgen.ts`: terrain/factions/entities + deep history pre-sim
+- `src/ui/App.tsx`: app phase routing and jump worker integration
+- `src/store.ts`: reducer-backed app state and immutable state transitions
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Engine Invariants
+See: `docs/ENGINE_INVARIANTS.md`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Commands
+- `npm run dev` — local playtest
+- `npm run test` — unit tests (`src/**/*.test.ts`)
+- `npm run build` — type-check + production build
+- `npm run lint` — eslint (currently reports pre-existing repo violations)
+
+## Validation Matrix (before merge)
+1. `npm run test`
+2. `npm run build`
+3. `npm run lint` (record existing vs newly introduced issues)
+4. Run Task 003 SOP (`tasks/003-playtest-sop.md`) and capture PASS/FAIL in run table
+
+## Playtest/QA Docs
+- `tasks/003-playtest-sop.md`
+- `tasks/004-gems-playtest-guide.md`
