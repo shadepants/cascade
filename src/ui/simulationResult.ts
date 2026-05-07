@@ -1,0 +1,84 @@
+import type { GameEvent, NPCKnowledge, WorldState } from '../types.ts';
+
+function formatNotificationValue(value: unknown): string | null {
+  if (value == null) return null;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+        const msg = parsed.message ?? parsed.text ?? parsed.description;
+        if (typeof msg === 'string' && msg.trim()) return msg.trim();
+      } catch {
+        return trimmed;
+      }
+    }
+
+    return trimmed;
+  }
+
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const msg = obj.message ?? obj.text ?? obj.description;
+    if (typeof msg === 'string' && msg.trim()) return msg.trim();
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+}
+
+function pushKnowledge(npcKnowledge: NPCKnowledge[], eventId: string, year: number): void {
+  if (npcKnowledge.some(k => k.eventId === eventId)) return;
+  npcKnowledge.push({
+    eventId,
+    discoveredYear: year,
+    accuracy: 0.8,
+    sourceId: 'history',
+  });
+}
+
+function distributeCascadeKnowledge(world: WorldState, events: GameEvent[]): void {
+  const cascadeEvents = events.filter(e => e.playerCaused);
+  if (cascadeEvents.length === 0) return;
+
+  for (const npc of world.npcs) {
+    if (!npc.alive) continue;
+
+    const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
+    for (const event of toLearn) {
+      pushKnowledge(npc.knowledge, event.id, world.currentYear);
+    }
+  }
+}
+
+function appendInventoryHistory(world: WorldState, sourceWorld: WorldState): void {
+  for (const item of world.player.inventory) {
+    if (!item.history) item.history = [];
+    item.history.push({
+      year: sourceWorld.currentYear,
+      ownerName: sourceWorld.player.name,
+    });
+  }
+}
+
+export function processSimulationResult(
+  newWorld: WorldState,
+  newEvents: GameEvent[],
+  sourceWorld: WorldState,
+): { notification: string | null } {
+  distributeCascadeKnowledge(newWorld, newEvents);
+  appendInventoryHistory(newWorld, sourceWorld);
+  newWorld.player.actionsThisEra = [];
+
+  const notification = formatNotificationValue(newWorld.storyteller.pendingNotification);
+  newWorld.storyteller.pendingNotification = undefined;
+
+  return { notification };
+}
