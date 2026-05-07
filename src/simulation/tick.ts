@@ -130,7 +130,26 @@ function phaseSettlementGrowth(world: WorldState, year: number, rng: SeededRNG):
 
         world.settlements = world.settlements.filter(s => s.id !== sId);
         faction.settlements = faction.settlements.filter(id => id !== sId);
-        world.map.tiles[settlement.position.y][settlement.position.x].settlementId = null;
+        const rawY = settlement.position.y as unknown;
+        const rawX = settlement.position.x as unknown;
+        const blockedKeys = new Set(['__proto__', 'constructor', 'prototype']);
+        const y = typeof rawY === 'number' && Number.isInteger(rawY) ? rawY : -1;
+        const x = typeof rawX === 'number' && Number.isInteger(rawX) ? rawX : -1;
+
+        if (
+          !(typeof rawY === 'string' && blockedKeys.has(rawY)) &&
+          !(typeof rawX === 'string' && blockedKeys.has(rawX)) &&
+          y >= 0 &&
+          y < world.map.tiles.length &&
+          Array.isArray(world.map.tiles[y]) &&
+          x >= 0 &&
+          x < world.map.tiles[y].length
+        ) {
+          const tile = world.map.tiles[y][x];
+          if (tile && typeof tile === 'object') {
+            tile.settlementId = null;
+          }
+        }
 
         emitEvent(world, events, createEvent({
           tick: 0, year,
@@ -982,4 +1001,5 @@ function getNeighboringFactions(world: WorldState, factionId: string): Faction[]
 export const _forTesting = {
   deriveConsequence: cascadeTesting.deriveConsequence,
   phaseCascade: cascadeTesting.phaseCascade,
+  phaseSettlementGrowth,
 } as const;
