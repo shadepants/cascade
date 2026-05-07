@@ -1,6 +1,8 @@
 import type { GameEvent, NPCKnowledge, WorldState } from '../types.ts';
 import { SeededRNG } from '../utils/rng.ts';
 
+const YEAR_SEED_MULTIPLIER = 9973;
+
 function formatNotificationValue(value: unknown): string | null {
   if (value == null) return null;
 
@@ -46,7 +48,7 @@ function pushKnowledge(npcKnowledge: NPCKnowledge[], eventId: string, year: numb
 }
 
 function createJumpKnowledgeRng(world: WorldState): SeededRNG {
-  return new SeededRNG(world.seed + world.currentYear * 9973);
+  return new SeededRNG(world.seed + world.currentYear * YEAR_SEED_MULTIPLIER);
 }
 
 function distributeCascadeKnowledge(world: WorldState, events: GameEvent[], rng: SeededRNG): void {
