@@ -12,7 +12,13 @@ export function getLLMConfig(): LLMConfig | null {
   const stored = sessionStorage.getItem('cascade_llm_config');
   if (stored) {
     try {
-      return JSON.parse(stored) as LLMConfig;
+      const parsed = JSON.parse(stored) as Partial<LLMConfig>;
+      if (!parsed.provider || !parsed.model) return null;
+      return {
+        provider: parsed.provider,
+        model: parsed.model,
+        apiKey: '',
+      };
     } catch {
       return null;
     }
@@ -22,7 +28,11 @@ export function getLLMConfig(): LLMConfig | null {
 
 export function saveLLMConfig(config: LLMConfig | null): void {
   if (config) {
-    sessionStorage.setItem('cascade_llm_config', JSON.stringify(config));
+    const safeConfig = {
+      provider: config.provider,
+      model: config.model,
+    };
+    sessionStorage.setItem('cascade_llm_config', JSON.stringify(safeConfig));
   } else {
     sessionStorage.removeItem('cascade_llm_config');
   }
