@@ -137,8 +137,8 @@ function phaseSettlementGrowth(world: WorldState, year: number, rng: SeededRNG):
         const x = typeof rawX === 'number' && Number.isInteger(rawX) ? rawX : -1;
 
         if (
-          !blockedKeys.has(String(rawY)) &&
-          !blockedKeys.has(String(rawX)) &&
+          !(typeof rawY === 'string' && blockedKeys.has(rawY)) &&
+          !(typeof rawX === 'string' && blockedKeys.has(rawX)) &&
           y >= 0 &&
           y < world.map.tiles.length &&
           Array.isArray(world.map.tiles[y]) &&
