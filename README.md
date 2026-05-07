@@ -24,7 +24,7 @@ npm run dev
 - `src/store.ts`: reducer-backed app state and immutable state transitions
 
 ## Engine Invariants
-See: `/home/runner/work/cascade/cascade/docs/ENGINE_INVARIANTS.md`
+See: `docs/ENGINE_INVARIANTS.md`
 
 ## Commands
 - `npm run dev` — local playtest

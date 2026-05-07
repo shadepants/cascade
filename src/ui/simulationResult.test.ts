@@ -21,6 +21,10 @@ function makeWorld(): WorldState {
   };
 }
 
+function cloneWorld(world: WorldState): WorldState {
+  return JSON.parse(JSON.stringify(world)) as WorldState;
+}
+
 describe('processSimulationResult', () => {
   it('clears pending notification and supports JSON payload formatting', () => {
     const newWorld = makeWorld();
@@ -40,5 +44,28 @@ describe('processSimulationResult', () => {
     processSimulationResult(newWorld, [], sourceWorld);
 
     expect(newWorld.player.actionsThisEra).toEqual([]);
+  });
+
+  it('distributes cascade knowledge deterministically for same world seed/year', () => {
+    const baseWorld = makeWorld();
+    baseWorld.npcs = [
+      { id: 'n1', name: 'A', position: { x: 0, y: 0 }, factionId: 'f1', personality: 'loyal', knowledge: [], dialogueKey: 'k', alive: true },
+      { id: 'n2', name: 'B', position: { x: 0, y: 0 }, factionId: 'f1', personality: 'skeptic', knowledge: [], dialogueKey: 'k', alive: true },
+    ];
+    const events: GameEvent[] = [
+      { id: 'e1', tick: 0, year: 20, secondsOffset: 0, subject: 'f1', action: 'x', object: 'f2', causedBy: null, significance: 4, playerCaused: true, description: 'd', motivation: 'm', statDeltas: [] },
+      { id: 'e2', tick: 0, year: 20, secondsOffset: 0, subject: 'f1', action: 'x', object: 'f2', causedBy: null, significance: 4, playerCaused: true, description: 'd', motivation: 'm', statDeltas: [] },
+    ];
+
+    const worldA = cloneWorld(baseWorld);
+    const worldB = cloneWorld(baseWorld);
+    const source = makeWorld();
+
+    processSimulationResult(worldA, events, source);
+    processSimulationResult(worldB, events, source);
+
+    const aKnowledge = worldA.npcs.map(n => n.knowledge.map(k => k.eventId));
+    const bKnowledge = worldB.npcs.map(n => n.knowledge.map(k => k.eventId));
+    expect(aKnowledge).toEqual(bKnowledge);
   });
 });

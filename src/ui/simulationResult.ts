@@ -1,4 +1,5 @@
 import type { GameEvent, NPCKnowledge, WorldState } from '../types.ts';
+import { SeededRNG } from '../utils/rng.ts';
 
 function formatNotificationValue(value: unknown): string | null {
   if (value == null) return null;
@@ -44,14 +45,18 @@ function pushKnowledge(npcKnowledge: NPCKnowledge[], eventId: string, year: numb
   });
 }
 
-function distributeCascadeKnowledge(world: WorldState, events: GameEvent[]): void {
+function createJumpKnowledgeRng(world: WorldState): SeededRNG {
+  return new SeededRNG(world.seed + world.currentYear * 9973);
+}
+
+function distributeCascadeKnowledge(world: WorldState, events: GameEvent[], rng: SeededRNG): void {
   const cascadeEvents = events.filter(e => e.playerCaused);
   if (cascadeEvents.length === 0) return;
 
   for (const npc of world.npcs) {
     if (!npc.alive) continue;
 
-    const toLearn = cascadeEvents.filter(() => Math.random() < 0.5);
+    const toLearn = cascadeEvents.filter(() => rng.nextFloat() < 0.5);
     for (const event of toLearn) {
       pushKnowledge(npc.knowledge, event.id, world.currentYear);
     }
@@ -73,7 +78,8 @@ export function processSimulationResult(
   newEvents: GameEvent[],
   sourceWorld: WorldState,
 ): { notification: string | null } {
-  distributeCascadeKnowledge(newWorld, newEvents);
+  const rng = createJumpKnowledgeRng(newWorld);
+  distributeCascadeKnowledge(newWorld, newEvents, rng);
   appendInventoryHistory(newWorld, sourceWorld);
   newWorld.player.actionsThisEra = [];
 

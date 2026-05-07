@@ -24,7 +24,7 @@ This document captures behavior that must remain stable while refactoring.
 - Gossip transfer accuracy degrades per hop (`accuracy * 0.9`).
 
 ## `SET_WORLD` immutability expectations
-- `SET_WORLD` in `/home/runner/work/cascade/cascade/src/store.ts` must return a new store object and never mutate existing `state`.
+- `SET_WORLD` in `src/store.ts` must return a new store object and never mutate existing `state`.
 - `UPDATE_WORLD` updater must return a new `WorldState` object for React change detection.
 
 ## Notification flow (`pendingNotification`)
