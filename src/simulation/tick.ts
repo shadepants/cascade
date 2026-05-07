@@ -19,7 +19,7 @@
 import type {
   WorldState, GameEvent, Faction,
   StatDelta, GameMap, Position,
-  NPCPersonality, HistoricalFigure, RulerTrait, Settlement, NPC,
+  HistoricalFigure, RulerTrait, Settlement, NPC,
   FactionEthics, EthicStance,
 } from '../types.ts';
 import { defaultStorytellerState } from '../types.ts';

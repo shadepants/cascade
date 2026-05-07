@@ -225,7 +225,8 @@ Start three games with different modes. In each, jump 10 eras with the same arti
 
 | Date | Build SHA/Branch | Tester | Result (PASS/FAIL) | Notes |
 |------|-------------------|--------|---------------------|-------|
-|      |                   |        |                     |       |
+| 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | FAIL | Initial Playwright run failed: Chromium missing + strict-mode selector collisions in E2E buttons. |
+| 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | PASS (automated) | Playwright rerun passed after installing Chromium and stabilizing selectors (`exact: true`, `.first()`). 1 probabilistic cascade test skipped by design. |
 
 ---
 
