@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { _forTesting } from './tick.ts';
 import {
   type Faction,
   type FactionRelationship,
+  type Settlement,
   type WorldState,
   type GameEvent,
   type StatDelta,
@@ -11,7 +12,11 @@ import {
 } from '../types.ts';
 import { SeededRNG } from '../utils/rng.ts';
 
-const { deriveConsequence, phaseCascade } = _forTesting;
+const { deriveConsequence, phaseCascade, phaseSettlementGrowth } = _forTesting;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // ─── Test world builders ──────────────────────────────────────────────────────
 
@@ -170,4 +175,74 @@ describe('phaseCascade — animosity gated on suppression check', () => {
     phaseCascade(world, make50Triggers(4), 1, new SeededRNG(42));
     expect(rel.animosity).toBeGreaterThan(50); // at least one cascade must fire
   });
+});
+
+describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
+  function makeSettlement(id: string, x: number, y: number): Settlement {
+    return {
+      id,
+      name: id,
+      position: { x, y },
+      factionId: 'A',
+      npcs: [],
+      items: [],
+    };
+  }
+
+  it('clears tile settlementId when settlement position indices are valid', () => {
+    const faction = makeFaction('A', 'Alpha');
+    faction.population = 100;
+    faction.settlements = ['s1', 's2'];
+
+    const world = makeWorld([faction], []);
+    world.map.tiles = [[{ ...world.map.tiles[0][0], settlementId: 's1' }]];
+    world.settlements = [makeSettlement('s1', 0, 0), makeSettlement('s2', 0, 0)];
+
+    const rng = new SeededRNG(1);
+    vi.spyOn(rng, 'nextFloat').mockReturnValue(0);
+    vi.spyOn(rng, 'nextInt').mockReturnValue(0);
+
+    phaseSettlementGrowth(world, 2, rng);
+
+    expect(world.map.tiles[0][0].settlementId).toBeNull();
+  });
+
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'rejects malicious settlement index key %s without prototype pollution',
+    (blockedKey) => {
+      const faction = makeFaction('A', 'Alpha');
+      faction.population = 100;
+      faction.settlements = ['s1', 's2'];
+
+      const world = makeWorld([faction], []);
+      world.map.tiles = [[{ ...world.map.tiles[0][0], settlementId: 's1' }]];
+      world.settlements = [
+        {
+          id: 's1',
+          name: 's1',
+          position: { x: blockedKey as unknown as number, y: 0 },
+          factionId: 'A',
+          npcs: [],
+          items: [],
+        },
+        makeSettlement('s2', 0, 0),
+      ];
+
+      const rng = new SeededRNG(1);
+      vi.spyOn(rng, 'nextFloat').mockReturnValue(0);
+      vi.spyOn(rng, 'nextInt').mockReturnValue(0);
+
+      const hadArrayProto = Object.prototype.hasOwnProperty.call(Array.prototype, 'settlementId');
+      const prevArrayProto = (Array.prototype as { settlementId?: unknown }).settlementId;
+      const hadObjectProto = Object.prototype.hasOwnProperty.call(Object.prototype, 'settlementId');
+      const prevObjectProto = (Object.prototype as { settlementId?: unknown }).settlementId;
+
+      phaseSettlementGrowth(world, 2, rng);
+
+      expect(Object.prototype.hasOwnProperty.call(Array.prototype, 'settlementId')).toBe(hadArrayProto);
+      expect((Array.prototype as { settlementId?: unknown }).settlementId).toBe(prevArrayProto);
+      expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'settlementId')).toBe(hadObjectProto);
+      expect((Object.prototype as { settlementId?: unknown }).settlementId).toBe(prevObjectProto);
+    },
+  );
 });

@@ -1001,4 +1001,5 @@ function getNeighboringFactions(world: WorldState, factionId: string): Faction[]
 export const _forTesting = {
   deriveConsequence: cascadeTesting.deriveConsequence,
   phaseCascade: cascadeTesting.phaseCascade,
+  phaseSettlementGrowth,
 } as const;
