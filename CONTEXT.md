@@ -6,7 +6,7 @@ Browser-based roguelike where the player time-travels through procedurally simul
 ## Tech Stack
 - **Frontend:** React 19 + TypeScript (strict), Vite, plain CSS
 - **Simulation:** Pure TypeScript tick engine (no ECS), SeededRNG
-- **Rendering:** HTML5 Canvas (`GameCanvas.tsx`)
+- **Rendering:** PixiJS v8 WebGL (`PixiViewport.tsx`) — migration from GameCanvas complete
 - **State:** useReducer + Context (store.ts)
 - **Target wrap:** Tauri (Phase 3, not yet)
 - **No backend** — fully client-side POC
@@ -26,6 +26,12 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] `.claude/settings.local.json` removed from tracking; `.claude/` added to .gitignore
 - [x] **Vitest regression tests** — `src/simulation/tick.test.ts` (6 tests, all passing); `_forTesting` export in tick.ts; Vitest scoped to `src/**/*.test.ts` only
 - [x] **Task 004:** Gems High-Fidelity Upgrade — 128x128 map, FBM/Voronoi terrain, climate simulation, ruins, artifacts, internal politics, interest groups, succession, traits, resources, and enhanced renderer (hillshading, clouds, zoom).
+- [x] **PixiJS Phase 1:** `src/engine/tileMap.ts` + `src/ui/PixiViewport.tsx` (PixiJS v8 renderer, 4 sprite sheets, 15/15 tests)
+- [x] **PixiJS Phase 2:** Ghost of History ghost layer — dashed faction borders from `previousWorld` at 0.4 alpha when H held; batched per faction color
+- [x] **PixiJS Phase 3:** Texture pooling — `Map<string, Texture>` keyed by `sheetKey:x:y`; pool destroyed on unmount
+- [x] **PixiJS Phase 3b:** BIOME_TILES calibrated to DawnLike Tile.png row 0 (8 hex terrain fills, visually verified)
+- [x] **PixiJS Phase 5:** `<GameCanvas />` → `<PixiViewport />` swapped in App.tsx; commit `3b688a6`
+- [ ] **Merge:** `feat-pixi-viewport` → master (Phase 5 complete, ready to merge)
 - [ ] **Task 003:** Playtest SOP — verify full cascade chain end-to-end in browser (needs re-run for 128x128 map)
 - [ ] Zustand migration (defer until perf is felt)
 - [ ] Tauri wrapper (Phase 3)
@@ -34,6 +40,7 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - tasks/001-accuracy-tiered-templates.md — DONE
 - tasks/002-storyteller-director.md — DONE
 - tasks/003-playtest-sop.md — run next session (browser console verification)
+- tasks/006-final-asset-evaluation.md — ALL PHASES DONE
 
 ## Don't Forget
 - `runSimulation(world, jumpYears): GameEvent[]` — external contract must stay unchanged
@@ -43,7 +50,10 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - MAX_ACTIONS_PER_ERA = 6 in types.ts — reset in App.tsx after each jump
 - LLM config in `sessionStorage` as `cascade_llm_config` (session-only, not localStorage)
 - Vite proxy: `/api/anthropic` → `api.anthropic.com` (dev only; prod needs real proxy)
-- Build ~541KB (xyflow/react + vocab tables; chunk warning is expected)
+- Build ~554KB (xyflow/react + PixiJS + vocab tables; chunk warning is expected)
 - `emitEvent(world, pool, event, year)` — helper in tick.ts; returns void, not usable where side-effects need suppression gating (phaseCascade consequence block stays inline)
 - Mode selector on TitleScreen passes storytellerMode into WorldConfig → worldgen → defaultStorytellerState()
 - Unit tests: `npm test` (Vitest, node env, scoped to src/**/*.test.ts — Playwright E2E excluded)
+- SHEET_TERRAIN = Tile.png (NOT Map0.png). BIOME_TILES calibrated to row 0. forest/grassland intentionally share green tile — tree sprites differentiate visually.
+- Ghost layer batching: edges grouped by faction color → one `g.stroke()` per color (not per segment)
+- Texture pool key: `sheetKey:region.x:region.y` (sheetKey = 'terrain'|'settlement'|'character'|'player')

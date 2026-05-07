@@ -1,6 +1,6 @@
 # 🌪️ Cascade — Gemini CLI (Scout)
 
-@CONTEXT.md
+@c:\Users\User\Repositories\cascade\CONTEXT.md
 
 ## 💼 Role: Storyteller Audit & Gossip Review
 - Audit 5-phase tick engine execution.
@@ -20,3 +20,6 @@
 ## 📜 Global Mandates
 - Follow the **Research -> Strategy -> Execution** cycle strictly.
 - Section 5 of `.gemini/GEMINI.md` takes precedence for local pitfalls.
+
+---
+_Last Updated: 2026-05-07 | Cascade_

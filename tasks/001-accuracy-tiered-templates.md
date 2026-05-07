@@ -1,7 +1,7 @@
 # Task 001 — Accuracy-Tiered NPC Dialogue Templates
 
-**Status:** Pending  
-**Priority:** 1 (implement first — no dependencies)  
+**Status:** Completed  
+**Priority:** 1 (implemented)  
 **Estimated scope:** ~200 lines across 3 files
 
 ---

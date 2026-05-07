@@ -1,7 +1,7 @@
 # Task 002 — Storyteller Director
 
-**Status:** Pending  
-**Priority:** 2 (implement after Task 001)  
+**Status:** Completed  
+**Priority:** 2 (implemented)  
 **Estimated scope:** ~300 lines across 4 files  
 **Inspiration:** RimWorld's Cassandra/Randy storytellers — pacing control over WHEN and TO WHOM events surface
 

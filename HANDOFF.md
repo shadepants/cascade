@@ -1,47 +1,41 @@
-# AI Agent Handoff Protocol — Project Cascade
+# AI Agent Handoff Protocol
 
 ## Current Session Status
-**Last Updated:** 2026-03-07
-**Active Agent:** Gemini CLI
-**Current Goal:** Finalize "Gems" High-Fidelity World Simulation & Visuals.
+**Last Updated:** 2026-05-07
+**Active Agent:** Claude (Antigravity IDE)
+**Current Goal:** Agent configuration audit — all PixiJS phases complete
+
+## Previous Session (2026-03-08)
+- [x] Scanned DawnLike Objects/ for terrain-fill candidates (Hill0.png rejected, Tile.png confirmed)
+- [x] Visually verified Tile.png row 0 via Chrome DevTools canvas overlay — 8 hex-pattern fills
+- [x] Updated `SHEET_TERRAIN` → `Tile.png` (was `Map0.png`) in `tileMap.ts`
+- [x] Calibrated all 9 `BIOME_TILES` to Tile.png row 0 pixel coords
+- [x] Pixel-sampled rows 1-3 of Tile.png (escalator/dungeon/wood — none usable for terrain)
+- [x] Updated calibration-guard test with `ALLOWED_SHARING` for documented forest/grassland exception
+- [x] 15/15 Vitest passing; tsc clean
+- [x] Committed `10f3d10` — Phase 3b calibration
+- [x] **Phase 5:** Swapped `<GameCanvas />` → `<PixiViewport />` in `App.tsx` (commit `3b688a6`)
 
 ## Changes This Session
-### 1. High-Fidelity Worldgen ("Gems" v1)
-- [x] **Scale:** Increased from 24x24 to **128x128** (16,384 tiles).
-- [x] **Geology:** 4-octave FBM elevation + Voronoi tectonic plate simulation (convergent/divergent/subduction).
-- [x] **Climate:** Wind-driven moisture transport (West → East) with orographic precipitation (Rain Shadows).
-- [x] **Biomes:** Expanded to 8 types: Ocean, Coast, Tundra, Grassland, Forest, Rainforest, Arid, Desert.
-
-### 2. Deep History & Ruins
-- [x] **Era Zero:** Headless pre-game simulation increased to **500 years**.
-- [x] **Ruins:** Collapsed/abandoned settlements leave behind weathered ruins (♜).
-- [x] **Legendary Artifacts:** Seeded into ruins with historical context (history trackers).
-
-### 3. Faction & Leadership Logic
-- [x] **Internal Politics:** Interest Groups (Military, Merchant, Religious, etc.) shift faction ethics via lobbying.
-- [x] **Succession:** Ruler mortality (age-based), legitimacy stats, and succession crises (shattering).
-- [x] **Ruler Traits:** Mechanical modifiers (Industrious, Bloodthirsty, Xenophobic, etc.) integrated into sim phases.
-
-### 4. Dynamic World Systems
-- [x] **Strategic Resources:** Seeded Iron, Gold, and Relic nodes across the map.
-- [x] **Colonization:** Factions establish new settlements when pop/wealth/stability are high.
-- [x] **Abandonment:** Settlements collapse into ruins during depopulation.
-
-### 5. Visual Engine & UI
-- [x] **Renderer:** Lambertian Hillshading, biome micro-textures, procedural entity bobbing, and moving cloud layer.
-- [x] **UX:** Interactive zoom (+/-) and viewport culling for high-scale performance.
-- [x] **Score Screen:** Cinematic redesign (900px wide, large stats, longest causal chain tree display).
+- [x] Recursive audit of full agent configuration ecosystem
+- [x] Fixed hardcoded GitHub PAT in `mcp_config.json`
+- [x] Updated stale references (`codebase_investigator` → `scan`/`research`)
+- [x] Fixed broken paths in hooks, commands, and settings
+- [x] Cleaned proxy hook dead code and stdout suppression
 
 ## Verification Status
 | Check | Status | Notes |
 |-------|--------|-------|
-| `npm run build` | PASSED | Zero warnings, zero errors. |
-| `npm test` | PASSED | Vitest regression suite passing. |
-| 128x128 Scale | PASSED | Viewport culling ensures 60FPS on canvas. |
-| Era Zero (500y) | PASSED | Headless mode runs in <2s during worldgen. |
+| vitest run | PASSED | 15/15 tests (last verified 2026-03-08) |
+| tsc | PASSED | 0 errors (last verified 2026-03-08) |
+| Agent config audit | COMPLETE | All findings from recursive audit addressed |
 
 ## Next Steps
-1. [ ] **Run Playtest SOP** (`npm run dev`) — follow `tasks/003-playtest-sop.md` to verify the 128x128 feel.
-2. [ ] **Balance Tuning** — Tune colonization frequency and war aggression for the larger map.
-3. [ ] **Discovery HUD** — Add a log entry when the player enters a Ruin or Resource tile.
-4. [ ] **Zustand Migration** — Consider moving from `useReducer` to Zustand now that state (ruins, nodes, figures) is expanding.
+1. [ ] **Merge:** `feat-pixi-viewport` → master (Phase 5 complete, ready to merge)
+2. [ ] **Task 003:** Playtest SOP — browser console verification of 128×128 cascade chain end-to-end
+3. [ ] Zustand migration (defer until perf is felt)
+4. [ ] Tauri wrapper (Phase 3)
+
+## Worktree
+All PixiJS work is on `feat-pixi-viewport` branch at:
+`C:/Users/User/Repositories/cascade/.worktrees/feat-pixi-viewport/`
