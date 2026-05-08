@@ -1,4 +1,4 @@
-import type { GameEvent, NPCKnowledge, WorldState } from '../types.ts';
+import type { GameEvent, NPCKnowledge, WorldState } from '../types';
 import { SeededRNG } from '../utils/rng.ts';
 
 // Large prime multiplier helps spread year offsets and reduce seed collisions.

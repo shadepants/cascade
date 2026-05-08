@@ -9,7 +9,7 @@ import {
   type StatDelta,
   type StorytellerState,
   defaultStorytellerState,
-} from '../types.ts';
+} from '../types';
 import { SeededRNG } from '../utils/rng.ts';
 
 const { deriveConsequence, phaseCascade, phaseSettlementGrowth } = _forTesting;

@@ -1,7 +1,7 @@
 // ─── Biome Definitions ──────────────────────────────────────────────────
 // Colors and glyphs for each biome type. Used by the renderer.
 
-import type { Biome } from '../types.ts';
+import type { Biome } from '../types';
 
 /** Tile background colors per biome. */
 export const BIOME_COLORS: Record<Biome, string> = {

@@ -6,7 +6,7 @@
 // Every event references actors by stable ID; narrative is reconstructed by
 // filtering, not by pre-computing "because" relationships.
 
-import type { GameEvent, CausalChain, CausalNode, StatDelta } from '../types.ts';
+import type { GameEvent, CausalChain, CausalNode, StatDelta } from '../types';
 
 let nextEventId = 0;
 

@@ -8,7 +8,7 @@
 //   ares  — aggressive escalation, fast pacing, military bias
 //   tyche — chaos, no cooldowns, unpredictable chain reactions
 
-import type { WorldState, StorytellerState, StorytellerMode, GameEvent, NPC } from '../types.ts';
+import type { WorldState, StorytellerState, StorytellerMode, GameEvent, NPC } from '../types';
 import type { SeededRNG } from '../utils/rng.ts';
 
 // ─── Tension ─────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 // ─── Camera ─────────────────────────────────────────────────────────────
 // Manages the viewport position. Centers on the player, clamps to map edges.
 
-import type { Camera, Position, GameMap } from '../types.ts';
-import { VIEWPORT_TILES } from '../types.ts';
+import type { Camera, Position, GameMap } from '../types';
+import { VIEWPORT_TILES } from '../types';
 
 /** Create initial camera centered on a position. */
 export function createCamera(center: Position, map: GameMap): Camera {

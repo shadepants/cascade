@@ -9,7 +9,7 @@ import { useGame } from '../store.ts';
 import { renderWorld } from '../engine/renderer.ts';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
-import { TILE_SIZE } from '../types.ts';
+import { TILE_SIZE } from '../types';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

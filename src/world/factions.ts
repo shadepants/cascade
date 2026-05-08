@@ -9,7 +9,7 @@
 import type {
   Faction, FactionRelationship, FactionEthics, EthicStance,
   Settlement, GameMap, Position, InterestGroup,
-} from '../types.ts';
+} from '../types';
 import { FACTION_TEMPLATES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
 

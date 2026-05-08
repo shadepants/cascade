@@ -2,7 +2,7 @@
 // Maps keyboard events to game actions. Stateless — returns what happened,
 // doesn't mutate game state directly.
 
-import type { Position, GamePhase } from '../types.ts';
+import type { Position, GamePhase } from '../types';
 
 export type GameAction =
   | { type: 'MOVE'; direction: Position }

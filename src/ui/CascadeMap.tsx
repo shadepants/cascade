@@ -15,7 +15,7 @@ import {
   type Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { GameEvent, CausalChain } from '../types.ts';
+import type { GameEvent, CausalChain } from '../types';
 
 interface CascadeMapProps {
   chains: CausalChain[];

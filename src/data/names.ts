@@ -1,7 +1,7 @@
 // ─── Name Generation Tables ─────────────────────────────────────────────
 // Static data for faction names, NPC names, and item templates.
 
-import type { ItemType } from '../types.ts';
+import type { ItemType } from '../types';
 
 /** Faction templates — name + territory color. */
 export const FACTION_TEMPLATES = [
