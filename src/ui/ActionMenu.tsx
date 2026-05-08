@@ -9,10 +9,10 @@
 // the tick engine reads statDeltas to derive mechanically-legible consequences.
 
 import { useGame } from '../store.ts';
-import { MAX_ACTIONS_PER_ERA } from '../types.ts';
+import { MAX_ACTIONS_PER_ERA } from '../types';
 import { createEvent } from '../world/events.ts';
 import { setSpotlight } from '../simulation/storyteller.ts';
-import type { StatDelta } from '../types.ts';
+import type { StatDelta } from '../types';
 
 export function ActionMenu() {
   const { state, dispatch } = useGame();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultStorytellerState, type GameEvent, type WorldState } from '../types.ts';
+import { defaultStorytellerState, type GameEvent, type WorldState } from '../types';
 import { processSimulationResult } from './simulationResult.ts';
 
 function makeWorld(): WorldState {

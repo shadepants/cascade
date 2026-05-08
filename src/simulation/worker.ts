@@ -4,7 +4,7 @@
 
 import { runSimulation } from './tick.ts';
 import { initEventIds } from '../world/events.ts';
-import type { WorldState, GameEvent } from '../types.ts';
+import type { WorldState, GameEvent } from '../types';
 
 // ─── Worker Inbound Messages ───────────────────────────────────────────
 

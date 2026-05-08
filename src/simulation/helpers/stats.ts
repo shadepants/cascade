@@ -1,4 +1,4 @@
-import type { Faction, FactionStatKey, StatDelta, WorldState } from '../../types.ts';
+import type { Faction, FactionStatKey, StatDelta, WorldState } from '../../types';
 
 export function getFactionStat(faction: Faction, stat: FactionStatKey): number {
   switch (stat) {

@@ -4,7 +4,7 @@
 
 import type {
   NPC, Player, Item, Settlement, Faction, NPCPersonality, Position, GameMap, Ruin,
-} from '../types.ts';
+} from '../types';
 import { NPC_NAMES, ITEM_TEMPLATES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
 

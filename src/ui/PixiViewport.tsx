@@ -14,8 +14,8 @@ import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } 
 import { useGame } from '../store.ts';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
-import { TILE_SIZE } from '../types.ts';
-import type { Biome } from '../types.ts';
+import { TILE_SIZE } from '../types';
+import type { Biome } from '../types';
 import type { TileRegion } from '../engine/tileMap.ts';
 import {
   SHEET_TERRAIN,

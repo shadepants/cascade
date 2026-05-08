@@ -2,7 +2,7 @@
 // Assembles historical context and applies faction/personality biases
 // to generate characterful dialogue via LLM or templates.
 
-import type { WorldState, NPC, GameEvent } from '../types.ts';
+import type { WorldState, NPC, GameEvent } from '../types';
 import { DIALOGUE, fillTemplate } from '../data/templates.ts';
 
 /**

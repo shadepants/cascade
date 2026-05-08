@@ -14,13 +14,13 @@
 
 import type {
   WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode, GameMap, NPC, GameEvent,
-} from '../types.ts';
+} from '../types';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
 import { generateNPCs, createPlayer, generateItems } from './entities.ts';
 import { resetEventIds } from './events.ts';
 import { runSimulation } from '../simulation/tick.ts';
-import { defaultStorytellerState } from '../types.ts';
+import { defaultStorytellerState } from '../types';
 import { NPC_NAMES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
 

@@ -1,4 +1,4 @@
-import type { NPCPersonality } from '../types.ts';
+import type { NPCPersonality } from '../types';
 import type { SeededRNG } from '../utils/rng.ts';
 
 export const WAR_ANIMOSITY_THRESHOLD = 80;

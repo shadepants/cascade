@@ -2,7 +2,7 @@
 // Perlin noise → elevation + rainfall → biome classification.
 // Produces a 2D grid of Tiles.
 
-import type { GameMap, Tile, Biome } from '../types.ts';
+import type { GameMap, Tile, Biome } from '../types';
 import { createNoise2D, createFBM2D } from '../utils/noise.ts';
 import { SeededRNG } from '../utils/rng.ts';
 

@@ -5,8 +5,8 @@
 import type { 
   GameMap, Camera, NPC, Player, Settlement, Item, Faction, WorldState, 
   Ruin, ResourceNode, Biome 
-} from '../types.ts';
-import { TILE_SIZE } from '../types.ts';
+} from '../types';
+import { TILE_SIZE } from '../types';
 import { BIOME_COLORS } from '../data/biomes.ts';
 
 export interface RenderContext {

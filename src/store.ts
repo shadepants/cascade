@@ -5,8 +5,8 @@
 import { createContext, useContext } from 'react';
 import type {
   GameStore, GamePhase, WorldState, NPC, Item, Camera,
-} from './types.ts';
-import { DEFAULT_CONFIG, VIEWPORT_TILES } from './types.ts';
+} from './types';
+import { DEFAULT_CONFIG, VIEWPORT_TILES } from './types';
 
 // ─── Initial State ──────────────────────────────────────────────────────
 

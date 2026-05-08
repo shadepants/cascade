@@ -1,4 +1,4 @@
-import type { Faction, GameEvent, StatDelta, WorldState } from '../../types.ts';
+import type { Faction, GameEvent, StatDelta, WorldState } from '../../types';
 import { createEvent } from '../../world/events.ts';
 import type { SeededRNG } from '../../utils/rng.ts';
 import { CASCADE_SIGNIFICANCE_MIN, REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';

@@ -16,7 +16,7 @@ import {
   SHEET_CHARACTER,
   SHEET_PLAYER,
 } from './tileMap.ts';
-import type { Biome } from '../types.ts';
+import type { Biome } from '../types';
 
 // All 9 biomes that must be present in BIOME_TILES
 const ALL_BIOMES: Biome[] = [
