@@ -1,4 +1,4 @@
-import type { GameEvent, WorldState } from '../../types.ts';
+import type { GameEvent, WorldState } from '../../types';
 import { getGossipBoost } from '../storyteller.ts';
 import type { SeededRNG } from '../../utils/rng.ts';
 

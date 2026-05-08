@@ -21,8 +21,8 @@ import type {
   StatDelta, GameMap, Position,
   HistoricalFigure, RulerTrait, Settlement, NPC,
   FactionEthics, EthicStance,
-} from '../types.ts';
-import { defaultStorytellerState } from '../types.ts';
+} from '../types';
+import { defaultStorytellerState } from '../types';
 import { createEvent } from '../world/events.ts';
 import { computeEthicsDivergence } from '../world/factions.ts';
 import { SeededRNG } from '../utils/rng.ts';

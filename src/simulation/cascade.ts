@@ -2,7 +2,7 @@
 // Calculates the player's cascade score at end of run.
 // Score = sum(depth × significance) for all player-caused events.
 
-import type { GameEvent, CausalChain } from '../types.ts';
+import type { GameEvent, CausalChain } from '../types';
 import { buildCausalChains } from '../world/events.ts';
 
 export interface CascadeResult {

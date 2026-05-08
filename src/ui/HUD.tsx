@@ -3,7 +3,7 @@
 // Also renders the cascade discovery notification flash.
 
 import { useGame } from '../store.ts';
-import { MAX_ACTIONS_PER_ERA } from '../types.ts';
+import { MAX_ACTIONS_PER_ERA } from '../types';
 
 export function HUD() {
   const { state, dispatch } = useGame();

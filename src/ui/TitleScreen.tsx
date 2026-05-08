@@ -7,7 +7,7 @@ import { generateWorld } from '../world/worldgen.ts';
 import { createCamera } from '../engine/camera.ts';
 import { loadMostRecentSave } from '../data/db.ts';
 import { getLLMConfig, saveLLMConfig } from '../simulation/llm.ts';
-import type { StorytellerMode } from '../types.ts';
+import type { StorytellerMode } from '../types';
 
 const MODE_INFO: Record<StorytellerMode, { label: string; description: string; color: string }> = {
   clio:  { label: 'Clio',  description: 'Historian. Slow burn — consequences unfold across decades.',    color: '#adcbe3' },

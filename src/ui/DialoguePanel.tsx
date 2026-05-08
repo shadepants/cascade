@@ -9,7 +9,7 @@ import {
   findKnowledgeChain, EVENT_ACTION_VOCAB,
   type AccuracyTier, type EventActionType,
 } from '../data/templates.ts';
-import type { GameEvent, KnowledgeEntry } from '../types.ts';
+import type { GameEvent, KnowledgeEntry } from '../types';
 import { assembleNarrativeContext, buildSocraticPrompt } from '../simulation/narrative.ts';
 import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
 import { SeededRNG } from '../utils/rng.ts';

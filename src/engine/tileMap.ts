@@ -13,7 +13,7 @@
 //   col 6 (x= 96): gold/sandy hex  → desert
 //   col 7 (x=112): solid light blue → ocean
 
-import type { Biome, ItemType } from '../types.ts';
+import type { Biome, ItemType } from '../types';
 
 /** Native px per tile in all source sheets (DawnLike / Toen Medieval). */
 export const SPRITE_SIZE = 16;

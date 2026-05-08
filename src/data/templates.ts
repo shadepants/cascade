@@ -2,7 +2,7 @@
 // Template strings for NPC dialogue. Uses string interpolation, not LLM.
 // Placeholders: {name}, {faction}, {event}, {year}, {ethicsComment}, etc.
 
-import type { NPCPersonality, GameEvent, NPCKnowledge, FactionEthics } from '../types.ts';
+import type { NPCPersonality, GameEvent, NPCKnowledge, FactionEthics } from '../types';
 
 // ─── Backward-Compatible Flat Templates ─────────────────────────────────
 
