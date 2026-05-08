@@ -1,0 +1,4 @@
+#!/bin/sh
+# Cascade Scout: Auto-index after merge
+echo "Running Cascade Scout indexer..."
+node scripts/scout-index.mjs

@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scout": "node scripts/scout-index.mjs",
+    "prepare": "node -e \"const fs = require('fs'); const path = require('path'); const hookPath = '.git/hooks/post-merge'; const sourcePath = 'scripts/hooks/post-merge'; if (!fs.existsSync(hookPath) && fs.existsSync(sourcePath)) { fs.copyFileSync(sourcePath, hookPath); fs.chmodSync(hookPath, 0o755); console.log('✅ Git hook installed.'); }\""
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",

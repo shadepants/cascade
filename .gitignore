@@ -28,3 +28,6 @@ dist-ssr
 
 # Git worktrees
 .worktrees/
+
+# Scout watermark (local state)
+.scout-watermark

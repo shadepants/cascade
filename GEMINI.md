@@ -12,14 +12,24 @@
 - **State Mutation:** SET_WORLD reducer MUST be immutable.
 - **Gossip Boost:** Wiring must hit phaseGossip before story events.
 - **Notification UI:** Dual-format JSON fallback required for logging.
+- **Cascade Thresholds:** `cultural_spread` requires culture >40; `military_buildup` requires military >50. Starting factions (stats 10–30) will only cascade after multiple player actions or eras of sim.
+- **Mode Persistence:** TitleScreen reads mode from `state.config.storytellerMode` — always dispatch `SET_CONFIG` before `SET_WORLD` on New Game.
 
 ## 🚀 Cascade Commands
 - `npm run dev`: Launch Playtest SOP.
-- `npm run build`: Verify TS/Vite integrity.
+- `npm run build`: Verify TS/Vite integrity (tsc -b && vite build, ~50s).
+- `npm test`: Run Vitest (24 tests / 4 suites, node env, ~2s).
+
+## ✅ Last Verified (2026-05-08)
+- Build: clean, exit 0, 938 modules
+- Tests: 24/24 pass
+- Playtest SOP 003: PixiJS viewport rendering confirmed; cascade chain logic correct; NPC knowledge seeding verified (96 entries / 18 NPCs)
+- Cascade thresholds lowered for early-game viability
+- Mode selector persistence fixed via SET_CONFIG action
 
 ## 📜 Global Mandates
 - Follow the **Research -> Strategy -> Execution** cycle strictly.
 - Section 5 of `.gemini/GEMINI.md` takes precedence for local pitfalls.
 
 ---
-_Last Updated: 2026-05-07 | Cascade_
+_Last Updated: 2026-05-08 | Cascade_
