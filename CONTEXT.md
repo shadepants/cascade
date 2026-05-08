@@ -35,6 +35,8 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] **Task 003:** Playtest SOP — verified 2026-05-08: PixiJS viewport confirmed rendering, cascade chain logic correct, NPC knowledge seeding working (96 entries / 18 NPCs, accuracy 0.81–1.00)
 - [x] **Cascade threshold fix:** `cultural_spread` lowered `>65` → `>40`; `military_buildup` lowered `>70` → `>50` — enables early-game cascade events (faction stats start 10–30, old thresholds were unreachable)
 - [x] **Mode persistence fix:** `TitleScreen` now initializes `mode` from `state.config.storytellerMode`; `SET_CONFIG` action added to store; selected mode is written back to config on New Game start
+- [x] **Task 005:** Tick Engine Refactor — Decomposed 1,007-line tick engine into 10 modular phases; optimized per-faction map scans via `MapOwnershipSummary` (P2 audit); improved type safety (P1 audit).
+- [x] **Cascade Scout:** AI context indexing system with `CODEBASE.md` generation and git `post-merge` hook integration.
 - [ ] Zustand migration (defer until perf is felt)
 - [ ] Tauri wrapper (Phase 3)
 

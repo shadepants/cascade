@@ -21,11 +21,12 @@
 - `npm test`: Run Vitest (24 tests / 4 suites, node env, ~2s).
 
 ## ✅ Last Verified (2026-05-08)
-- Build: clean, exit 0, 938 modules
+- Build: clean, exit 0, 948 modules
 - Tests: 24/24 pass
 - Playtest SOP 003: PixiJS viewport rendering confirmed; cascade chain logic correct; NPC knowledge seeding verified (96 entries / 18 NPCs)
-- Cascade thresholds lowered for early-game viability
-- Mode selector persistence fixed via SET_CONFIG action
+- Task 005: Tick engine refactored to modular orchestrator pattern.
+- Optimization: MapOwnershipSummary implemented; spatial complexity reduced from O(N*M) to O(1) for faction-level map lookups.
+- Scout: Ingest/Index system active; post-merge hooks installed.
 
 ## 📜 Global Mandates
 - Follow the **Research -> Strategy -> Execution** cycle strictly.
