@@ -8,15 +8,17 @@
 // This connects the player's action to the simulation's cascade phase:
 // the tick engine reads statDeltas to derive mechanically-legible consequences.
 
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { MAX_ACTIONS_PER_ERA } from '../types';
 import { createEvent } from '../world/events.ts';
 import { setSpotlight } from '../simulation/storyteller.ts';
 import type { StatDelta } from '../types';
 
 export function ActionMenu() {
-  const { state, dispatch } = useGame();
-  const { activeItem, world } = state;
+  const activeItem = useGameStore(s => s.activeItem);
+  const world = useGameStore(s => s.world);
+  const updateWorld = useGameStore(s => s.updateWorld);
+  const closeAction = useGameStore(s => s.closeAction);
 
   if (!activeItem || !world) return null;
 
@@ -73,47 +75,44 @@ export function ActionMenu() {
       statDeltas: deltas,
     });
 
-    dispatch({
-      type: 'UPDATE_WORLD',
-      updater: (w) => {
-        // Apply stat changes to the faction immediately
-        const updatedFactions = w.factions.map(f => {
-          if (f.id !== factionId) return f;
-          const updated = { ...f };
-          for (const d of deltas) {
-            const ranges: Record<string, [number, number]> = {
-              population: [0, 1000], stability: [0, 100],
-              wealth: [0, 100], military: [0, 100], culture: [0, 100],
-            };
-            const [min, max] = ranges[d.stat] ?? [0, 100];
-            const cur = (updated as unknown as Record<string, number>)[d.stat] ?? 0;
-            (updated as unknown as Record<string, number>)[d.stat] =
-              Math.max(min, Math.min(max, cur + d.delta));
-          }
-          return updated;
-        });
+    updateWorld((w) => {
+      // Apply stat changes to the faction immediately
+      const updatedFactions = w.factions.map(f => {
+        if (f.id !== factionId) return f;
+        const updated = { ...f };
+        for (const d of deltas) {
+          const ranges: Record<string, [number, number]> = {
+            population: [0, 1000], stability: [0, 100],
+            wealth: [0, 100], military: [0, 100], culture: [0, 100],
+          };
+          const [min, max] = ranges[d.stat] ?? [0, 100];
+          const cur = (updated as unknown as Record<string, number>)[d.stat] ?? 0;
+          (updated as unknown as Record<string, number>)[d.stat] =
+            Math.max(min, Math.min(max, cur + d.delta));
+        }
+        return updated;
+      });
 
-        return {
-          ...w,
-          factions: updatedFactions,
-          events: [...w.events, event],
-          items: w.items.filter(i => i.id !== activeItem!.id),
-          player: {
-            ...w.player,
-            actionsThisEra: [...w.player.actionsThisEra, event.id],
-          },
-        };
-      },
+      return {
+        ...w,
+        factions: updatedFactions,
+        events: [...w.events, event],
+        items: w.items.filter(i => i.id !== activeItem!.id),
+        player: {
+          ...w.player,
+          actionsThisEra: [...w.player.actionsThisEra, event.id],
+        },
+      };
     });
 
-    dispatch({ type: 'CLOSE_ACTION' });
+    closeAction();
   }
 
   return (
     <div className="panel action-panel">
       <div className="panel-header">
         <span>{activeItem.name}</span>
-        <button onClick={() => dispatch({ type: 'CLOSE_ACTION' })}>
+        <button onClick={closeAction}>
           ✕
         </button>
       </div>

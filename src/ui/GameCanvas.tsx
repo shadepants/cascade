@@ -5,7 +5,7 @@
 // - Keyboard event capture
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState } from 'react';
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { renderWorld } from '../engine/renderer.ts';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
@@ -13,13 +13,28 @@ import { TILE_SIZE } from '../types';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { state, dispatch } = useGame();
+  
+  const world = useGameStore(s => s.world);
+  const camera = useGameStore(s => s.camera);
+  const previousWorld = useGameStore(s => s.previousWorld);
+  const phase = useGameStore(s => s.phase);
+  
+  const updateCamera = useGameStore(s => s.updateCamera);
+  const setCamera = useGameStore(s => s.setCamera);
+  const updateWorld = useGameStore(s => s.updateWorld);
+  const setPreviousWorld = useGameStore(s => s.setPreviousWorld);
+  const setPhase = useGameStore(s => s.setPhase);
+  const openDialogue = useGameStore(s => s.openDialogue);
+  const closeDialogue = useGameStore(s => s.closeDialogue);
+  const openAction = useGameStore(s => s.openAction);
+  const closeAction = useGameStore(s => s.closeAction);
+
   const [showHistory, setShowHistory] = useState(false);
   const [debugMode, setDebugMode] = useState<'none' | 'elevation' | 'rainfall'>('none');
 
-  const zoom = state.camera.zoom || 1.0;
-  const canvasWidth = state.camera.viewportWidth * TILE_SIZE * zoom;
-  const canvasHeight = state.camera.viewportHeight * TILE_SIZE * zoom;
+  const zoom = camera.zoom || 1.0;
+  const canvasWidth = camera.viewportWidth * TILE_SIZE * zoom;
+  const canvasHeight = camera.viewportHeight * TILE_SIZE * zoom;
 
   // Track 'H' key for Ghost of History layer
   useEffect(() => {
@@ -40,27 +55,27 @@ export function GameCanvas() {
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!ctx || !state.world) return;
+    if (!ctx || !world) return;
 
     renderWorld({
       ctx,
-      map: state.world.map,
-      camera: state.camera,
-      player: state.world.player,
-      npcs: state.world.npcs,
-      settlements: state.world.settlements,
-      ruins: state.world.ruins,
-      resourceNodes: state.world.resourceNodes,
-      items: state.world.items,
-      factions: state.world.factions,
-      previousWorld: showHistory ? state.previousWorld : null,
+      map: world.map,
+      camera: camera,
+      player: world.player,
+      npcs: world.npcs,
+      settlements: world.settlements,
+      ruins: world.ruins,
+      resourceNodes: world.resourceNodes,
+      items: world.items,
+      factions: world.factions,
+      previousWorld: showHistory ? previousWorld : null,
       debugMode,
     });
-  }, [state.world, state.camera, showHistory, state.previousWorld, debugMode]);
+  }, [world, camera, showHistory, previousWorld, debugMode]);
 
   // Handle keyboard input
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!state.world) return;
+    if (!world) return;
     if (e.key.toLowerCase() === 'h') return; // Handled by history toggle
 
     // Debug View Toggle
@@ -75,89 +90,80 @@ export function GameCanvas() {
 
     // Zoom Controls
     if (e.key === '=' || e.key === '+') {
-      dispatch({ 
-        type: 'UPDATE_CAMERA', 
-        updater: (c) => ({ ...c, zoom: Math.min(2.0, (c.zoom || 1.0) + 0.1) }) 
-      });
+      updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom || 1.0) + 0.1) }));
       return;
     }
     if (e.key === '-' || e.key === '_') {
-      dispatch({ 
-        type: 'UPDATE_CAMERA', 
-        updater: (c) => ({ ...c, zoom: Math.max(0.2, (c.zoom || 1.0) - 0.1) }) 
-      });
+      updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom || 1.0) - 0.1) }));
       return;
     }
 
-    const action = mapKeyToAction(e.key, state.phase);
+    const action = mapKeyToAction(e.key, phase);
 
     switch (action.type) {
       case 'MOVE': {
-        const player = state.world.player;
+        const player = world.player;
         const newX = player.position.x + action.direction.x;
         const newY = player.position.y + action.direction.y;
 
         // Bounds check
         if (newX < 0 || newY < 0) return;
-        if (newX >= state.world.map.width || newY >= state.world.map.height) return;
+        if (newX >= world.map.width || newY >= world.map.height) return;
 
         // Walkability check
-        if (!state.world.map.tiles[newY][newX].walkable) return;
+        if (!world.map.tiles[newY][newX].walkable) return;
 
         // Check for NPC at target position
-        const npcAtTarget = state.world.npcs.find(
+        const npcAtTarget = world.npcs.find(
           n => n.alive && n.position.x === newX && n.position.y === newY,
         );
         if (npcAtTarget) {
-          dispatch({ type: 'OPEN_DIALOGUE', npc: npcAtTarget });
+          openDialogue(npcAtTarget);
           return;
         }
 
         // Move player
-        dispatch({
-          type: 'UPDATE_WORLD',
-          updater: (world) => ({
-            ...world,
-            player: {
-              ...world.player,
-              position: { x: newX, y: newY },
-            },
-          }),
-        });
+        updateWorld((w) => ({
+          ...w,
+          player: {
+            ...w.player,
+            position: { x: newX, y: newY },
+          },
+        }));
 
         // Update camera
         const newCamera = centerOnPlayer(
-          state.camera,
+          camera,
           { x: newX, y: newY },
-          state.world.map,
+          world.map,
         );
-        dispatch({ type: 'SET_CAMERA', camera: newCamera });
+        setCamera(newCamera);
         break;
       }
 
       case 'INTERACT': {
-        const playerPos = state.world.player.position;
-        const itemAtPlayer = state.world.items.find(
+        const playerPos = world.player.position;
+        const itemAtPlayer = world.items.find(
           item => item.position.x === playerPos.x && item.position.y === playerPos.y
         );
 
         if (itemAtPlayer) {
-          dispatch({ type: 'OPEN_ACTION', item: itemAtPlayer });
+          openAction(itemAtPlayer);
         }
         break;
       }
 
       case 'CLOSE_PANEL':
-        if (state.phase === 'dialogue') dispatch({ type: 'CLOSE_DIALOGUE' });
-        if (state.phase === 'action') dispatch({ type: 'CLOSE_ACTION' });
+        if (phase === 'dialogue') closeDialogue();
+        if (phase === 'action')   closeAction();
         break;
 
       case 'JUMP':
-        dispatch({ type: 'SET_PREVIOUS_WORLD', world: state.world });
-        dispatch({ type: 'SET_PHASE', phase: 'jumping' });
+        setPreviousWorld(world);
+        setPhase('jumping');
         break;
     }
-  }, [state, dispatch]);
+  }, [world, camera, phase, updateCamera, setCamera, updateWorld, setPreviousWorld, setPhase, openDialogue, closeDialogue, openAction, closeAction]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);

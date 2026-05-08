@@ -71,8 +71,10 @@ export function generateWorld(config: WorldConfig): WorldState {
     ruins: [],
     resourceNodes,
     npcs,
-    items: [], // initially empty
+    items: [],
+    tradeRoutes: [],
     events: [],
+    visuals: [],
     player,
     storyteller: defaultStorytellerState(config.storytellerMode ?? 'clio'),
   };

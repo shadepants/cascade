@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-08T11:03:06.471Z | Commit: 2214411a405b81b8d3e38ae34bbf3228d9cdc601 | Run: `npm run scout`
+> Generated: 2026-05-08T11:29:12.847Z | Commit: 863065f5a400e4cab5c44e79ce5c71bb659ea679 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -17,16 +17,26 @@
 | src/main.tsx |  | 11 | — |
 | src/simulation/cascade.ts | CascadeResult, CascadeTier, calculateCascade, formatChainAsTree | 68 | — |
 | src/simulation/constants.ts | WAR_ANIMOSITY_THRESHOLD, FAMINE_DESERT_THRESHOLD, FAMINE_POPULATION_MIN, REBELLION_STABILITY_MIN, ALLIANCE_OPINION_MIN | 38 | — |
+| src/simulation/emitEvent.ts | emitEvent | 13 | — |
+| src/simulation/helpers/spatial.ts | FactionMapStats, MapOwnershipSummary, getMapOwnershipSummary, getTilesForFaction, getTilesWithPosForFaction | 116 | — |
 | src/simulation/helpers/stats.ts | getFactionStat, applyStatDeltas | 35 | — |
 | src/simulation/index.ts |  | 6 | — |
 | src/simulation/llm.ts | LLMConfig, getLLMConfig, saveLLMConfig | 77 | — |
 | src/simulation/narrative.ts | NarrativeContext, assembleNarrativeContext, buildSocraticPrompt, getTemplateDialogue | 106 | — |
 | src/simulation/phases/cascade.ts | phaseCascade, deriveConsequence, cascadeTesting | 192 | — |
+| src/simulation/phases/colonization.ts | phaseSettlementGrowth, phaseColonization | 143 | — |
+| src/simulation/phases/conflict.ts | phaseConflict, fractureFaction | 239 | — |
+| src/simulation/phases/ecology.ts | phaseEcology | 61 | — |
+| src/simulation/phases/economics.ts | phaseEconomics | 64 | — |
+| src/simulation/phases/interestGroups.ts | phaseInterestGroups | 45 | — |
 | src/simulation/phases/knowledge.test.ts |  | 63 | — |
 | src/simulation/phases/knowledge.ts | seedEventKnowledge, phaseGossip, runKnowledgePipeline | 68 | ✓ |
+| src/simulation/phases/politics.ts | phasePolitics | 67 | — |
+| src/simulation/phases/stability.ts | phaseStability | 140 | — |
+| src/simulation/phases/succession.ts | getRulerForFaction, hasTrait, phaseSuccession | 96 | — |
 | src/simulation/storyteller.ts | computeTension, decayTension, pruneCooldowns, shouldSuppressEvent, registerHighSigEvent | 349 | — |
 | src/simulation/tick.test.ts |  | 253 | — |
-| src/simulation/tick.ts | runSimulation, _forTesting | 1007 | ✓ |
+| src/simulation/tick.ts | runSimulation, _forTesting | 119 | ✓ |
 | src/simulation/worker.ts | SimulationMessage, SimulationResult | 50 | — |
 | src/store.ts | initialState, GameStoreAction, gameReducer, GameContextValue, GameContext | 115 | — |
 | src/types/index.ts |  | 5 | — |
@@ -76,6 +86,7 @@ graph LR
   simulation_phases --> src\utils
   simulation_phases --> src\simulation
   simulation_phases --> src\simulation\helpers
+  simulation_phases --> src\data
   simulation_phases --> src\simulation\phases
   types --> src\types
   ui --> src
@@ -93,18 +104,18 @@ graph LR
 ```
 
 ## Hub Files (Most Imported)
-- src/types (38 imports)
+- src/types (39 imports)
+- src/simulation/../types (13 imports)
 - src/utils/rng.ts (10 imports)
+- src/simulation/../utils/rng.ts (10 imports)
 - src/store.ts (10 imports)
-- src/world/events.ts (6 imports)
-- src/engine/input.ts (4 imports)
 
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/simulation/tick.ts | 1007 | 15 | 🔴 |
 | src/ui/PixiViewport.tsx | 630 | 7 | 🟡 |
 | src/ui/App.tsx | 190 | 17 | 🟡 |
+| src/simulation/tick.ts | 119 | 16 | 🟢 |
 | src/world/worldgen.ts | 204 | 8 | 🟢 |
 | src/data/templates.ts | 504 | 3 | 🟢 |
 | src/ui/DialoguePanel.tsx | 237 | 6 | 🟢 |
@@ -115,6 +126,7 @@ graph LR
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
+cc922e1 refactor(simulation): decompose tick monolith and optimize spatial queries
 2214411 feat: implement title screen with storyteller mode selection and AI settings alongside playtest SOP documentation
 b4d7ba3 test: increase playwright timeouts for slow-running jump/world tests
 717ad43 Reorganize root clutter and consolidate src/types barrel (#14)
@@ -124,5 +136,4 @@ c826d5e Merge branch 'master' of https://github.com/shadepants/cascade
 79cfbd8 Modularize simulation pipeline, split domain types, and centralize jump-result processing (#12)
 028d2e0 Potential fix for code scanning alert no. 1: Clear text storage of sensitive information (#11)
 de8c75b feat: era year display, terrain tinting, biome hover tooltip
-4366e1b fix: event ID collision in worker, HUD left clipping
 ```

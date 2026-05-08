@@ -2,7 +2,7 @@
 // Overlay that appears when the player bumps into an NPC.
 // Shows the NPC's greeting and their knowledge of historical events.
 
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import {
   DIALOGUE, EXPANDED_DIALOGUE, fillTemplate,
   getAccuracyTier, generateEthicsComment,
@@ -14,6 +14,7 @@ import { assembleNarrativeContext, buildSocraticPrompt } from '../simulation/nar
 import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
 import { SeededRNG } from '../utils/rng.ts';
 import { useState, useEffect } from 'react';
+import { executeEcho } from '../engine/echoSystem.ts';
 
 /** Walk the causedBy chain to find how many links deep this event is. */
 function getCausalDepth(event: GameEvent, allEvents: GameEvent[]): number {
@@ -55,8 +56,12 @@ const TIER_COLOR: Record<AccuracyTier, string> = {
 };
 
 export function DialoguePanel() {
-  const { state, dispatch } = useGame();
-  const { activeNpc, world } = state;
+  const activeNpc = useGameStore(s => s.activeNpc);
+  const world = useGameStore(s => s.world);
+  const updateWorld = useGameStore(s => s.updateWorld);
+  const closeDialogue = useGameStore(s => s.closeDialogue);
+  const showNotification = useGameStore(s => s.showNotification);
+
   const [aiText, setAiText] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
 
@@ -152,6 +157,8 @@ export function DialoguePanel() {
     });
   }
 
+  const gainInsight = useGameStore(s => s.gainInsight);
+
   function handleLearnEvent(event: GameEvent) {
     const entry: KnowledgeEntry = {
       eventId:           event.id,
@@ -161,27 +168,50 @@ export function DialoguePanel() {
       discoveredYear:    world!.currentYear,
     };
 
-    dispatch({
-      type: 'UPDATE_WORLD',
-      updater: (w) => {
-        const alreadyKnown = w.player.knowledgeLog.some(k => k.eventId === event.id);
-        if (alreadyKnown) return w;
-        return {
-          ...w,
-          player: {
-            ...w.player,
-            knowledgeLog: [...w.player.knowledgeLog, entry],
-          },
-        };
-      },
+    const alreadyKnown = world!.player.knowledgeLog.some(k => k.eventId === event.id);
+
+    if (!alreadyKnown) {
+      gainInsight(5);
+    }
+
+    updateWorld((w) => {
+      if (alreadyKnown) return w;
+      return {
+        ...w,
+        player: {
+          ...w.player,
+          knowledgeLog: [...w.player.knowledgeLog, entry],
+        },
+      };
     });
 
     if (event.playerCaused && event.causedBy !== null && world) {
       const depth = getCausalDepth(event, world.events);
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        text: `Cascade! Your action rippled ${depth} link${depth !== 1 ? 's' : ''} into history.`,
-      });
+      showNotification(`Cascade! Your action rippled ${depth} link${depth !== 1 ? 's' : ''} into history.`);
+    }
+  }
+
+  const setWorld = useGameStore(s => s.setWorld);
+
+  function handleWhisper(topic: string) {
+    if (!activeNpc || !world) return;
+    if (world.player.insight < 10) {
+      showNotification("Not enough Insight to whisper.");
+      return;
+    }
+
+      try {
+        const echo: any = { // TemporalEcho
+          type: 'whisper',
+          topic,
+          targetId: activeNpc.id,
+          cost: 10
+        };
+        const newWorld = executeEcho(world, echo);
+        setWorld(newWorld);
+        showNotification(`You whispered of ${topic} to ${activeNpc.name}.`);
+      } catch (e: any) {
+      showNotification(e.message);
     }
   }
 
@@ -189,7 +219,7 @@ export function DialoguePanel() {
     <div className="panel dialogue-panel">
       <div className="panel-header">
         <span>{activeNpc.name} — {factionName}</span>
-        <button onClick={() => dispatch({ type: 'CLOSE_DIALOGUE' })}>
+        <button onClick={closeDialogue}>
           ✕
         </button>
       </div>
@@ -203,7 +233,24 @@ export function DialoguePanel() {
           {aiText}
         </div>
       ) : (
-        <p className="dialogue-text">{greeting}</p>
+        <div className="dialogue-content">
+          <p className="dialogue-text">{greeting}</p>
+          <div className="whisper-section">
+            <span className="whisper-label">Whisper of...</span>
+            <div className="whisper-btns">
+              {['violence', 'expansion', 'trade', 'tradition', 'mercy'].map(topic => (
+                <button
+                  key={topic}
+                  className="whisper-btn"
+                  onClick={() => handleWhisper(topic)}
+                  disabled={world.player.insight < 10}
+                >
+                  {topic}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {(!isTyping && eventLines.length > 0) && (

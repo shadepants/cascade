@@ -24,6 +24,12 @@ export interface Tile {
   factionId: string | null;
   settlementId: string | null;
   walkable: boolean;
+  modifiers?: TileModifier[];
+}
+
+export interface TileModifier {
+  type: 'bloom' | 'omen' | 'plague' | 'blessing';
+  duration: number; // years remaining
 }
 
 export interface GameMap {
@@ -128,6 +134,16 @@ export interface Player extends Entity {
   inventory: Item[];
   knowledgeLog: KnowledgeEntry[];
   actionsThisEra: string[];
+  insight: number;
+}
+
+export type EchoType = 'whisper' | 'omen' | 'insight';
+
+export interface TemporalEcho {
+  type: EchoType;
+  topic?: string;
+  targetId?: string;
+  cost: number;
 }
 
 export interface Item {
@@ -187,6 +203,25 @@ export interface ResourceNode {
   value: number;
 }
 
+export interface TradeRoute {
+  id: string;
+  startSettlementId: string;
+  endSettlementId: string;
+  path: Position[];
+  volume: number; // 0-100, affects wealth transfer
+  commodity: 'grain' | 'luxury' | 'arms' | 'textiles';
+  active: boolean;
+}
+
+export interface VisualEffect {
+  id: string;
+  type: 'ripple' | 'aura' | 'sparkle';
+  position: Position;
+  startTime: number; // in-game tick or year
+  duration: number; // ticks or years
+  color?: string;
+}
+
 export interface WorldState {
   seed: number;
   currentYear: number;
@@ -199,9 +234,11 @@ export interface WorldState {
   resourceNodes: ResourceNode[];
   npcs: NPC[];
   items: Item[];
+  tradeRoutes: TradeRoute[];
   events: GameEvent[];
   player: Player;
   storyteller: StorytellerState;
+  visuals: VisualEffect[];
 }
 
 export interface WorldConfig {

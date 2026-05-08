@@ -69,9 +69,11 @@ function makeWorld(
     resourceNodes: [],
     npcs: [],
     items: [],
+    tradeRoutes: [],
     events: [],
-    player: { id: 'player', name: 'Player', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [] },
+    player: { id: 'player', name: 'Player', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: { ...defaultStorytellerState('clio'), ...storytellerOverrides },
+    visuals: [],
   };
 }
 

@@ -21,9 +21,11 @@ function makeWorld(): WorldState {
       { id: 'n2', name: 'N2', position: { x: 0, y: 0 }, factionId: 'B', personality: 'skeptic', knowledge: [], dialogueKey: 'default', alive: true },
     ],
     items: [],
+    tradeRoutes: [],
     events: [],
-    player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [] },
+    player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),
+    visuals: [],
   };
 }
 

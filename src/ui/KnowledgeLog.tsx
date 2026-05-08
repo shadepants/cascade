@@ -2,11 +2,10 @@
 // Shows everything the player has learned from NPCs.
 // Displayed as a persistent sidebar next to the game canvas.
 
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index.ts';
 
 export function KnowledgeLog() {
-  const { state } = useGame();
-  const { world } = state;
+  const world = useGameStore(s => s.world);
 
   if (!world) return null;
 

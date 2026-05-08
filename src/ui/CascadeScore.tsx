@@ -2,13 +2,13 @@
 // End-of-run display showing causal chains and total cascade score.
 // The payoff moment — "look what your actions caused."
 
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { calculateCascade, formatChainAsTree } from '../simulation/cascade.ts';
 import { CascadeMap } from './CascadeMap.tsx';
 
 export function CascadeScore() {
-  const { state, dispatch } = useGame();
-  const { world } = state;
+  const world = useGameStore(s => s.world);
+  const reset = useGameStore(s => s.reset);
 
   if (!world) return null;
 
@@ -62,7 +62,7 @@ export function CascadeScore() {
 
       <button
         className="play-again-btn"
-        onClick={() => dispatch({ type: 'RESET' })}
+        onClick={reset}
       >
         Play Again
       </button>

@@ -2,7 +2,7 @@
 // Start screen with storyteller mode selection and AI settings.
 
 import { useState, useEffect } from 'react';
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { generateWorld } from '../world/worldgen.ts';
 import { createCamera } from '../engine/camera.ts';
 import { loadMostRecentSave } from '../data/db.ts';
@@ -16,11 +16,16 @@ const MODE_INFO: Record<StorytellerMode, { label: string; description: string; c
 };
 
 export function TitleScreen() {
-  const { state, dispatch } = useGame();
+  const configState = useGameStore(s => s.config);
+  const setPhase = useGameStore(s => s.setPhase);
+  const setConfig = useGameStore(s => s.setConfig);
+  const setCamera = useGameStore(s => s.setCamera);
+  const setWorld = useGameStore(s => s.setWorld);
+
   const [hasSave, setHasSave]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey]           = useState('');
-  const [mode, setMode]               = useState<StorytellerMode>(state.config.storytellerMode ?? 'clio');
+  const [mode, setMode]               = useState<StorytellerMode>(configState.storytellerMode ?? 'clio');
 
   useEffect(() => {
     loadMostRecentSave().then(save => { if (save) setHasSave(true); });
@@ -32,19 +37,19 @@ export function TitleScreen() {
     const world = await loadMostRecentSave();
     if (world) {
       const camera = createCamera(world.player.position, world.map);
-      dispatch({ type: 'SET_CAMERA', camera });
-      dispatch({ type: 'SET_WORLD', world });
+      setCamera(camera);
+      setWorld(world);
     }
   }
 
   function handleNewGame() {
-    dispatch({ type: 'SET_PHASE', phase: 'worldgen' });
-    const config = { ...state.config, seed: Date.now(), storytellerMode: mode };
-    const world  = generateWorld(config);
+    setPhase('worldgen');
+    const newConfig = { ...configState, seed: Date.now(), storytellerMode: mode };
+    const world  = generateWorld(newConfig);
     const camera = createCamera(world.player.position, world.map);
-    dispatch({ type: 'SET_CONFIG', config });
-    dispatch({ type: 'SET_CAMERA', camera });
-    dispatch({ type: 'SET_WORLD', world });
+    setConfig(newConfig);
+    setCamera(camera);
+    setWorld(world);
   }
 
   function handleSaveSettings() {

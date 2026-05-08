@@ -1,8 +1,8 @@
 // ─── Root App Component ─────────────────────────────────────────────────
 // Routes between game phases and lays out the main UI panels.
 
-import { useReducer, useEffect, useRef, useState, type Dispatch } from 'react';
-import { GameContext, gameReducer, initialState } from '../store.ts';
+import { useEffect, useRef, useState } from 'react';
+import { useGameStore } from '../store/index';
 import { TitleScreen } from './TitleScreen.tsx';
 import { PixiViewport } from './PixiViewport.tsx';
 import { DialoguePanel } from './DialoguePanel.tsx';
@@ -12,13 +12,11 @@ import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
 import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
-import type { GameStoreAction } from '../store.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
 
 declare global {
   interface Window {
     __CASCADE_STATE?: unknown;
-    __CASCADE_DISPATCH?: Dispatch<GameStoreAction>;
   }
 }
 
@@ -58,47 +56,54 @@ function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: n
 }
 
 export function App() {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
-  // Dev-only test hook — exposes state + dispatch for Playwright
+  const phase = useGameStore(s => s.phase);
+  const world = useGameStore(s => s.world);
+  const config = useGameStore(s => s.config);
+  const notification = useGameStore(s => s.notification);
+  
+  const setWorld = useGameStore(s => s.setWorld);
+  const setPhase = useGameStore(s => s.setPhase);
+  const showNotification = useGameStore(s => s.showNotification);
+  const clearNotification = useGameStore(s => s.clearNotification);
+
+  // Dev-only test hook — exposes state for Playwright
   useEffect(() => {
     if (import.meta.env.DEV) {
-      window.__CASCADE_STATE = state;
-      window.__CASCADE_DISPATCH = dispatch;
+      window.__CASCADE_STATE = useGameStore.getState();
+      // __CASCADE_DISPATCH is deprecated, but we could provide a bridge if needed
     }
   });
+
   // Always-current world ref — avoids stale closure in WebWorker effect
-  const worldRef = useRef(state.world);
-  useEffect(() => { worldRef.current = state.world; }, [state.world]);
+  const worldRef = useRef(world);
+  useEffect(() => { worldRef.current = world; }, [world]);
 
   // Auto-save every 5 minutes
   useEffect(() => {
-    if (!state.world) return;
+    if (!world) return;
     const timer = setInterval(() => {
-      saveGame('auto_save', state.world!);
+      saveGame('auto_save', world!);
     }, 1000 * 60 * 5);
     return () => clearInterval(timer);
-  }, [state.world]);
+  }, [world]);
 
   // Save immediately after world update (e.g., after jump)
   useEffect(() => {
-    if (state.world && state.phase === 'exploring') {
-      saveGame('auto_save', state.world);
+    if (world && phase === 'exploring') {
+      saveGame('auto_save', world);
     }
-  }, [state.world, state.phase]);
+  }, [world, phase]);
 
   // Execute time jump when phase transitions to 'jumping'
   useEffect(() => {
-    if (state.phase !== 'jumping' || !state.world) return;
+    if (phase !== 'jumping' || !world) return;
 
     // Initialize the WebWorker
-    // Note: Vite uses ?worker to import worker files
     const worker = new Worker(new URL('../simulation/worker.ts', import.meta.url), {
       type: 'module'
     });
 
     const JUMP_YEARS     = 10;
-    // Game ends MAX_GAME_YEARS after the player enters the world (post-pregen).
-    // pregenYears runs headless before the player arrives, so we offset by that.
     const MAX_GAME_YEARS = 200;
 
     worker.onmessage = (event: MessageEvent<SimulationResult>) => {
@@ -107,25 +112,25 @@ export function App() {
       if (result.type === 'SIMULATION_COMPLETE') {
         const { world: newWorld, events: newEvents } = result;
 
-        const pendingNotification = state.world
-          ? processSimulationResult(newWorld, newEvents, state.world).notification
+        const pendingNotification = world
+          ? processSimulationResult(newWorld, newEvents, world).notification
           : null;
 
-        // SET_WORLD transitions phase → 'exploring'
-        dispatch({ type: 'SET_WORLD', world: newWorld });
+        // setWorld transitions phase → 'exploring'
+        setWorld(newWorld);
 
         // Surface the storyteller notification (if any) after the jump lands
         if (pendingNotification) {
-          dispatch({ type: 'SHOW_NOTIFICATION', text: pendingNotification });
+          showNotification(pendingNotification);
         }
 
-        if (newWorld.currentYear >= state.config.pregenYears + MAX_GAME_YEARS) {
-          dispatch({ type: 'SET_PHASE', phase: 'score' });
+        if (newWorld.currentYear >= config.pregenYears + MAX_GAME_YEARS) {
+          setPhase('score');
         }
       } else if (result.type === 'SIMULATION_ERROR') {
         console.error('Simulation Worker Error:', result.error);
-        dispatch({ type: 'SET_PHASE', phase: 'exploring' });
-        dispatch({ type: 'SHOW_NOTIFICATION', text: 'Simulation error occurred.' });
+        setPhase('exploring');
+        showNotification('Simulation error occurred.');
       }
 
       worker.terminate();
@@ -138,52 +143,50 @@ export function App() {
     });
 
     return () => worker.terminate();
-  }, [state.phase]); // worldRef.current used instead of state.world to avoid stale closure
+  }, [phase]); // worldRef.current used instead of state.world to avoid stale closure
 
   // Auto-dismiss cascade notifications after 3 seconds
   useEffect(() => {
-    if (!state.notification) return;
-    const timer = setTimeout(() => dispatch({ type: 'CLEAR_NOTIFICATION' }), 3000);
+    if (!notification) return;
+    const timer = setTimeout(() => clearNotification(), 3000);
     return () => clearTimeout(timer);
-  }, [state.notification, dispatch]);
+  }, [notification, clearNotification]);
 
   // Relative era year for the jump overlay (starts at 1 for the player)
-  const eraYearOffset = state.config.pregenYears - 1;
+  const eraYearOffset = config.pregenYears - 1;
 
   return (
-    <GameContext.Provider value={{ state, dispatch }}>
-      <div className="app">
-        {state.phase === 'title' && <TitleScreen />}
+    <div className="app">
+      {phase === 'title' && <TitleScreen />}
 
-        {state.phase === 'worldgen' && (
-          <div className="loading">Generating world...</div>
-        )}
+      {phase === 'worldgen' && (
+        <div className="loading">Generating world...</div>
+      )}
 
-        {(state.phase === 'exploring' ||
-          state.phase === 'dialogue' ||
-          state.phase === 'action' ||
-          state.phase === 'jumping') && (
-          <div className="game-layout">
-            <HUD />
-            <div className="game-main">
-              <PixiViewport />
-              <KnowledgeLog />
-            </div>
-
-            {/* Overlay panels */}
-            {state.phase === 'jumping' && state.world && (
-              <TemporalOverlay 
-                startYear={state.world.currentYear - eraYearOffset}
-                endYear={state.world.currentYear - eraYearOffset + 10}
-              />
-            )}
-            {state.phase === 'dialogue' && <DialoguePanel />}
-            {state.phase === 'action' && <ActionMenu />}
+      {(phase === 'exploring' ||
+        phase === 'dialogue' ||
+        phase === 'action' ||
+        phase === 'jumping') && (
+        <div className="game-layout">
+          <HUD />
+          <div className="game-main">
+            <PixiViewport />
+            <KnowledgeLog />
           </div>
-        )}
 
-        {state.phase === 'score' && <CascadeScore />}
-      </div>
-    </GameContext.Provider>
+          {/* Overlay panels */}
+          {phase === 'jumping' && world && (
+            <TemporalOverlay 
+              startYear={world.currentYear - eraYearOffset}
+              endYear={world.currentYear - eraYearOffset + 10}
+            />
+          )}
+          {phase === 'dialogue' && <DialoguePanel />}
+          {phase === 'action' && <ActionMenu />}
+        </div>
+      )}
+
+      {phase === 'score' && <CascadeScore />}
+    </div>
   );
 }

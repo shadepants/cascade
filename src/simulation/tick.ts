@@ -27,6 +27,7 @@ import { phasePolitics } from './phases/politics.ts';
 import { phaseConflict } from './phases/conflict.ts';
 import { phaseStability } from './phases/stability.ts';
 import { phaseSuccession } from './phases/succession.ts';
+import { phaseTrade } from './phases/phaseTrade.ts';
 import { phaseColonization, phaseSettlementGrowth } from './phases/colonization.ts';
 import { getMapOwnershipSummary } from './helpers/spatial.ts';
 import {
@@ -65,13 +66,14 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     const gro  = phaseSettlementGrowth(world, year, rng);
     const eco  = phaseEcology(world, year, rng, mapSummary);
     const econ = phaseEconomics(world, year, rng, eco, mapSummary);
+    const trd  = phaseTrade(world, year, rng);
     const ig   = phaseInterestGroups(world, year, rng);
-    const pol  = phasePolitics(world, year, rng, [...eco, ...econ, ...ig]);
-    const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...pol]);
+    const pol  = phasePolitics(world, year, rng, [...eco, ...econ, ...trd, ...ig]);
+    const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...trd, ...pol]);
     const stab = phaseStability(world, year, rng, mapSummary);
     const succ = phaseSuccession(world, year, rng);
 
-    const priorEvents = [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ];
+    const priorEvents = [...col, ...gro, ...eco, ...econ, ...trd, ...ig, ...pol, ...con, ...stab, ...succ];
     const cas  = phaseCascade(world, priorEvents, year, rng);
     const gos  = runKnowledgePipeline(world, cas, year, rng);
 
@@ -80,7 +82,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     if (!headless && yearEvents.length > 0) {
       console.log(
         `[TICK y=${year}] col:${col.length} gro:${gro.length} eco:${eco.length} ` +
-        `econ:${econ.length} ig:${ig.length} pol:${pol.length} ` +
+        `econ:${econ.length} trd:${trd.length} ig:${ig.length} pol:${pol.length} ` +
         `conflict:${con.length} stab:${stab.length} succ:${succ.length} cascade:${cas.length}`,
       );
       for (const e of con) {
@@ -105,6 +107,28 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     if (intervention) applyIntervention(intervention, world, rng, year);
 
     world.currentYear = year;
+
+    // Decay tile modifiers (Echo System)
+    for (let y = 0; y < world.map.height; y++) {
+      for (let x = 0; x < world.map.width; x++) {
+        const tile = world.map.tiles[y][x];
+        if (tile.modifiers) {
+          tile.modifiers = tile.modifiers
+            .map(m => ({ ...m, duration: m.duration - 1 }))
+            .filter(m => m.duration > 0);
+          if (tile.modifiers.length === 0) {
+            delete tile.modifiers;
+          }
+        }
+      }
+    }
+
+    // Decay visual effects
+    if (world.visuals) {
+      world.visuals = world.visuals
+        .map(v => ({ ...v, duration: v.duration - 1 }))
+        .filter(v => v.duration > 0);
+    }
   }
 
   return allNewEvents;

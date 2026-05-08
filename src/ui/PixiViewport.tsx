@@ -11,7 +11,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
 import { TILE_SIZE } from '../types';
@@ -56,6 +56,8 @@ interface Layers {
   mid:       Container;  // settlements, ruins, tree canopy
   resources: Container;  // ore deposits and relic sites
   items:     Container;  // pickup items (artifacts, letters, keys)
+  trade:     Container;  // Phase 1: trade routes (golden pulsing lines)
+  visuals:   Container;  // Phase 0: Echo System visual feedback (ripples, sparks)
   top:       Container;  // characters (NPCs + player)
   ghost:     Container;  // Phase 2: Ghost of History overlay
 }
@@ -159,7 +161,22 @@ export function PixiViewport() {
   const texPoolRef   = useRef<Map<string, Texture>>(new Map());
 
   const [ready, setReady] = useState(false);
-  const { state, dispatch } = useGame();
+  
+  const phase = useGameStore(s => s.phase);
+  const world = useGameStore(s => s.world);
+  const previousWorld = useGameStore(s => s.previousWorld);
+  const camera = useGameStore(s => s.camera);
+  const zoom = useGameStore(s => s.camera.zoom ?? 1.0);
+  
+  const updateCamera     = useGameStore(s => s.updateCamera);
+  const openDialogue     = useGameStore(s => s.openDialogue);
+  const closeDialogue    = useGameStore(s => s.closeDialogue);
+  const openAction       = useGameStore(s => s.openAction);
+  const closeAction      = useGameStore(s => s.closeAction);
+  const setPhase         = useGameStore(s => s.setPhase);
+  const updateWorld       = useGameStore(s => s.updateWorld);
+  const setPreviousWorld = useGameStore(s => s.setPreviousWorld);
+  const setCamera        = useGameStore(s => s.setCamera);
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
@@ -173,9 +190,8 @@ export function PixiViewport() {
     y: number;
   } | null>(null);
 
-  const zoom         = state.camera.zoom ?? 1.0;
-  const canvasWidth  = state.camera.viewportWidth  * TILE_SIZE * zoom;
-  const canvasHeight = state.camera.viewportHeight * TILE_SIZE * zoom;
+  const canvasWidth  = camera.viewportWidth  * TILE_SIZE * zoom;
+  const canvasHeight = camera.viewportHeight * TILE_SIZE * zoom;
 
   // ── Init PixiJS + load textures (mount only) ──────────────────────────
   useEffect(() => {
@@ -227,9 +243,11 @@ export function PixiViewport() {
       const midLayer       = new Container();
       const resourcesLayer = new Container();
       const itemsLayer     = new Container();
+      const tradeLayer     = new Container();
+      const visualsLayer   = new Graphics(); // Use Graphics for ripples/lines
       const topLayer       = new Container();
       const ghostLayer     = new Container();
-      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, topLayer, ghostLayer);
+      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, tradeLayer, visualsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
       sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey };
@@ -238,6 +256,8 @@ export function PixiViewport() {
         mid:       midLayer,
         resources: resourcesLayer,
         items:     itemsLayer,
+        trade:     tradeLayer,
+        visuals:   visualsLayer as unknown as Container, // Cast to match interface or update interface
         top:       topLayer,
         ghost:     ghostLayer,
       };
@@ -267,12 +287,11 @@ export function PixiViewport() {
 
   // ── Rebuild sprites on world / camera / history change ───────────────
   useEffect(() => {
-    if (!ready || !state.world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
+    if (!ready || !world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
 
-    const { terrain, mid, resources, items, top, ghost } = layersRef.current;
+    const { terrain, mid, resources, items, trade, top, ghost } = layersRef.current;
     const sheets  = sheetsRef.current;
     const texPool = texPoolRef.current;
-    const { world, camera } = state;
     const tileDisplay = TILE_SIZE * zoom;
 
     // Create a Sprite from a pooled sub-texture.
@@ -301,6 +320,7 @@ export function PixiViewport() {
     mid.removeChildren();
     resources.removeChildren();
     items.removeChildren();
+    trade.removeChildren();
     top.removeChildren();
     ghost.removeChildren();
 
@@ -371,6 +391,68 @@ export function PixiViewport() {
       items.addChild(makeSprite(sheetKey, region, col, row));
     }
 
+    // ── Layer 4.5: trade routes ─────────────────────────────────────────
+    if (world.tradeRoutes && world.tradeRoutes.length > 0) {
+      const g = new Graphics();
+      for (const route of world.tradeRoutes) {
+        if (!route.active || route.volume <= 0) continue;
+        
+        // Calculate if any part of the path is in view
+        const inView = route.path.some(p => 
+          p.x >= camera.x && p.x < camera.x + camera.viewportWidth &&
+          p.y >= camera.y && p.y < camera.y + camera.viewportHeight
+        );
+        if (!inView) continue;
+
+        const alpha = Math.max(0.15, (route.volume / 100) * 0.6);
+        const color = 0xffcc00; // Pulsing gold
+        
+        const startX = (route.path[0].x - camera.x) * tileDisplay + tileDisplay / 2;
+        const startY = (route.path[0].y - camera.y) * tileDisplay + tileDisplay / 2;
+        g.moveTo(startX, startY);
+        
+        for (let i = 1; i < route.path.length; i++) {
+          const p = route.path[i];
+          g.lineTo(
+            (p.x - camera.x) * tileDisplay + tileDisplay / 2,
+            (p.y - camera.y) * tileDisplay + tileDisplay / 2
+          );
+        }
+        
+        const width = 1 + (route.volume / 40);
+        g.stroke({ color, width, alpha });
+      }
+      trade.addChild(g);
+    }
+
+    // ── Layer 4.5: Visual Effects ─────────────────────────────────────────
+    const visualsG = layersRef.current?.visuals as Graphics;
+    if (visualsG) {
+      visualsG.clear();
+      const visuals = world.visuals || [];
+      for (const effect of visuals) {
+        const { x, y } = effect.position;
+        const col = x - camera.x;
+        const row = y - camera.y;
+        if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
+
+        const screenX = col * tileDisplay + tileDisplay / 2;
+        const screenY = row * tileDisplay + tileDisplay / 2;
+        const color = effect.color ? parseInt(effect.color.replace('#', ''), 16) : 0xFFFFFF;
+
+        if (effect.type === 'ripple') {
+          // Pulse expansion
+          const scale = 1.0 + (Math.sin(Date.now() / 200) * 0.2);
+          visualsG.lineStyle(2, color, 0.7);
+          visualsG.drawCircle(screenX, screenY, (tileDisplay * 1.5) * scale);
+        } else if (effect.type === 'sparkle') {
+          visualsG.beginFill(color, 1.0);
+          visualsG.drawCircle(screenX, screenY, tileDisplay / 6);
+          visualsG.endFill();
+        }
+      }
+    }
+
     // ── Layer 5: NPCs ────────────────────────────────────────────────────
     for (const npc of world.npcs) {
       if (!npc.alive) continue;
@@ -391,8 +473,8 @@ export function PixiViewport() {
     // Renders dashed faction-border lines from previousWorld at 0.4 alpha when
     // the player holds H. Matches Canvas renderer's setLineDash([4, 4]) effect.
     // Edges are batched per faction color so each color costs one g.stroke() call.
-    if (showHistory && state.previousWorld) {
-      const prevWorld = state.previousWorld;
+    if (showHistory && previousWorld) {
+      const prevWorld = previousWorld;
 
       // Build color lookup: faction id → 0xRRGGBB integer (PixiJS format)
       const prevFactionColors = new Map<string, number>();
@@ -451,7 +533,7 @@ export function PixiViewport() {
       }
     }
 
-  }, [state.world, state.camera, state.previousWorld, ready, showHistory, zoom]);
+  }, [world, camera, previousWorld, ready, showHistory, zoom]);
 
   // ── H key: Ghost of History toggle (mirrors GameCanvas) ──────────────
   useEffect(() => {
@@ -470,7 +552,7 @@ export function PixiViewport() {
 
   // ── Main keyboard handler (mirrors GameCanvas exactly) ────────────────
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!state.world) return;
+    if (!world) return;
     if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
 
     // Debug view cycle: none → elevation → rainfall → none
@@ -485,66 +567,63 @@ export function PixiViewport() {
 
     // Zoom in / out
     if (e.key === '=' || e.key === '+') {
-      dispatch({ type: 'UPDATE_CAMERA', updater: (c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }) });
+      updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
       return;
     }
     if (e.key === '-' || e.key === '_') {
-      dispatch({ type: 'UPDATE_CAMERA', updater: (c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }) });
+      updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
       return;
     }
 
-    const action = mapKeyToAction(e.key, state.phase);
+    const action = mapKeyToAction(e.key, phase);
 
     switch (action.type) {
       case 'MOVE': {
-        const player = state.world.player;
+        const player = world.player;
         const newX = player.position.x + action.direction.x;
         const newY = player.position.y + action.direction.y;
 
         if (newX < 0 || newY < 0) return;
-        if (newX >= state.world.map.width || newY >= state.world.map.height) return;
-        if (!state.world.map.tiles[newY][newX].walkable) return;
+        if (newX >= world.map.width || newY >= world.map.height) return;
+        if (!world.map.tiles[newY][newX].walkable) return;
 
-        const npcAtTarget = state.world.npcs.find(
+        const npcAtTarget = world.npcs.find(
           n => n.alive && n.position.x === newX && n.position.y === newY,
         );
         if (npcAtTarget) {
-          dispatch({ type: 'OPEN_DIALOGUE', npc: npcAtTarget });
+          openDialogue(npcAtTarget);
           return;
         }
 
-        dispatch({
-          type: 'UPDATE_WORLD',
-          updater: (world) => ({
-            ...world,
-            player: { ...world.player, position: { x: newX, y: newY } },
-          }),
-        });
-        const newCamera = centerOnPlayer(state.camera, { x: newX, y: newY }, state.world.map);
-        dispatch({ type: 'SET_CAMERA', camera: newCamera });
+        updateWorld((w) => ({
+          ...w,
+          player: { ...w.player, position: { x: newX, y: newY } },
+        }));
+        const newCamera = centerOnPlayer(camera, { x: newX, y: newY }, world.map);
+        setCamera(newCamera);
         break;
       }
 
       case 'INTERACT': {
-        const playerPos = state.world.player.position;
-        const itemAtPlayer = state.world.items.find(
+        const playerPos = world.player.position;
+        const itemAtPlayer = world.items.find(
           item => item.position.x === playerPos.x && item.position.y === playerPos.y,
         );
-        if (itemAtPlayer) dispatch({ type: 'OPEN_ACTION', item: itemAtPlayer });
+        if (itemAtPlayer) openAction(itemAtPlayer);
         break;
       }
 
       case 'CLOSE_PANEL':
-        if (state.phase === 'dialogue') dispatch({ type: 'CLOSE_DIALOGUE' });
-        if (state.phase === 'action')   dispatch({ type: 'CLOSE_ACTION' });
+        if (phase === 'dialogue') closeDialogue();
+        if (phase === 'action')   closeAction();
         break;
 
       case 'JUMP':
-        dispatch({ type: 'SET_PREVIOUS_WORLD', world: state.world });
-        dispatch({ type: 'SET_PHASE', phase: 'jumping' });
+        setPreviousWorld(world);
+        setPhase('jumping');
         break;
     }
-  }, [state, dispatch]);
+  }, [world, camera, phase, zoom, updateCamera, openDialogue, updateWorld, setCamera, openAction, closeDialogue, closeAction, setPreviousWorld, setPhase]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -553,14 +632,13 @@ export function PixiViewport() {
 
   // ── Mouse hover: biome tooltip ────────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!state.world) { setTooltip(null); return; }
+    if (!world) { setTooltip(null); return; }
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
     const tileDisplay = TILE_SIZE * zoom;
     const col = Math.floor((e.clientX - rect.left) / tileDisplay);
     const row = Math.floor((e.clientY - rect.top)  / tileDisplay);
-    const wx = state.camera.x + col;
-    const wy = state.camera.y + row;
-    const { world } = state;
+    const wx = camera.x + col;
+    const wy = camera.y + row;
     if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) {
       setTooltip(null);
       return;
@@ -582,7 +660,7 @@ export function PixiViewport() {
     if (resource) details.push(`Resource: ${resource.type}`);
 
     setTooltip({ label, detail: details.join('\n'), x: e.clientX, y: e.clientY });
-  }, [state, zoom]);
+  }, [world, camera, zoom]);
 
   const handleMouseLeave = useCallback(() => setTooltip(null), []);
 

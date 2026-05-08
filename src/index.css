@@ -504,3 +504,61 @@ body {
   color: var(--text-dim);
   font-size: 18px;
 }
+
+/* ─── Echo System ─────────────────────────────────────────────────────── */
+
+.hud-insight {
+  color: #adcbe3;
+  font-weight: bold;
+  margin-left: 12px;
+  cursor: help;
+  text-shadow: 0 0 8px rgba(173, 203, 227, 0.4);
+}
+
+.whisper-section {
+  margin: 12px 0;
+  padding: 10px;
+  background: rgba(173, 203, 227, 0.05);
+  border: 1px solid rgba(173, 203, 227, 0.2);
+  border-radius: 4px;
+}
+
+.whisper-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b8fa3;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.whisper-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.whisper-btn {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(173, 203, 227, 0.1);
+  color: #adcbe3;
+  border: 1px solid rgba(173, 203, 227, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+}
+
+.whisper-btn:hover:not(:disabled) {
+  background: rgba(173, 203, 227, 0.2);
+  border-color: #adcbe3;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(173, 203, 227, 0.2);
+}
+
+.whisper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}

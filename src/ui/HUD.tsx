@@ -2,12 +2,16 @@
 // Top bar showing current year, player position, and action hints.
 // Also renders the cascade discovery notification flash.
 
-import { useGame } from '../store.ts';
+import { useGameStore } from '../store/index';
 import { MAX_ACTIONS_PER_ERA } from '../types';
 
 export function HUD() {
-  const { state, dispatch } = useGame();
-  const { world, notification, phase, config } = state;
+  const world = useGameStore(s => s.world);
+  const notification = useGameStore(s => s.notification);
+  const phase = useGameStore(s => s.phase);
+  const config = useGameStore(s => s.config);
+  const hasPreviousWorld = useGameStore(s => !!s.previousWorld);
+  const setPhase = useGameStore(s => s.setPhase);
 
   if (!world) return null;
 
@@ -33,6 +37,9 @@ export function HUD() {
         <span style={{ color: actionsLeft === 0 ? "#f87171" : "#6b8fa3", fontSize: "0.8rem" }}>
           Act {actionsUsed}/{MAX_ACTIONS_PER_ERA}
         </span>
+        <span className="hud-insight" title="Insight earned by narrative engagement">
+          ✧ {world.player.insight} Insight
+        </span>
         {heldItem && (
           <span className="hud-item">★ {heldItem.name} [Enter to use]</span>
         )}
@@ -52,11 +59,11 @@ export function HUD() {
           <>
             <span className="hud-hint">
               ↑↓←→ move | Enter: use item | J: jump
-              {state.previousWorld && ' | H: hold for history'}
+              {hasPreviousWorld && ' | H: hold for history'}
             </span>
             <button
               className="hud-score-btn"
-              onClick={() => dispatch({ type: 'SET_PHASE', phase: 'score' })}
+              onClick={() => setPhase('score')}
             >
               Show Score
             </button>

@@ -57,6 +57,7 @@ export function createPlayer(startPosition: Position): Player {
     inventory: [],
     knowledgeLog: [],
     actionsThisEra: [],
+    insight: 0,
   };
 }
 
