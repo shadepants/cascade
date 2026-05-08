@@ -2,7 +2,7 @@
 // Manages save slots and high-volume historical event storage.
 
 import Dexie, { type Table } from 'dexie';
-import type { WorldState } from '../types.ts';
+import type { WorldState } from '../types/index.ts';
 
 export interface SaveSlot {
   id?: number;
