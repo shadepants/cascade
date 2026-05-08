@@ -20,7 +20,7 @@ export function TitleScreen() {
   const [hasSave, setHasSave]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey]           = useState('');
-  const [mode, setMode]               = useState<StorytellerMode>('clio');
+  const [mode, setMode]               = useState<StorytellerMode>(state.config.storytellerMode ?? 'clio');
 
   useEffect(() => {
     loadMostRecentSave().then(save => { if (save) setHasSave(true); });
@@ -42,6 +42,7 @@ export function TitleScreen() {
     const config = { ...state.config, seed: Date.now(), storytellerMode: mode };
     const world  = generateWorld(config);
     const camera = createCamera(world.player.position, world.map);
+    dispatch({ type: 'SET_CONFIG', config });
     dispatch({ type: 'SET_CAMERA', camera });
     dispatch({ type: 'SET_WORLD', world });
   }

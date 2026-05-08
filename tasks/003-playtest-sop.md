@@ -227,6 +227,7 @@ Start three games with different modes. In each, jump 10 eras with the same arti
 |------|-------------------|--------|---------------------|-------|
 | 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | FAIL | Initial Playwright run failed: Chromium missing + strict-mode selector collisions in E2E buttons. |
 | 2026-05-07 | `copilot/explore-codebase-cleanup` | Copilot agent | PASS (automated) | Playwright rerun passed after installing Chromium and stabilizing selectors (`exact: true`, `.first()`). 1 probabilistic cascade test skipped by design. |
+| 2026-05-08 | `b4d7ba3` (master) | Antigravity AI | PARTIAL PASS | PixiJS viewport verified. Cascade chain logic correct but no cascade events fired — faction stats below threshold (culture 21 vs required >65 for cultural_spread). Recommend lowering cultural_spread threshold or testing against mature factions. |
 
 ---
 

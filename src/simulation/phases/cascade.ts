@@ -83,7 +83,7 @@ export function deriveConsequence(
     });
   }
 
-  if (stat === 'culture' && delta.delta > 0 && newValue > 65 && rng.nextFloat() < 0.4) {
+  if (stat === 'culture' && delta.delta > 0 && newValue > 40 && rng.nextFloat() < 0.4) {
     const neighbors = getNeighboringFactions(world, faction.id);
     if (neighbors.length === 0) return null;
     const target = neighbors[rng.nextInt(neighbors.length)];
@@ -106,7 +106,7 @@ export function deriveConsequence(
     });
   }
 
-  if (stat === 'military' && delta.delta > 0 && newValue > 70) {
+  if (stat === 'military' && delta.delta > 0 && newValue > 50) {
     const rel = world.relationships.find(r =>
       (r.factionA === faction.id || r.factionB === faction.id) &&
       r.state !== 'war' && r.opinion < -20,

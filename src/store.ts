@@ -4,7 +4,7 @@
 
 import { createContext, useContext } from 'react';
 import type {
-  GameStore, GamePhase, WorldState, NPC, Item, Camera,
+  GameStore, GamePhase, WorldState, WorldConfig, NPC, Item, Camera,
 } from './types';
 import { DEFAULT_CONFIG, VIEWPORT_TILES } from './types';
 
@@ -42,6 +42,7 @@ export type GameStoreAction =
   | { type: 'SHOW_NOTIFICATION'; text: string }
   | { type: 'CLEAR_NOTIFICATION' }
   | { type: 'UPDATE_WORLD'; updater: (world: WorldState) => WorldState }
+  | { type: 'SET_CONFIG'; config: WorldConfig }
   | { type: 'RESET' };
 
 // ─── Reducer ────────────────────────────────────────────────────────────
@@ -84,6 +85,9 @@ export function gameReducer(state: GameStore, action: GameStoreAction): GameStor
     case 'UPDATE_WORLD':
       if (!state.world) return state;
       return { ...state, world: action.updater(state.world) };
+
+    case 'SET_CONFIG':
+      return { ...state, config: action.config };
 
     case 'RESET':
       return initialState;
