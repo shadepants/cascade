@@ -1,4 +1,4 @@
-﻿// ─── 5-Phase Simulation Tick ─────────────────────────────────────────────
+// ─── 5-Phase Simulation Tick ─────────────────────────────────────────────
 // Advances world state by N years. Each year runs 5 phases:
 //
 //   1. ECOLOGY   — biome-driven population growth, famine
@@ -197,10 +197,11 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...pol]);
     const stab = phaseStability(world, year, rng);
     const succ = phaseSuccession(world, year, rng);
-    const cas  = phaseCascade(world, [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ], year, rng);
+    const priorEvents = [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ];
+    const cas  = phaseCascade(world, priorEvents, year, rng);
     const gos  = runKnowledgePipeline(world, cas, year, rng);
 
-    const yearEvents = [...col, ...gro, ...eco, ...econ, ...ig, ...pol, ...con, ...stab, ...succ, ...cas, ...gos];
+    const yearEvents = [...priorEvents, ...cas, ...gos];
 
     if (!headless && yearEvents.length > 0) {
       console.log(`[TICK y=${year}] col:${col.length} gro:${gro.length} eco:${eco.length} econ:${econ.length} ig:${ig.length} pol:${pol.length} conflict:${con.length} stab:${stab.length} succ:${succ.length} cascade:${cas.length}`);

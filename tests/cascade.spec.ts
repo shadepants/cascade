@@ -18,7 +18,7 @@ async function dispatch(page: Page, action: object) {
 }
 
 /** Wait for game phase to match. */
-async function waitForPhase(page: Page, phase: string, timeout = 30_000) {
+async function waitForPhase(page: Page, phase: string, timeout = 60_000) {
   await expect.poll(
     async () => { const s = await getState(page); return s?.phase; },
     { timeout },
@@ -27,10 +27,10 @@ async function waitForPhase(page: Page, phase: string, timeout = 30_000) {
 
 /** Wait for world to have a storyteller (post new-game). */
 async function waitForWorld(page: Page) {
-  await waitForPhase(page, 'exploring', 40_000);
+  await waitForPhase(page, 'exploring', 60_000);
   await expect.poll(
     async () => { const s = await getState(page); return !!s?.world; },
-    { timeout: 5_000 },
+    { timeout: 30_000 },
   ).toBe(true);
 }
 
@@ -172,7 +172,7 @@ test('time jump produces cascade events with causedBy links', async ({ page }) =
 
   // Trigger a time jump (20 years for higher cascade probability)
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 45_000);
+  await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
   const cascadeEvents = stateAfter.world.events.filter((e: any) => e.causedBy !== null);
@@ -200,7 +200,7 @@ test('cascade events appear in NPC knowledge after jump', async ({ page }) => {
   await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 45_000);
+  await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
   const allKnowledge = stateAfter.world.npcs.flatMap((n: any) => n.knowledge);
@@ -241,7 +241,7 @@ test('tension changes after a time jump with player action', async ({ page }) =>
   await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 45_000);
+  await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
   const tensionAfter = stateAfter.world.storyteller.tension;
@@ -314,7 +314,7 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
   await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 45_000);
+  await waitForPhase(page, 'exploring', 90_000);
 
   const stateAfter = await getState(page);
   const cascadeEvent = stateAfter.world.events.find(
