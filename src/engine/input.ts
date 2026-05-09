@@ -32,7 +32,7 @@ export function mapKeyToAction(key: string, phase: GamePhase): GameAction {
     if (key === 'j' || key === 'J') return { type: 'JUMP' };
   }
 
-  if (phase === 'dialogue' || phase === 'action') {
+  if (phase === 'dialogue' || phase === 'action' || phase === 'intervention') {
     if (key === 'Escape') return { type: 'CLOSE_PANEL' };
   }
 

@@ -186,6 +186,8 @@ export interface Settlement {
   factionId: string;
   npcs: string[];
   items: string[];
+  faith: FaithPressure[];
+  dominantReligionId: string | null;
 }
 
 export interface Ruin {
@@ -213,6 +215,27 @@ export interface TradeRoute {
   active: boolean;
 }
 
+export interface Religion {
+  id: string;
+  name: string;
+  founderId: string | null;
+  originSettlementId: string;
+  tenets: ('peace' | 'war' | 'charity' | 'knowledge' | 'wealth')[];
+  color: string;
+}
+
+export interface FaithPressure {
+  religionId: string;
+  pressure: number; // 0 to 100
+}
+
+export interface HolySite {
+  id: string;
+  name: string;
+  position: Position;
+  religionId: string;
+}
+
 export interface VisualEffect {
   id: string;
   type: 'ripple' | 'aura' | 'sparkle';
@@ -235,6 +258,8 @@ export interface WorldState {
   npcs: NPC[];
   items: Item[];
   tradeRoutes: TradeRoute[];
+  religions: Religion[];
+  holySites: HolySite[];
   events: GameEvent[];
   player: Player;
   storyteller: StorytellerState;

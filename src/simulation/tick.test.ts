@@ -64,6 +64,8 @@ function makeWorld(
     factions,
     relationships,
     historicalFigures: [],
+    religions: [],
+    holySites: [],
     settlements: [],
     ruins: [],
     resourceNodes: [],
@@ -188,6 +190,8 @@ describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
       factionId: 'A',
       npcs: [],
       items: [],
+      faith: [],
+      dominantReligionId: null,
     };
   }
 
@@ -234,6 +238,8 @@ describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
           factionId: 'A',
           npcs: [],
           items: [],
+          faith: [],
+          dominantReligionId: null,
         },
         makeTestSettlement('s2', 0, 0),
       ]);

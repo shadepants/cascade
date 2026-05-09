@@ -188,6 +188,8 @@ function placeSettlements(
       factionId: factions[i].id,
       npcs: [],
       items: [],
+      faith: [],
+      dominantReligionId: null,
     };
 
     map.tiles[pos.y][pos.x].settlementId = settlement.id;

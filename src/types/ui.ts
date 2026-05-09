@@ -19,6 +19,7 @@ export type GamePhase =
   | 'dialogue'
   | 'action'
   | 'jumping'
+  | 'intervention'
   | 'score';
 
 export interface Camera {

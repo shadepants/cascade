@@ -27,9 +27,11 @@ import {
   SHEET_ITEM_AMULET,
   SHEET_ITEM_SCROLL,
   SHEET_ITEM_KEY,
+  SHEET_RELIGION,
   BIOME_TILES,
   SETTLEMENT_TILE,
   RUIN_TILE,
+  HOLYSITE_TILE,
   NPC_TILE,
   PLAYER_TILE,
   TREE_TILES,
@@ -49,6 +51,7 @@ interface Sheets {
   itemAmulet: Texture;
   itemScroll: Texture;
   itemKey:    Texture;
+  religion:   Texture;
 }
 
 interface Layers {
@@ -56,6 +59,7 @@ interface Layers {
   mid:       Container;  // settlements, ruins, tree canopy
   resources: Container;  // ore deposits and relic sites
   items:     Container;  // pickup items (artifacts, letters, keys)
+  religion:  Container;  // Holy Sites (shrines, temples)
   trade:     Container;  // Phase 1: trade routes (golden pulsing lines)
   visuals:   Container;  // Phase 0: Echo System visual feedback (ripples, sparks)
   top:       Container;  // characters (NPCs + player)
@@ -177,6 +181,8 @@ export function PixiViewport() {
   const updateWorld       = useGameStore(s => s.updateWorld);
   const setPreviousWorld = useGameStore(s => s.setPreviousWorld);
   const setCamera        = useGameStore(s => s.setCamera);
+  const openIntervention = useGameStore(s => s.openIntervention);
+  const closeIntervention = useGameStore(s => s.closeIntervention);
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
@@ -214,7 +220,7 @@ export function PixiViewport() {
       }
 
       // Parallel texture load — never await sequentially (React best-practice)
-      const [terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey] =
+      const [terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion] =
         await Promise.all([
           Assets.load<Texture>(SHEET_TERRAIN),
           Assets.load<Texture>(SHEET_SETTLEMENT),
@@ -225,6 +231,7 @@ export function PixiViewport() {
           Assets.load<Texture>(SHEET_ITEM_AMULET),
           Assets.load<Texture>(SHEET_ITEM_SCROLL),
           Assets.load<Texture>(SHEET_ITEM_KEY),
+          Assets.load<Texture>(SHEET_RELIGION),
         ]);
 
       if (!mounted) {
@@ -243,19 +250,21 @@ export function PixiViewport() {
       const midLayer       = new Container();
       const resourcesLayer = new Container();
       const itemsLayer     = new Container();
+      const religionLayer  = new Container();
       const tradeLayer     = new Container();
       const visualsLayer   = new Graphics(); // Use Graphics for ripples/lines
       const topLayer       = new Container();
       const ghostLayer     = new Container();
-      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, tradeLayer, visualsLayer, topLayer, ghostLayer);
+      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, tradeLayer, visualsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
-      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey };
+      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion };
       layersRef.current = {
         terrain:   terrainLayer,
         mid:       midLayer,
         resources: resourcesLayer,
         items:     itemsLayer,
+        religion:  religionLayer,
         trade:     tradeLayer,
         visuals:   visualsLayer as unknown as Container, // Cast to match interface or update interface
         top:       topLayer,
@@ -320,6 +329,7 @@ export function PixiViewport() {
     mid.removeChildren();
     resources.removeChildren();
     items.removeChildren();
+    layersRef.current.religion.removeChildren();
     trade.removeChildren();
     top.removeChildren();
     ghost.removeChildren();
@@ -363,6 +373,20 @@ export function PixiViewport() {
       const col = settlement.position.x - camera.x;
       const row = settlement.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
+
+      // Faith underlay glow
+      if (settlement.dominantReligionId) {
+        const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
+        if (religion) {
+          const glow = new Graphics();
+          const color = parseInt(religion.color.replace('#', ''), 16);
+          glow.beginFill(color, 0.25);
+          glow.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
+          glow.endFill();
+          mid.addChild(glow);
+        }
+      }
+
       mid.addChild(makeSprite('settlement', SETTLEMENT_TILE, col, row));
     }
 
@@ -389,6 +413,20 @@ export function PixiViewport() {
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
       const { sheetKey, region } = ITEM_SPRITE[item.type];
       items.addChild(makeSprite(sheetKey, region, col, row));
+    }
+
+    // ── Layer 4.2: Holy Sites ────────────────────────────────────────────
+    for (const site of world.holySites) {
+      const col = site.position.x - camera.x;
+      const row = site.position.y - camera.y;
+      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
+      
+      const religion = world.religions.find(r => r.id === site.religionId);
+      const sprite = makeSprite('religion', HOLYSITE_TILE, col, row);
+      if (religion) {
+        sprite.tint = parseInt(religion.color.replace('#', ''), 16);
+      }
+      layersRef.current.religion.addChild(sprite);
     }
 
     // ── Layer 4.5: trade routes ─────────────────────────────────────────
@@ -616,6 +654,7 @@ export function PixiViewport() {
       case 'CLOSE_PANEL':
         if (phase === 'dialogue') closeDialogue();
         if (phase === 'action')   closeAction();
+        if (phase === 'intervention') closeIntervention();
         break;
 
       case 'JUMP':
@@ -647,20 +686,43 @@ export function PixiViewport() {
     const biomeName = tile.biome.charAt(0).toUpperCase() + tile.biome.slice(1);
     const faction   = tile.factionId ? world.factions.find(f => f.id === tile.factionId) : null;
     const settlement = world.settlements.find(s => s.position.x === wx && s.position.y === wy);
+    const holySite   = world.holySites.find(s => s.position.x === wx && s.position.y === wy);
     const ruin       = world.ruins.find(r => r.position.x === wx && r.position.y === wy);
     const resource   = world.resourceNodes.find(n => n.position.x === wx && n.position.y === wy);
 
     let label = biomeName;
     if (settlement) label = `${settlement.name}`;
+    else if (holySite) {
+      const rel = world.religions.find(r => r.id === holySite.religionId);
+      label = `${holySite.name} (${rel?.name || 'Faith'})`;
+    }
     else if (ruin)  label = `Ruins`;
 
     const details: string[] = [biomeName];
     details.push(`Elev ${tile.elevation.toFixed(2)}  Rain ${tile.rainfall.toFixed(2)}`);
     if (faction) details.push(`Territory: ${faction.name}`);
     if (resource) details.push(`Resource: ${resource.type}`);
+    if (settlement?.dominantReligionId) {
+      const rel = world.religions.find(r => r.id === settlement.dominantReligionId);
+      details.push(`Religion: ${rel?.name || 'None'}`);
+    }
 
     setTooltip({ label, detail: details.join('\n'), x: e.clientX, y: e.clientY });
   }, [world, camera, zoom]);
+
+  const handleViewportClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!world || phase !== 'exploring') return;
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const tileDisplay = TILE_SIZE * zoom;
+    const col = Math.floor((e.clientX - rect.left) / tileDisplay);
+    const row = Math.floor((e.clientY - rect.top)  / tileDisplay);
+    const wx = camera.x + col;
+    const wy = camera.y + row;
+
+    if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) return;
+
+    openIntervention({ x: wx, y: wy });
+  }, [world, phase, camera, zoom, openIntervention]);
 
   const handleMouseLeave = useCallback(() => setTooltip(null), []);
 
@@ -670,9 +732,11 @@ export function PixiViewport() {
 
   return (
     <div
-      style={{ position: 'relative', display: 'inline-block' }}
+      className="pixi-viewport-container"
+      style={{ position: 'relative', display: 'inline-block', cursor: phase === 'exploring' ? 'crosshair' : 'default' }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onClick={handleViewportClick}
     >
       <div ref={containerRef} style={{ display: 'block' }} />
       {tooltip && (

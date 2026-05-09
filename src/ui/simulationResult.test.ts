@@ -13,6 +13,8 @@ function makeWorld(): WorldState {
     settlements: [],
     ruins: [],
     resourceNodes: [],
+    religions: [],
+    holySites: [],
     npcs: [],
     items: [],
     tradeRoutes: [],

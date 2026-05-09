@@ -14,6 +14,7 @@
 
 import type {
   WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode, GameMap, NPC, GameEvent,
+  Religion, HolySite, Settlement,
 } from '../types';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
@@ -54,6 +55,10 @@ export function generateWorld(config: WorldConfig): WorldState {
   const npcs = generateNPCs(settlements, factions, config.npcsPerSettlement, map, seed);
   const npcPositions = npcs.map(n => n.position);
 
+  // ── Step 4.5: Religions + Holy Sites ───────────────────────────────────
+  const religions = generateReligions(factions, settlements, rng);
+  const holySites = spawnHolySites(religions, settlements, map, rng);
+
   // ── Step 5: Pre-history simulation ────────────────────────────────────
   // Build an initial world stub and run the real tick engine.
   // currentYear starts at 0; simulation advances it to pregenYears.
@@ -73,6 +78,8 @@ export function generateWorld(config: WorldConfig): WorldState {
     npcs,
     items: [],
     tradeRoutes: [],
+    religions,
+    holySites,
     events: [],
     visuals: [],
     player,
@@ -202,4 +209,51 @@ function assignKnowledgeToNPCs(
       }
     }
   }
+}
+
+/** Generate a religion for some factions. */
+function generateReligions(factions: Faction[], settlements: Settlement[], rng: SeededRNG): Religion[] {
+  const religions: Religion[] = [];
+  const RELIGION_NAMES = ['Solaris', 'The Void', 'Iron Root', 'Silver Path', 'Deep Water'];
+  const RELIGION_COLORS = ['#ffcc00', '#440066', '#446600', '#cccccc', '#0066ff'];
+
+  // Religions are founded in some capital settlements
+  for (let i = 0; i < factions.length; i++) {
+    if (rng.nextFloat() > 0.5) { // 50% chance for a faction to have a unique religion
+      const name = RELIGION_NAMES[i % RELIGION_NAMES.length];
+      const settlement = settlements.find(s => s.factionId === factions[i].id);
+      if (!settlement) continue;
+
+      const religion: Religion = {
+        id: `rel_${factions[i].id}`,
+        name: `${name} of ${factions[i].name}`,
+        founderId: factions[i].leaderId,
+        originSettlementId: settlement.id,
+        tenets: ['peace', 'knowledge'], // simplified for now
+        color: RELIGION_COLORS[i % RELIGION_COLORS.length],
+      };
+
+      religions.push(religion);
+      
+      // Initialize settlement faith
+      settlement.faith.push({ religionId: religion.id, pressure: 100 });
+      settlement.dominantReligionId = religion.id;
+    }
+  }
+  return religions;
+}
+
+/** Spawn holy sites at the origin of religions. */
+function spawnHolySites(religions: Religion[], settlements: Settlement[], _map: GameMap, _rng: SeededRNG): HolySite[] {
+  return religions.map((rel, i) => {
+    const settlement = settlements.find(s => s.id === rel.originSettlementId);
+    const pos = settlement ? settlement.position : { x: 0, y: 0 };
+
+    return {
+      id: `holy_${i}`,
+      name: `Grand Temple of ${rel.name}`,
+      position: pos,
+      religionId: rel.id,
+    };
+  });
 }

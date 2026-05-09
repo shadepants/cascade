@@ -10,6 +10,7 @@ import { KnowledgeLog } from './KnowledgeLog.tsx';
 import { ActionMenu } from './ActionMenu.tsx';
 import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
+import { InterventionMenu } from './InterventionMenu.tsx';
 import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
@@ -166,6 +167,7 @@ export function App() {
       {(phase === 'exploring' ||
         phase === 'dialogue' ||
         phase === 'action' ||
+        phase === 'intervention' ||
         phase === 'jumping') && (
         <div className="game-layout">
           <HUD />
@@ -183,6 +185,7 @@ export function App() {
           )}
           {phase === 'dialogue' && <DialoguePanel />}
           {phase === 'action' && <ActionMenu />}
+          {phase === 'intervention' && <InterventionMenu />}
         </div>
       )}
 

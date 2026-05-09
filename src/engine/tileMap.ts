@@ -38,6 +38,7 @@ export const SHEET_ORE        = '/assets/DawnLike/Objects/Ore0.png';
 export const SHEET_ITEM_AMULET = '/assets/DawnLike/Items/Amulet.png';
 export const SHEET_ITEM_SCROLL = '/assets/DawnLike/Items/Scroll.png';
 export const SHEET_ITEM_KEY    = '/assets/DawnLike/Items/Key.png';
+export const SHEET_RELIGION    = '/assets/DawnLike/Objects/Symbol0.png';
 
 // ─── Terrain tiles — DawnLike/Objects/Tile.png ───────────────────────────
 // Sheet is 8 cols × 4 rows (128×64 px), each tile 16×16 px.
@@ -70,6 +71,7 @@ export const TREE_TILES: Partial<Record<Biome, TileRegion>> = {
 
 export const SETTLEMENT_TILE: TileRegion = { x:  0, y:  0, w: 16, h: 16 }; // castle/village
 export const RUIN_TILE:       TileRegion = { x: 16, y:  0, w: 16, h: 16 }; // destroyed site
+export const HOLYSITE_TILE:   TileRegion = { x: 32, y:  0, w: 16, h: 16 }; // shrine/temple (DawnLike Symbol0 or Toen)
 
 // ─── Characters — DawnLike Characters sheets ─────────────────────────────
 // Humanoid0.png row 0 = guards/knights (frame 0 = idle left).

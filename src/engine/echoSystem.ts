@@ -5,7 +5,17 @@ import type { WorldState, TemporalEcho, TileModifier } from '../types/world';
  * Returns a new WorldState with the effect applied and insight spent.
  */
 export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
-  if (world.player.insight < echo.cost) {
+  let cost = echo.cost;
+
+  // Holy Site Intervention Cost: 2x
+  if (echo.type === 'omen' && echo.targetId) {
+    const [tx, ty] = echo.targetId.split(',').map(Number);
+    if (world.holySites.some(hs => hs.position.x === tx && hs.position.y === ty)) {
+      cost *= 2;
+    }
+  }
+
+  if (world.player.insight < cost) {
     throw new Error('Insufficient Insight');
   }
 
@@ -13,7 +23,7 @@ export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
     ...world,
     player: {
       ...world.player,
-      insight: world.player.insight - echo.cost
+      insight: world.player.insight - cost
     }
   };
 
@@ -78,9 +88,11 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
   const tile = { ...newMap.tiles[y][x] };
   const modifiers = [...(tile.modifiers || [])];
 
+  const isHolySite = world.holySites.some(hs => hs.position.x === x && hs.position.y === y);
+
   const modifier: TileModifier = {
     type: 'omen',
-    duration: 10 // Lasts 10 years
+    duration: isHolySite ? 40 : 10 // 4x impact duration on Holy Sites
   };
 
   modifiers.push(modifier);

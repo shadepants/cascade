@@ -105,6 +105,8 @@ export function phaseColonization(world: WorldState, year: number, rng: SeededRN
         factionId: faction.id,
         npcs:      [],
         items:     [],
+        faith:     [],
+        dominantReligionId: null,
       };
 
       world.settlements.push(newSettlement);

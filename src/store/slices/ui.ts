@@ -5,6 +5,7 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
   phase: 'title',
   activeNpc: null,
   activeItem: null,
+  activeTile: null,
   notification: null,
 
   setPhase: (phase) => set({ phase }),
@@ -27,6 +28,16 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
   closeAction: () => set({ 
     activeItem: null, 
     phase: 'exploring' 
+  }),
+
+  openIntervention: (pos) => set({
+    activeTile: pos,
+    phase: 'intervention'
+  }),
+
+  closeIntervention: () => set({
+    activeTile: null,
+    phase: 'exploring'
   }),
 
   showNotification: (text) => set({ notification: text }),

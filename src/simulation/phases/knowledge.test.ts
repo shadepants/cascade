@@ -13,7 +13,7 @@ function makeWorld(): WorldState {
     ],
     relationships: [],
     historicalFigures: [],
-    settlements: [{ id: 'S1', name: 'Town', position: { x: 0, y: 0 }, factionId: 'A', npcs: ['n1', 'n2'], items: [] }],
+    settlements: [{ id: 'S1', name: 'Town', position: { x: 0, y: 0 }, factionId: 'A', npcs: ['n1', 'n2'], items: [], faith: [], dominantReligionId: null }],
     ruins: [],
     resourceNodes: [],
     npcs: [
@@ -22,6 +22,8 @@ function makeWorld(): WorldState {
     ],
     items: [],
     tradeRoutes: [],
+    religions: [],
+    holySites: [],
     events: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),

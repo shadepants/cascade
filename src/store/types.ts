@@ -21,12 +21,15 @@ export interface UISlice {
   phase: GamePhase;
   activeNpc: NPC | null;
   activeItem: Item | null;
+  activeTile: { x: number, y: number } | null;
   notification: string | null;
   setPhase: (phase: GamePhase) => void;
   openDialogue: (npc: NPC) => void;
   closeDialogue: () => void;
   openAction: (item: Item) => void;
   closeAction: () => void;
+  openIntervention: (pos: { x: number, y: number }) => void;
+  closeIntervention: () => void;
   showNotification: (text: string) => void;
   clearNotification: () => void;
 }
