@@ -1,8 +1,8 @@
-// ─── Phase 3: Politics ────────────────────────────────────────────────────
+﻿// ─── Phase 3: Politics ────────────────────────────────────────────────────
 // Ethics divergence, animosity accumulation, alliance formation.
 
 import type { WorldState, GameEvent, StatDelta } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { computeEthicsDivergence } from '../../world/factions.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -12,7 +12,7 @@ import { getRulerForFaction, hasTrait } from './succession.ts';
 export function phasePolitics(
   world: WorldState,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   _priorEvents: GameEvent[],
 ): GameEvent[] {
   const events: GameEvent[] = [];

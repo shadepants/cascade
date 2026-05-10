@@ -1,16 +1,16 @@
-// ─── Phase 5b: Stability ──────────────────────────────────────────────────
+﻿// ─── Phase 5b: Stability ──────────────────────────────────────────────────
 // Faction collapse, rebellion, cultural spread, war exhaustion recovery,
 // military buildup, and prosperity-driven stability gains.
 
 import type { WorldState, GameEvent, StatDelta } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';
 import { getNeighboringFactions, type MapOwnershipSummary } from '../helpers/spatial.ts';
 import { fractureFaction } from './conflict.ts';
 
-export function phaseStability(world: WorldState, year: number, rng: SeededRNG, mapSummary: MapOwnershipSummary): GameEvent[] {
+export function phaseStability(world: WorldState, year: number, rng: GameRNG, mapSummary: MapOwnershipSummary): GameEvent[] {
   const events: GameEvent[] = [];
 
   const currentFactions = [...world.factions];

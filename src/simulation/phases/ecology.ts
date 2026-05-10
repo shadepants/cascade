@@ -1,14 +1,14 @@
-// ─── Phase 1: Ecology ─────────────────────────────────────────────────────
+﻿// ─── Phase 1: Ecology ─────────────────────────────────────────────────────
 // Biome-driven population growth and famine events.
 
 import type { WorldState, GameEvent, StatDelta } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { BIOME_POP_DELTA, FAMINE_DESERT_THRESHOLD, FAMINE_POPULATION_MIN, pickMotivation } from '../constants.ts';
 import type { MapOwnershipSummary } from '../helpers/spatial.ts';
 
-export function phaseEcology(world: WorldState, year: number, rng: SeededRNG, mapSummary: MapOwnershipSummary): GameEvent[] {
+export function phaseEcology(world: WorldState, year: number, rng: GameRNG, mapSummary: MapOwnershipSummary): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {
