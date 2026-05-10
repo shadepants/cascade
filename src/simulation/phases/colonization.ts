@@ -73,6 +73,16 @@ function findColonizationSpot(world: WorldState, faction: Faction, rng: SeededRN
   const tiles = getTilesWithPosForFaction(world.map, faction.id);
   if (tiles.length === 0) return null;
 
+  // Build a set of resource node positions owned by no faction for pull bonus
+  const unclaimed = new Set(
+    world.resourceNodes
+      .filter(n => {
+        const tile = world.map.tiles[n.position.y]?.[n.position.x];
+        return tile && !tile.factionId;
+      })
+      .map(n => `${n.position.x},${n.position.y}`),
+  );
+
   const goodTiles = tiles.filter(t =>
     t.biome === 'grassland' || t.biome === 'forest' || t.biome === 'rainforest',
   );
@@ -86,6 +96,24 @@ function findColonizationSpot(world: WorldState, faction: Faction, rng: SeededRN
     ),
   );
   if (validCandidates.length === 0) return null;
+
+  // Factions with trade=embraced or expansion=embraced get bias toward resource-adjacent tiles
+  const prefersResources =
+    faction.ethics.trade === 'embraced' || faction.ethics.expansion === 'embraced';
+  if (prefersResources && unclaimed.size > 0) {
+    // Look for tiles neighboring an unclaimed resource node
+    const adjacentToResource = validCandidates.filter(c => {
+      const neighbors = [
+        `${c.x - 1},${c.y}`, `${c.x + 1},${c.y}`,
+        `${c.x},${c.y - 1}`, `${c.x},${c.y + 1}`,
+      ];
+      return neighbors.some(k => unclaimed.has(k));
+    });
+    if (adjacentToResource.length > 0) {
+      return adjacentToResource[rng.nextInt(adjacentToResource.length)];
+    }
+  }
+
   return validCandidates[rng.nextInt(validCandidates.length)];
 }
 
@@ -93,7 +121,12 @@ export function phaseColonization(world: WorldState, year: number, rng: SeededRN
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {
-    if (faction.population > 600 && faction.wealth > 50 && faction.stability > 50 && rng.nextFloat() < 0.12) {
+    // Ethics-driven colonization: trade=embraced or expansion=embraced boosts probability
+    const colProb = (faction.ethics.trade === 'embraced' || faction.ethics.expansion === 'embraced')
+      ? 0.144  // +20% over base 0.12
+      : 0.12;
+
+    if (faction.population > 600 && faction.wealth > 50 && faction.stability > 50 && rng.nextFloat() < colProb) {
       const spot = findColonizationSpot(world, faction, rng);
       if (!spot) continue;
 

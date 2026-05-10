@@ -1,7 +1,7 @@
 // ─── Phase 2: Economics ───────────────────────────────────────────────────
 // Wealth from territory, trade, and military upkeep.
 
-import type { WorldState, GameEvent, StatDelta } from '../../types';
+import type { WorldState, GameEvent, StatDelta, Faction, FactionStatKey } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -57,7 +57,51 @@ export function phaseEconomics(
         statDeltas: deltas,
       }), year);
     }
+
+    // Resource node bonuses: iron → military, gold → wealth, relic → culture
+    applyResourceNodeBonuses(world, faction, year);
   }
 
   return events;
+}
+
+/** Apply per-year stat bonuses from resource nodes controlled by the faction. */
+function applyResourceNodeBonuses(
+  world: WorldState,
+  faction: Faction,
+  year: number,
+): void {
+  const controlledNodes = world.resourceNodes.filter(node => {
+    const tile = world.map.tiles[node.position.y]?.[node.position.x];
+    return tile?.factionId === faction.id;
+  });
+
+  if (controlledNodes.length === 0) return;
+
+  const deltas: StatDelta[] = [];
+  for (const node of controlledNodes) {
+    if (node.type === 'iron')  deltas.push({ factionId: faction.id, stat: 'military', delta: 3 });
+    if (node.type === 'gold')  deltas.push({ factionId: faction.id, stat: 'wealth',   delta: 3 });
+    if (node.type === 'relic') deltas.push({ factionId: faction.id, stat: 'culture',  delta: 2 });
+  }
+
+  // Collapse deltas by stat
+  const collapsed = deltas.reduce<Partial<Record<string, number>>>((acc, d) => {
+    acc[d.stat] = (acc[d.stat] ?? 0) + d.delta;
+    return acc;
+  }, {});
+
+  const collapsedDeltas: StatDelta[] = (Object.entries(collapsed) as [string, number][]).map(
+    ([stat, delta]) => ({ factionId: faction.id, stat: stat as FactionStatKey, delta }),
+  );
+
+  // Emit once per year per faction (significance=1 keeps it under storyteller gating)
+  world.events.push(createEvent({
+    tick: 0, year,
+    subject: faction.id, action: 'resource_yield', object: faction.id,
+    causedBy: null, significance: 1, playerCaused: false,
+    description: `${faction.name} drew yield from ${controlledNodes.length} resource node(s)`,
+    motivation: 'strategic control of natural wealth',
+    statDeltas: collapsedDeltas,
+  }));
 }
