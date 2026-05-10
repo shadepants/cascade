@@ -1,4 +1,4 @@
-// ─── Storyteller Director ────────────────────────────────────────────────
+﻿// ─── Storyteller Director ────────────────────────────────────────────────
 // Pacing layer inspired by RimWorld's Cassandra storyteller.
 // Does NOT invent events — biases simulation probability rolls and routes
 // cascade consequences to NPCs the player will actually encounter.
@@ -9,7 +9,7 @@
 //   tyche — chaos, no cooldowns, unpredictable chain reactions
 
 import type { WorldState, StorytellerState, StorytellerMode, GameEvent, NPC } from '../types';
-import type { SeededRNG } from '../utils/rng.ts';
+import type { GameRNG } from '../utils/rng.ts';
 
 // ─── Tension ─────────────────────────────────────────────────────────────
 
@@ -216,7 +216,7 @@ export type StorytellerIntervention =
 export function fireDebtIntervention(
   state: StorytellerState,
   world: WorldState,
-  _rng: SeededRNG,
+  _rng: GameRNG,
 ): StorytellerIntervention | null {
   const debt = state.yearsSincePlayerDiscovery;
   if (debt < 30) return null;
@@ -262,7 +262,7 @@ export function fireDebtIntervention(
 export function applyIntervention(
   intervention: StorytellerIntervention,
   world: WorldState,
-  rng: SeededRNG,
+  rng: GameRNG,
   currentYear: number,
 ): void {
   const event = world.events.find(e => e.id === intervention.eventId);

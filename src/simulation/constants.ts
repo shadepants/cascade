@@ -1,5 +1,5 @@
 import type { NPCPersonality } from '../types';
-import type { SeededRNG } from '../utils/rng.ts';
+import type { GameRNG } from '../utils/rng.ts';
 
 export const WAR_ANIMOSITY_THRESHOLD = 80;
 export const FAMINE_DESERT_THRESHOLD = 0.55;
@@ -32,7 +32,7 @@ const MOTIVATIONS: Record<string, string[]> = {
   population_boom: ['as peaceful years and fertile land bore fruit', 'as prosperity drew settlers from distant regions'],
 };
 
-export function pickMotivation(key: string, rng: SeededRNG): string {
+export function pickMotivation(key: string, rng: GameRNG): string {
   const pool = MOTIVATIONS[key] ?? ['for reasons lost to history'];
   return pool[rng.nextInt(pool.length)];
 }

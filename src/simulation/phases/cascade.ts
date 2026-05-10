@@ -1,6 +1,6 @@
-import type { Faction, GameEvent, StatDelta, WorldState } from '../../types';
+﻿import type { Faction, GameEvent, StatDelta, WorldState } from '../../types';
 import { createEvent } from '../../world/events.ts';
-import type { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { CASCADE_SIGNIFICANCE_MIN, CASCADE_LOOKBACK_YEARS, REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';
 import { getCascadeThreshold, registerHighSigEvent, shouldSuppressEvent } from '../storyteller.ts';
 import { getFactionStat } from '../helpers/stats.ts';
@@ -16,7 +16,7 @@ export function phaseCascade(
   world: WorldState,
   recentEvents: GameEvent[],
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
 ): GameEvent[] {
   const cascadeEvents: GameEvent[] = [];
   // Track which factions already got a cascade-triggered rebellion this tick
@@ -68,7 +68,7 @@ export function deriveConsequence(
   parentEvent: GameEvent,
   world: WorldState,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
 ): GameEvent | null {
   const stat = delta.stat;
   const newValue = getFactionStat(faction, stat);
@@ -148,7 +148,7 @@ function checkThresholdEvents(
   world: WorldState,
   faction: Faction,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   playerEvents: GameEvent[],
   events: GameEvent[],
   rebelled: Set<string>,

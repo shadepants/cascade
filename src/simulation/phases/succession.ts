@@ -1,11 +1,11 @@
-// ─── Phase 5c: Succession ─────────────────────────────────────────────────
+﻿// ─── Phase 5c: Succession ─────────────────────────────────────────────────
 // Ruler death, dynastic succession, and succession crises.
 // Also exports ruler utilities used by economics.ts and politics.ts.
 
 import type {
   WorldState, GameEvent, Faction, HistoricalFigure, RulerTrait,
 } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { NPC_NAMES } from '../../data/names.ts';
@@ -24,7 +24,7 @@ export function hasTrait(hf: HistoricalFigure | null, trait: RulerTrait): boolea
   return hf.traits.includes(trait);
 }
 
-function spawnNewRuler(_world: WorldState, faction: Faction, year: number, rng: SeededRNG): HistoricalFigure {
+function spawnNewRuler(_world: WorldState, faction: Faction, year: number, rng: GameRNG): HistoricalFigure {
   const traitPool: RulerTrait[] = ['bloodthirsty', 'industrious', 'xenophobic', 'diplomatic', 'pious', 'corrupt'];
   const name = NPC_NAMES[rng.nextInt(NPC_NAMES.length)];
 
@@ -48,7 +48,7 @@ function spawnNewRuler(_world: WorldState, faction: Faction, year: number, rng: 
 
 // ─── Phase Runner ──────────────────────────────────────────────────────────
 
-export function phaseSuccession(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+export function phaseSuccession(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {

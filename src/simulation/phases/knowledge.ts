@@ -1,12 +1,12 @@
-import type { GameEvent, WorldState } from '../../types';
+﻿import type { GameEvent, WorldState } from '../../types';
 import { getGossipBoost } from '../storyteller.ts';
-import type { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 
 export function seedEventKnowledge(
   world: WorldState,
   events: GameEvent[],
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
 ): void {
   for (const event of events) {
     const affectedFactionId = event.subject;
@@ -26,7 +26,7 @@ export function seedEventKnowledge(
   }
 }
 
-export function phaseGossip(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+export function phaseGossip(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const settlement of world.settlements) {
@@ -60,7 +60,7 @@ export function runKnowledgePipeline(
   world: WorldState,
   allYearEvents: GameEvent[],
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
 ): GameEvent[] {
   // Seed knowledge from all events this year so NPCs witness wars, famines, alliances, etc.
   seedEventKnowledge(world, allYearEvents, year, rng);
