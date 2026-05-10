@@ -2,6 +2,7 @@ import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
+import { applyStatDeltas } from '../helpers/stats.ts';
 
 /**
  * Phase Religion: Manages the spread of faiths and religious conversion.
@@ -87,7 +88,7 @@ export function phaseReligion(
           if (ig) ig.power = Math.min(100, ig.power + 6);
         }
 
-        // Tenet-driven stat effects applied directly (no event needed; low significance)
+        // Tenet-driven stat effects applied via the canonical helper (clamps included)
         const tenetDeltas: StatDelta[] = [];
         for (const tenet of religion.tenets) {
           if (tenet === 'peace')     tenetDeltas.push({ factionId: faction.id, stat: 'stability', delta: 2 });
@@ -96,16 +97,7 @@ export function phaseReligion(
           if (tenet === 'knowledge') tenetDeltas.push({ factionId: faction.id, stat: 'culture',   delta: 3 });
           if (tenet === 'wealth')    tenetDeltas.push({ factionId: faction.id, stat: 'wealth',    delta: 2 });
         }
-        for (const d of tenetDeltas) {
-          const ranges: Record<string, [number, number]> = {
-            population: [0, 2000], stability: [0, 100],
-            wealth: [0, 100], military: [0, 100], culture: [0, 100],
-          };
-          const [min, max] = ranges[d.stat] ?? [0, 100];
-          const key = d.stat as keyof typeof faction;
-          const cur = typeof faction[key] === 'number' ? (faction[key] as number) : 0;
-          (faction as unknown as Record<string, number>)[d.stat] = Math.max(min, Math.min(max, cur + d.delta));
-        }
+        if (tenetDeltas.length > 0) applyStatDeltas(world, tenetDeltas);
 
         // Tenet-based ethics shifts (peace/charity → mercy/tradition; war → violence)
         if (faction.ethics) {

@@ -1,7 +1,7 @@
 // ─── Phase 2: Economics ───────────────────────────────────────────────────
 // Wealth from territory, trade, and military upkeep.
 
-import type { WorldState, GameEvent, StatDelta } from '../../types';
+import type { WorldState, GameEvent, StatDelta, Faction, FactionStatKey } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -68,7 +68,7 @@ export function phaseEconomics(
 /** Apply per-year stat bonuses from resource nodes controlled by the faction. */
 function applyResourceNodeBonuses(
   world: WorldState,
-  faction: import('../../types').Faction,
+  faction: Faction,
   year: number,
 ): void {
   const controlledNodes = world.resourceNodes.filter(node => {
@@ -92,7 +92,7 @@ function applyResourceNodeBonuses(
   }, {});
 
   const collapsedDeltas: StatDelta[] = (Object.entries(collapsed) as [string, number][]).map(
-    ([stat, delta]) => ({ factionId: faction.id, stat: stat as import('../../types').FactionStatKey, delta }),
+    ([stat, delta]) => ({ factionId: faction.id, stat: stat as FactionStatKey, delta }),
   );
 
   // Emit once per year per faction (significance=1 keeps it under storyteller gating)

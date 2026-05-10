@@ -123,7 +123,7 @@ export function phaseColonization(world: WorldState, year: number, rng: SeededRN
   for (const faction of world.factions) {
     // Ethics-driven colonization: trade=embraced or expansion=embraced boosts probability
     const colProb = (faction.ethics.trade === 'embraced' || faction.ethics.expansion === 'embraced')
-      ? 0.14  // +20% over base 0.12
+      ? 0.144  // +20% over base 0.12
       : 0.12;
 
     if (faction.population > 600 && faction.wealth > 50 && faction.stability > 50 && rng.nextFloat() < colProb) {
