@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseStability } from './stability.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction } from '../../types';
 import { getMapOwnershipSummary } from '../helpers/spatial.ts';
 
@@ -75,7 +75,7 @@ describe('phaseStability', () => {
     const world = makeWorld([faction], [['A']]);
     const summary = getMapOwnershipSummary(world.map);
 
-    const rng = { nextFloat: () => 0.1, nextInt: () => 0 } as any; // < 0.25 threshold
+    const rng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: (a) => a }; // < 0.25 threshold
     const events = phaseStability(world, 2, rng, summary);
     expect(events.some(e => e.action === 'internal_rebellion')).toBe(true);
   });

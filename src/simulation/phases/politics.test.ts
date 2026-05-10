@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phasePolitics } from './politics.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction, type FactionRelationship } from '../../types';
 
 function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
@@ -46,7 +46,7 @@ describe('phasePolitics', () => {
     const world = makeWorld([fA, fB], [rel]);
 
     // Force RNG to return < 0.05 for alliance check
-    const rng = { nextFloat: () => 0.01, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phasePolitics(world, 2, rng, []);
     expect(rel.state).toBe('alliance');
     expect(events.some(e => e.action === 'alliance_formed')).toBe(true);
@@ -57,7 +57,7 @@ describe('phasePolitics', () => {
     const fB = makeFaction('B', { stability: 60 });
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: 30, animosity: 5, state: 'peace' };
     const world = makeWorld([fA, fB], [rel]);
-    const rng = { nextFloat: () => 0.01, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     phasePolitics(world, 2, rng, []);
     expect(rel.state).toBe('peace');
   });

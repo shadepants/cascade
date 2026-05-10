@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseConflict, fractureFaction } from './conflict.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction, type FactionRelationship } from '../../types';
 
 function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
@@ -61,10 +61,12 @@ describe('phaseConflict — war declaration', () => {
 
     // Force RNG past 0.4 skip (nextFloat called first for war check)
     const calls: number[] = [];
-    const rng = {
+    const rng: GameRNG = {
       nextFloat: () => { const v = calls.length === 0 ? 0.01 : 0.5; calls.push(v); return v; },
       nextInt: () => 0,
-    } as any;
+      next: () => 0,
+      shuffle: (a) => a,
+    };
     const events = phaseConflict(world, 2, rng, []);
     expect(rel.state).toBe('war');
     expect(events.some(e => e.action === 'war_declared')).toBe(true);

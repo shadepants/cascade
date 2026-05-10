@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseEconomics } from './economics.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction } from '../../types';
 import { getMapOwnershipSummary } from '../helpers/spatial.ts';
 
@@ -64,7 +64,7 @@ describe('phaseEconomics', () => {
     const summary = getMapOwnershipSummary(world.map);
 
     // Force RNG to fire (< 0.25)
-    const rng = { nextFloat: () => 0.1, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phaseEconomics(world, 2, rng, [], summary);
     expect(events.some(e => e.action === 'trade_boom')).toBe(true);
   });
@@ -76,7 +76,7 @@ describe('phaseEconomics', () => {
     world.map.tiles[0] = world.map.tiles[0].map(t => ({ ...t, biome: 'desert' as const }));
     const summary = getMapOwnershipSummary(world.map);
 
-    const rng = { nextFloat: () => 0.1, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phaseEconomics(world, 2, rng, [], summary);
     expect(events.some(e => e.action === 'economic_decline')).toBe(true);
   });

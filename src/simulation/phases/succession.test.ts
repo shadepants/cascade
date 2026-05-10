@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseSuccession, getRulerForFaction, hasTrait } from './succession.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction, type HistoricalFigure } from '../../types';
 
 function makeFaction(id: string, leaderId: string | null = null, overrides: Partial<Faction> = {}): Faction {
@@ -80,7 +80,7 @@ describe('phaseSuccession', () => {
     world.storyteller.mode = 'tyche';
 
     // Force RNG to trigger death
-    const rng = { nextFloat: () => 0, nextInt: (max: number) => max - 1 } as any;
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a };
     const events = phaseSuccession(world, 100, rng);
 
     expect(ruler.diedYear).toBe(100);
@@ -93,7 +93,7 @@ describe('phaseSuccession', () => {
     const faction = makeFaction('A', 'r1');
     const world = makeWorld([faction], [ruler]);
 
-    const rng = { nextFloat: () => 0, nextInt: (max: number) => max - 1 } as any;
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a };
     phaseSuccession(world, 100, rng);
 
     expect(faction.leaderId).not.toBe('r1'); // new ruler assigned

@@ -2,7 +2,14 @@
 // Deterministic RNG using mulberry32 algorithm. Same seed = same sequence.
 // Critical for reproducible world generation.
 
-export class SeededRNG {
+export interface GameRNG {
+  nextFloat(): number;
+  nextInt(max: number): number;
+  next(): number;
+  shuffle<T>(array: T[]): T[];
+}
+
+export class SeededRNG implements GameRNG {
   private state: number;
 
   constructor(seed: number) {
@@ -36,3 +43,4 @@ export class SeededRNG {
     return array;
   }
 }
+

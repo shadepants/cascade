@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseTrade } from './phaseTrade.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction, type TradeRoute } from '../../types';
 
 function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
@@ -114,10 +114,12 @@ describe('phaseTrade', () => {
 
     // Alternate: first nextInt(2) → 0 (sA), second nextInt(2) → 1 (sB)
     let intCalls = 0;
-    const rng = {
+    const rng: GameRNG = {
       nextFloat: () => 0,
       nextInt: (max: number) => { const v = intCalls++ % 2 === 0 ? 0 : Math.min(1, max - 1); return v; },
-    } as any;
+      next: () => 0,
+      shuffle: (a) => a,
+    };
     phaseTrade(world, 2, rng);
     expect(world.tradeRoutes.length).toBeGreaterThan(0);
   });

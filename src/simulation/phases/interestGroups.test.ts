@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { phaseInterestGroups } from './interestGroups.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction } from '../../types';
 
 function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
@@ -73,7 +73,7 @@ describe('phaseInterestGroups', () => {
     const world = makeWorld([faction]);
 
     // Force RNG to trigger ethics shift
-    const rng = { nextFloat: () => 0.05, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0.05, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phaseInterestGroups(world, 2, rng);
     expect(faction.ethics.mercy).toBe('embraced');
     expect(events.some(e => e.action === 'ethics_shift')).toBe(true);

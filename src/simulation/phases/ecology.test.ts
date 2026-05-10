@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { phaseEcology } from './ecology.ts';
-import { SeededRNG } from '../../utils/rng.ts';
-import { defaultStorytellerState, type WorldState, type Faction } from '../../types';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
+import { defaultStorytellerState, type WorldState, type Faction, type Biome } from '../../types';
 import { getMapOwnershipSummary } from '../helpers/spatial.ts';
 
-function makeWorld(factions: Faction[], biomeMap: string[][]): WorldState {
+function makeWorld(factions: Faction[], biomeMap: Biome[][]): WorldState {
   const height = biomeMap.length;
   const width = biomeMap[0].length;
   const tiles = biomeMap.map((row, y) =>
     row.map((biome, x) => ({
-      biome: biome as any,
+      biome,
       elevation: 0,
       rainfall: 0,
       factionId: `f${x + y * width}` in {} ? null : factions[0]?.id ?? null,
@@ -40,12 +40,12 @@ function makeWorld(factions: Faction[], biomeMap: string[][]): WorldState {
   };
 }
 
-function makeWorldWithFactionTiles(factions: Faction[], factionIds: (string | null)[][], biomes: string[][]): WorldState {
+function makeWorldWithFactionTiles(factions: Faction[], factionIds: (string | null)[][], biomes: Biome[][]): WorldState {
   const height = factionIds.length;
   const width = factionIds[0].length;
   const tiles = factionIds.map((row, y) =>
     row.map((factionId, x) => ({
-      biome: (biomes[y]?.[x] ?? 'grassland') as any,
+      biome: biomes[y]?.[x] ?? 'grassland',
       elevation: 0, rainfall: 0,
       factionId,
       settlementId: null, walkable: true,
@@ -98,7 +98,7 @@ describe('phaseEcology', () => {
     const summary = getMapOwnershipSummary(world.map);
 
     // Use RNG that always returns < 0.4 to guarantee famine fires
-    const rng = { nextFloat: () => 0, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phaseEcology(world, 2, rng, summary);
     expect(events.some(e => e.action === 'famine')).toBe(true);
   });
@@ -113,7 +113,7 @@ describe('phaseEcology', () => {
     const summary = getMapOwnershipSummary(world.map);
 
     // RNG always returns 0 → popDelta > 0 branch and rng.nextFloat() < 0.3 satisfied
-    const rng = { nextFloat: () => 0, nextInt: () => 0 } as any;
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
     const events = phaseEcology(world, 2, rng, summary);
     expect(events.some(e => e.action === 'population_boom')).toBe(true);
   });
