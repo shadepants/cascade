@@ -1,8 +1,8 @@
-// ─── Phase 1b/1c: Colonization & Settlement ───────────────────────────────
+﻿// ─── Phase 1b/1c: Colonization & Settlement ───────────────────────────────
 // Colony founding, pioneer spawning, and settlement abandonment.
 
 import type { WorldState, GameEvent, Faction, Settlement, NPC, Position } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { NPC_NAMES } from '../../data/names.ts';
@@ -11,7 +11,7 @@ import { getTilesWithPosForFaction } from '../helpers/spatial.ts';
 
 // ─── Settlement Abandonment ───────────────────────────────────────────────
 
-export function phaseSettlementGrowth(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+export function phaseSettlementGrowth(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {
@@ -69,7 +69,7 @@ export function phaseSettlementGrowth(world: WorldState, year: number, rng: Seed
 
 // ─── Colonization ─────────────────────────────────────────────────────────
 
-function findColonizationSpot(world: WorldState, faction: Faction, rng: SeededRNG): Position | null {
+function findColonizationSpot(world: WorldState, faction: Faction, rng: GameRNG): Position | null {
   const tiles = getTilesWithPosForFaction(world.map, faction.id);
   if (tiles.length === 0) return null;
 
@@ -117,7 +117,7 @@ function findColonizationSpot(world: WorldState, faction: Faction, rng: SeededRN
   return validCandidates[rng.nextInt(validCandidates.length)];
 }
 
-export function phaseColonization(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+export function phaseColonization(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {

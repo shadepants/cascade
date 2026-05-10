@@ -85,7 +85,7 @@ describe('phaseEconomics', () => {
     const faction = makeFaction('A', { military: 40 });
     const world = makeWorld([faction], [['A']]);
     world.resourceNodes = [{
-      id: 'iron1', type: 'iron', position: { x: 0, y: 0 },
+      id: 'iron1', type: 'iron', position: { x: 0, y: 0 }, value: 10,
     }];
     // Mark the tile as faction-owned (it already is from mapRows)
     const summary = getMapOwnershipSummary(world.map);

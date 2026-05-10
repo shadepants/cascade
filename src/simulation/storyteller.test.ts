@@ -290,7 +290,7 @@ describe('accumulateDebt', () => {
       events: [event],
       player: {
         id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [],
-        knowledgeLog: [{ eventId: 'e1', discoveredYear: 100, accuracy: 1, sourceId: 'direct' }],
+        knowledgeLog: [{ eventId: 'e1', discoveredYear: 100, source: 'direct', factionPerspective: '', text: '' }],
         actionsThisEra: [], insight: 0,
       },
     });

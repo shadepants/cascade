@@ -1,5 +1,5 @@
-import type { WorldState, GameEvent, TradeRoute, Position } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+﻿import type { WorldState, GameEvent, TradeRoute, Position } from '../../types';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 
@@ -10,7 +10,7 @@ import { emitEvent } from '../emitEvent.ts';
 export function phaseTrade(
   world: WorldState,
   year: number,
-  rng: SeededRNG
+  rng: GameRNG
 ): GameEvent[] {
   const events: GameEvent[] = [];
   const settlements = world.settlements;

@@ -1,5 +1,5 @@
-import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+﻿import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { applyStatDeltas } from '../helpers/stats.ts';
@@ -11,7 +11,7 @@ import { applyStatDeltas } from '../helpers/stats.ts';
 export function phaseReligion(
   world: WorldState,
   year: number,
-  rng: SeededRNG
+  rng: GameRNG
 ): GameEvent[] {
   const events: GameEvent[] = [];
   const settlements = world.settlements;
@@ -132,7 +132,7 @@ function checkSchism(
   world: WorldState,
   settlement: Settlement,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   events: GameEvent[],
 ): void {
   const contested = settlement.faith.filter(f => f.pressure > 40);

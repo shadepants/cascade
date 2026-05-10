@@ -1,8 +1,8 @@
-// ─── Phase 2: Economics ───────────────────────────────────────────────────
+﻿// ─── Phase 2: Economics ───────────────────────────────────────────────────
 // Wealth from territory, trade, and military upkeep.
 
 import type { WorldState, GameEvent, StatDelta, Faction, FactionStatKey } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { BIOME_WEALTH_DELTA, pickMotivation } from '../constants.ts';
@@ -12,7 +12,7 @@ import { getRulerForFaction, hasTrait } from './succession.ts';
 export function phaseEconomics(
   world: WorldState,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   _priorEvents: GameEvent[],
   mapSummary: MapOwnershipSummary,
 ): GameEvent[] {

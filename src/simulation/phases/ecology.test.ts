@@ -4,41 +4,6 @@ import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState, type WorldState, type Faction, type Biome } from '../../types';
 import { getMapOwnershipSummary } from '../helpers/spatial.ts';
 
-function makeWorld(factions: Faction[], biomeMap: Biome[][]): WorldState {
-  const height = biomeMap.length;
-  const width = biomeMap[0].length;
-  const tiles = biomeMap.map((row, y) =>
-    row.map((biome, x) => ({
-      biome,
-      elevation: 0,
-      rainfall: 0,
-      factionId: `f${x + y * width}` in {} ? null : factions[0]?.id ?? null,
-      settlementId: null,
-      walkable: true,
-    })),
-  );
-  // assign factionId from a parallel factionId map for clarity
-  return {
-    seed: 1,
-    currentYear: 1,
-    map: { width, height, tiles },
-    factions,
-    relationships: [],
-    historicalFigures: [],
-    settlements: [],
-    ruins: [],
-    resourceNodes: [],
-    npcs: [],
-    items: [],
-    tradeRoutes: [],
-    religions: [],
-    holySites: [],
-    events: [],
-    player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
-    storyteller: defaultStorytellerState('clio'),
-    visuals: [],
-  };
-}
 
 function makeWorldWithFactionTiles(factions: Faction[], factionIds: (string | null)[][], biomes: Biome[][]): WorldState {
   const height = factionIds.length;

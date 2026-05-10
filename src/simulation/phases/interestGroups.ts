@@ -1,12 +1,12 @@
-// ─── Phase 2.5: Interest Groups ───────────────────────────────────────────
+﻿// ─── Phase 2.5: Interest Groups ───────────────────────────────────────────
 // Internal power blocs that shift faction ethics and stability.
 
 import type { WorldState, GameEvent, FactionEthics, EthicStance } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 
-export function phaseInterestGroups(world: WorldState, year: number, rng: SeededRNG): GameEvent[] {
+export function phaseInterestGroups(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
 
   for (const faction of world.factions) {

@@ -1,10 +1,10 @@
-// ─── Phase 4: Conflict ────────────────────────────────────────────────────
+﻿// ─── Phase 4: Conflict ────────────────────────────────────────────────────
 // War declaration, combat resolution, territorial transfer, and faction fracture.
 
 import type {
   WorldState, GameEvent, Faction, StatDelta, Position,
 } from '../../types';
-import { SeededRNG } from '../../utils/rng.ts';
+import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import {
@@ -20,7 +20,7 @@ import {
 export function phaseConflict(
   world: WorldState,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   _priorEvents: GameEvent[],
 ): GameEvent[] {
   const events: GameEvent[] = [];
@@ -84,7 +84,7 @@ function resolveWar(
   world: WorldState,
   rel: typeof world.relationships[0],
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
   events: GameEvent[],
 ): string | null {
   const fA = world.factions.find(f => f.id === rel.factionA);
@@ -151,7 +151,7 @@ export function fractureFaction(
   world: WorldState,
   original: Faction,
   year: number,
-  rng: SeededRNG,
+  rng: GameRNG,
 ): GameEvent | null {
   const tiles = getTilesWithPosForFaction(world.map, original.id);
   if (tiles.length < 10) return null;
