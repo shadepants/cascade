@@ -62,5 +62,16 @@ export function phasePolitics(
     }
   }
 
+  // Aggression decay/growth driven by ruler trait (once per faction, not per relationship)
+  for (const faction of world.factions) {
+    const ruler = getRulerForFaction(world, faction.id);
+    if (hasTrait(ruler, 'diplomatic') && faction.aggression > 0) {
+      faction.aggression = Math.max(0, faction.aggression - 1);
+    }
+    if (hasTrait(ruler, 'xenophobic') && faction.aggression < 100) {
+      faction.aggression = Math.min(100, faction.aggression + 1);
+    }
+  }
+
   return events;
 }

@@ -1,4 +1,4 @@
-import type { WorldState, GameEvent, Settlement } from '../../types';
+import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -10,7 +10,7 @@ import { emitEvent } from '../emitEvent.ts';
 export function phaseReligion(
   world: WorldState,
   year: number,
-  _rng: SeededRNG
+  rng: SeededRNG
 ): GameEvent[] {
   const events: GameEvent[] = [];
   const settlements = world.settlements;
@@ -79,20 +79,49 @@ export function phaseReligion(
         significance: 4
       }), year);
 
-      // Mechanical Impact: Religions tilt faction ethics toward Tradition/Mercy
+      // Mechanical Impact: religion tenets shift faction stats + ethics
       const faction = world.factions.find(f => f.id === settlement.factionId);
-      if (faction) {
+      if (faction && religion) {
         if (faction.interestGroups) {
           const ig = faction.interestGroups.find(g => g.type === 'religious');
           if (ig) ig.power = Math.min(100, ig.power + 6);
         }
-        
+
+        // Tenet-driven stat effects applied directly (no event needed; low significance)
+        const tenetDeltas: StatDelta[] = [];
+        for (const tenet of religion.tenets) {
+          if (tenet === 'peace')     tenetDeltas.push({ factionId: faction.id, stat: 'stability', delta: 2 });
+          if (tenet === 'war')       tenetDeltas.push({ factionId: faction.id, stat: 'military',  delta: 2 });
+          if (tenet === 'charity')   tenetDeltas.push({ factionId: faction.id, stat: 'population', delta: 5 });
+          if (tenet === 'knowledge') tenetDeltas.push({ factionId: faction.id, stat: 'culture',   delta: 3 });
+          if (tenet === 'wealth')    tenetDeltas.push({ factionId: faction.id, stat: 'wealth',    delta: 2 });
+        }
+        for (const d of tenetDeltas) {
+          const ranges: Record<string, [number, number]> = {
+            population: [0, 2000], stability: [0, 100],
+            wealth: [0, 100], military: [0, 100], culture: [0, 100],
+          };
+          const [min, max] = ranges[d.stat] ?? [0, 100];
+          const key = d.stat as keyof typeof faction;
+          const cur = typeof faction[key] === 'number' ? (faction[key] as number) : 0;
+          (faction as unknown as Record<string, number>)[d.stat] = Math.max(min, Math.min(max, cur + d.delta));
+        }
+
+        // Tenet-based ethics shifts (peace/charity → mercy/tradition; war → violence)
         if (faction.ethics) {
-          faction.ethics.mercy = shiftTowardEmbraced(faction.ethics.mercy);
-          faction.ethics.tradition = shiftTowardEmbraced(faction.ethics.tradition);
+          if (religion.tenets.includes('peace') || religion.tenets.includes('charity')) {
+            faction.ethics.mercy     = shiftTowardEmbraced(faction.ethics.mercy);
+            faction.ethics.tradition = shiftTowardEmbraced(faction.ethics.tradition);
+          }
+          if (religion.tenets.includes('war')) {
+            faction.ethics.violence  = shiftTowardEmbraced(faction.ethics.violence);
+          }
         }
       }
     }
+
+    // Schism: two faiths competing above pressure threshold
+    checkSchism(world, settlement, year, rng, events);
 
     // Natural decay of minority faiths
     for (const f of settlement.faith) {
@@ -104,6 +133,42 @@ export function phaseReligion(
   }
 
   return events;
+}
+
+/** Fire a religious schism event when two faiths compete above the dominance threshold. */
+function checkSchism(
+  world: WorldState,
+  settlement: Settlement,
+  year: number,
+  rng: SeededRNG,
+  events: GameEvent[],
+): void {
+  const contested = settlement.faith.filter(f => f.pressure > 40);
+  if (contested.length < 2) return;
+  if (rng.nextFloat() > 0.2) return; // 20% chance per year per settlement
+
+  const hasOmen = world.map.tiles[settlement.position.y]?.[settlement.position.x]?.modifiers?.some(m => m.type === 'omen');
+  const faction = world.factions.find(f => f.id === settlement.factionId);
+  const [faithA, faithB] = contested;
+  const relA = world.religions.find(r => r.id === faithA.religionId);
+  const relB = world.religions.find(r => r.id === faithB.religionId);
+
+  emitEvent(world, events, createEvent({
+    tick: 0, year,
+    subject: settlement.id, action: 'religious_schism', object: settlement.factionId,
+    causedBy: null, playerCaused: !!hasOmen,
+    description: `A schism erupted in ${settlement.name} between followers of ${relA?.name ?? 'an old faith'} and ${relB?.name ?? 'a new faith'}.`,
+    significance: 5,
+    statDeltas: faction
+      ? [{ factionId: faction.id, stat: 'stability', delta: -8 }]
+      : [],
+  }), year);
+
+  // Boost military interest group from religious conflict
+  if (faction?.interestGroups) {
+    const milIG = faction.interestGroups.find(g => g.type === 'military');
+    if (milIG) milIG.power = Math.min(100, milIG.power + 5);
+  }
 }
 
 function applyPressure(settlement: Settlement, religionId: string, amount: number) {
@@ -148,3 +213,4 @@ function shiftTowardEmbraced(current: 'shunned' | 'neutral' | 'embraced'): 'shun
   if (current === 'neutral') return 'embraced';
   return 'embraced';
 }
+

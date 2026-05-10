@@ -77,9 +77,10 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
 
     const priorEvents = [...col, ...gro, ...eco, ...econ, ...trd, ...rel, ...ig, ...pol, ...con, ...stab, ...succ];
     const cas  = phaseCascade(world, priorEvents, year, rng);
-    const gos  = runKnowledgePipeline(world, cas, year, rng);
+    const allYearEvents = [...priorEvents, ...cas];
+    const gos  = runKnowledgePipeline(world, allYearEvents, year, rng);
 
-    const yearEvents = [...priorEvents, ...cas, ...gos];
+    const yearEvents = [...allYearEvents, ...gos];
 
     if (!headless && yearEvents.length > 0) {
       console.log(

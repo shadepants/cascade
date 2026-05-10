@@ -58,10 +58,11 @@ export function phaseGossip(world: WorldState, year: number, rng: SeededRNG): Ga
 
 export function runKnowledgePipeline(
   world: WorldState,
-  cascadeEvents: GameEvent[],
+  allYearEvents: GameEvent[],
   year: number,
   rng: SeededRNG,
 ): GameEvent[] {
-  seedEventKnowledge(world, cascadeEvents, year, rng);
+  // Seed knowledge from all events this year so NPCs witness wars, famines, alliances, etc.
+  seedEventKnowledge(world, allYearEvents, year, rng);
   return phaseGossip(world, year, rng);
 }

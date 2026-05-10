@@ -200,6 +200,7 @@ export function fractureFaction(
     military: Math.round(original.military * 0.4),
     wealth: Math.round(original.wealth * 0.3),
     settlements: [],
+    leaderId: null, // rebel faction starts without an inherited ruler
   };
 
   for (const pos of newTiles) {

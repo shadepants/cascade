@@ -7,6 +7,7 @@ export const FAMINE_POPULATION_MIN = 300;
 export const REBELLION_STABILITY_MIN = 20;
 export const ALLIANCE_OPINION_MIN = 55;
 export const CASCADE_SIGNIFICANCE_MIN = 3;
+export const CASCADE_LOOKBACK_YEARS = 50;
 
 export const PERSONALITIES: NPCPersonality[] = ['loyal', 'skeptic', 'zealot', 'pragmatist'];
 

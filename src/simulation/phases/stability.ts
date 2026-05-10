@@ -133,6 +133,18 @@ export function phaseStability(world: WorldState, year: number, rng: SeededRNG, 
       const fractureEvent = fractureFaction(world, faction, year, rng);
       if (fractureEvent) emitEvent(world, events, fractureEvent, year);
     }
+
+    // Aggression modulation by war/peace duration
+    const atWarThisTick = world.relationships.some(
+      r => (r.factionA === faction.id || r.factionB === faction.id) && r.state === 'war',
+    );
+    if (atWarThisTick) {
+      // Prolonged war hardens factions
+      faction.aggression = Math.min(100, faction.aggression + 1);
+    } else {
+      // Extended peace softens aggression slowly
+      faction.aggression = Math.max(0, faction.aggression - 1);
+    }
   }
 
   return events;
