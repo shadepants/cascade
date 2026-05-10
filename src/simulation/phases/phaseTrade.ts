@@ -1,4 +1,4 @@
-import type { WorldState, GameEvent, StatDelta, TradeRoute, Position } from '../../types';
+import type { WorldState, GameEvent, TradeRoute, Position } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -15,6 +15,7 @@ export function phaseTrade(
   const events: GameEvent[] = [];
   const settlements = world.settlements;
   const newRoutes: TradeRoute[] = [...(world.tradeRoutes || [])];
+  let insightGained = 0;
 
   // 1. Update and process existing routes
   for (let i = 0; i < newRoutes.length; i++) {
@@ -55,19 +56,11 @@ export function phaseTrade(
     if (route.volume > 0) {
       const wealthDelta = Math.floor(route.volume / 20);
       if (wealthDelta > 0) {
-        const deltas: StatDelta[] = [
-          { factionId: start.factionId, stat: 'wealth', delta: wealthDelta },
-          { factionId: end.factionId, stat: 'wealth', delta: wealthDelta }
-        ];
-        
-        emitEvent(world, events, createEvent({
-          tick: 0, year,
-          subject: route.id, action: 'trade_transfer', object: route.commodity,
-          causedBy: null, playerCaused: false,
-          statDeltas: deltas,
-          significance: 1,
-          description: `Trade in ${route.commodity} generated wealth for ${start.name} and ${end.name}.`
-        }), year);
+        // Apply deltas directly — no event needed; trade_transfer was significance=1 noise
+        for (const factionId of [start.factionId, end.factionId]) {
+          const faction = world.factions.find(f => f.id === factionId);
+          if (faction) faction.wealth = Math.min(100, faction.wealth + wealthDelta);
+        }
       }
     }
 
@@ -76,6 +69,7 @@ export function phaseTrade(
     // Insight Hook: High-volume trade routes grant the player insight (global awareness)
     if (route.active && route.volume >= 80) {
       world.player.insight += 1;
+      insightGained += 1;
     }
 
     newRoutes[i] = route;
@@ -125,6 +119,18 @@ export function phaseTrade(
   }
 
   world.tradeRoutes = newRoutes;
+
+  // Emit a single trade_prosperity event if insight was earned this year
+  if (insightGained > 0) {
+    emitEvent(world, events, createEvent({
+      tick: 0, year,
+      subject: 'player', action: 'trade_prosperity', object: 'world',
+      causedBy: null, playerCaused: false,
+      description: `Flourishing trade routes granted the Traveler ${insightGained} insight into the world's currents.`,
+      significance: 2,
+    }), year);
+  }
+
   return events;
 }
 

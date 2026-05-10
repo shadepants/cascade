@@ -84,10 +84,21 @@ export function processSimulationResult(
   const rng = createJumpKnowledgeRng(newWorld);
   distributeCascadeKnowledge(newWorld, newEvents, rng);
   appendInventoryHistory(newWorld, sourceWorld);
+
+  // Compute insight gained during this jump for notification
+  const insightDelta = newWorld.player.insight - (sourceWorld.player.insight ?? 0);
+
   newWorld.player.actionsThisEra = [];
 
-  const notification = formatNotificationValue(newWorld.storyteller.pendingNotification);
+  // Prioritise storyteller notification; append insight info if gained
+  const rawNotification = formatNotificationValue(newWorld.storyteller.pendingNotification);
   newWorld.storyteller.pendingNotification = undefined;
+
+  let notification = rawNotification;
+  if (insightDelta > 0) {
+    const insightMsg = `+${insightDelta} Insight from flourishing trade routes`;
+    notification = notification ? `${notification} | ${insightMsg}` : insightMsg;
+  }
 
   return { notification };
 }

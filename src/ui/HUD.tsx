@@ -58,7 +58,7 @@ export function HUD() {
         {phase === 'exploring' && (
           <>
             <span className="hud-hint">
-              ↑↓←→ move | Enter: use item | J: jump
+              ↑↓←→ move | Enter: use item | J: jump | Click tile: intervene
               {hasPreviousWorld && ' | H: hold for history'}
             </span>
             <button

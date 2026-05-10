@@ -214,22 +214,36 @@ function assignKnowledgeToNPCs(
 /** Generate a religion for some factions. */
 function generateReligions(factions: Faction[], settlements: Settlement[], rng: SeededRNG): Religion[] {
   const religions: Religion[] = [];
-  const RELIGION_NAMES = ['Solaris', 'The Void', 'Iron Root', 'Silver Path', 'Deep Water'];
+  const RELIGION_NAMES = [
+    'Solaris', 'The Void', 'Iron Root', 'Silver Path', 'Deep Water',
+    'Ashen Crown', 'The Pale Flame', 'Verdant Heart', 'The Twin Moons', 'Ember Court',
+    'Stone Witness', 'The Hollow Tide', 'Sunken Pact', 'Crimson Accord', 'The Wandering Eye',
+  ];
   const RELIGION_COLORS = ['#ffcc00', '#440066', '#446600', '#cccccc', '#0066ff'];
 
   // Religions are founded in some capital settlements
   for (let i = 0; i < factions.length; i++) {
     if (rng.nextFloat() > 0.5) { // 50% chance for a faction to have a unique religion
-      const name = RELIGION_NAMES[i % RELIGION_NAMES.length];
+      const nameIndex = (i * 3 + rng.nextInt(3)) % RELIGION_NAMES.length;
+      const name = RELIGION_NAMES[nameIndex];
       const settlement = settlements.find(s => s.factionId === factions[i].id);
       if (!settlement) continue;
+
+      // Derive tenets from the founding faction's ethics
+      const ethics = factions[i].ethics;
+      const tenets: Religion['tenets'] = [];
+      if (ethics.violence === 'embraced')  tenets.push('war');
+      if (ethics.trade === 'embraced')     tenets.push('wealth');
+      if (ethics.mercy === 'embraced')     tenets.push('charity');
+      if (ethics.tradition === 'embraced') tenets.push('peace');
+      if (tenets.length === 0)             tenets.push('knowledge'); // default fallback
 
       const religion: Religion = {
         id: `rel_${factions[i].id}`,
         name: `${name} of ${factions[i].name}`,
         founderId: factions[i].leaderId,
         originSettlementId: settlement.id,
-        tenets: ['peace', 'knowledge'], // simplified for now
+        tenets,
         color: RELIGION_COLORS[i % RELIGION_COLORS.length],
       };
 

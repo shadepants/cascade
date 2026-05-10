@@ -1,9 +1,10 @@
 import type { Faction, GameEvent, StatDelta, WorldState } from '../../types';
 import { createEvent } from '../../world/events.ts';
 import type { SeededRNG } from '../../utils/rng.ts';
-import { CASCADE_SIGNIFICANCE_MIN, REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';
+import { CASCADE_SIGNIFICANCE_MIN, CASCADE_LOOKBACK_YEARS, REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';
 import { getCascadeThreshold, registerHighSigEvent, shouldSuppressEvent } from '../storyteller.ts';
 import { getFactionStat } from '../helpers/stats.ts';
+import { getNeighboringFactions } from '../helpers/spatial.ts';
 
 function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
   if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
@@ -18,8 +19,12 @@ export function phaseCascade(
   rng: SeededRNG,
 ): GameEvent[] {
   const cascadeEvents: GameEvent[] = [];
+  // Track which factions already got a cascade-triggered rebellion this tick
+  // to prevent triple-stacking from deriveConsequence + checkThresholdEvents.
+  const rebelled = new Set<string>();
 
-  const playerEvents = [...world.events, ...recentEvents].filter(
+  const lookbackYear = year - CASCADE_LOOKBACK_YEARS;
+  const playerEvents = [...world.events.filter(e => e.year > lookbackYear), ...recentEvents].filter(
     e => e.playerCaused && e.significance >= CASCADE_SIGNIFICANCE_MIN,
   );
 
@@ -29,11 +34,15 @@ export function phaseCascade(
     for (const delta of trigger.statDeltas) {
       const faction = world.factions.find(f => f.id === delta.factionId);
       if (!faction) continue;
+      if (rebelled.has(faction.id)) continue;
 
       const consequence = deriveConsequence(faction, delta, trigger, world, year, rng);
       if (consequence && !shouldSuppressEvent(world.storyteller, year, consequence.significance)) {
         cascadeEvents.push(consequence);
         registerHighSigEvent(world.storyteller, consequence, year);
+        if (consequence.action === 'internal_rebellion') {
+          rebelled.add(faction.id);
+        }
         if (consequence.action === 'military_buildup') {
           const rel = world.relationships.find(r =>
             (r.factionA === consequence.subject || r.factionB === consequence.subject) &&
@@ -46,7 +55,8 @@ export function phaseCascade(
   }
 
   for (const faction of world.factions) {
-    checkThresholdEvents(world, faction, year, rng, playerEvents, cascadeEvents);
+    if (rebelled.has(faction.id)) continue;
+    checkThresholdEvents(world, faction, year, rng, playerEvents, cascadeEvents, rebelled);
   }
 
   return cascadeEvents;
@@ -141,12 +151,13 @@ function checkThresholdEvents(
   rng: SeededRNG,
   playerEvents: GameEvent[],
   events: GameEvent[],
+  rebelled: Set<string>,
 ): void {
   if (faction.stability < REBELLION_STABILITY_MIN && rng.nextFloat() < 0.35) {
     const precursor = playerEvents.find(e =>
       e.statDeltas.some(d => d.factionId === faction.id && d.stat === 'stability'),
     );
-    if (precursor) {
+    if (precursor && !rebelled.has(faction.id)) {
       const deltas: StatDelta[] = [
         { factionId: faction.id, stat: 'stability', delta: -8 },
         { factionId: faction.id, stat: 'population', delta: -20 },
@@ -163,26 +174,9 @@ function checkThresholdEvents(
         motivation: pickMotivation('rebellion', rng),
         statDeltas: deltas,
       }), year);
+      rebelled.add(faction.id);
     }
   }
-}
-
-function getNeighboringFactions(world: WorldState, factionId: string): Faction[] {
-  const neighborIds = new Set<string>();
-  for (let y = 0; y < world.map.height; y++) {
-    for (let x = 0; x < world.map.width; x++) {
-      if (world.map.tiles[y][x].factionId !== factionId) continue;
-      const neighbors = [
-        { x: x - 1, y }, { x: x + 1, y }, { x, y: y - 1 }, { x, y: y + 1 },
-      ];
-      for (const n of neighbors) {
-        if (n.x < 0 || n.y < 0 || n.x >= world.map.width || n.y >= world.map.height) continue;
-        const nId = world.map.tiles[n.y][n.x].factionId;
-        if (nId && nId !== factionId) neighborIds.add(nId);
-      }
-    }
-  }
-  return world.factions.filter(f => neighborIds.has(f.id));
 }
 
 export const cascadeTesting = {
