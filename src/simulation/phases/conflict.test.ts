@@ -92,6 +92,46 @@ describe('phaseConflict — war declaration', () => {
   });
 });
 
+describe('phaseConflict — war resolution settlement transfers', () => {
+  it('transfers border settlements from loser to winner without duplicates', () => {
+    const winner = makeFaction('A', { settlements: ['sA'] });
+    const loser = makeFaction('B', { settlements: ['sB'] });
+    const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -80, animosity: 100, state: 'war' };
+    const world = makeWorld([winner, loser], [rel], [['A', 'B']]);
+    world.settlements = [
+      {
+        id: 'sA', name: 'Alpha', position: { x: 0, y: 0 },
+        factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      },
+      {
+        id: 'sB', name: 'Borderhold', position: { x: 1, y: 0 },
+        factionId: 'B', npcs: [], items: [], faith: [], dominantReligionId: null,
+      },
+    ];
+    world.map.tiles[0][1].settlementId = 'sB';
+
+    expect(loser.settlements).toContain('sB');
+    expect(winner.settlements).not.toContain('sB');
+
+    // Deterministic rolls force the war-resolution path and select faction A.
+    const rollSequence = [0, 0];
+    const rng: GameRNG = {
+      nextFloat: () => rollSequence.shift() ?? 0,
+      nextInt: () => 0,
+      next: () => 0,
+      shuffle: (a) => a,
+    };
+
+    phaseConflict(world, 2, rng, []);
+
+    expect(world.map.tiles[0][1].factionId).toBe('A');
+    expect(world.settlements.find(s => s.id === 'sB')?.factionId).toBe('A');
+    expect(loser.settlements).not.toContain('sB');
+    expect(new Set(loser.settlements).size).toBe(loser.settlements.length);
+    expect(winner.settlements).toContain('sB');
+    expect(new Set(winner.settlements).size).toBe(winner.settlements.length);
+  });
+});
 // ─── fractureFaction ──────────────────────────────────────────────────────────
 
 describe('fractureFaction', () => {
@@ -132,5 +172,41 @@ describe('fractureFaction', () => {
     expect(world.factions.length).toBe(2);
     // A war relationship between original and rebel
     expect(world.relationships.some(r => r.state === 'war')).toBe(true);
+  });
+  it('moves captured settlements to the rebel faction and updates original list once', () => {
+    const faction = makeFaction('A', { settlements: ['s1', 's2', 's3'] });
+    const mapOwnership: (string | null)[][] = Array(4).fill(null).map(() => Array(4).fill('A'));
+    const world = makeWorld([faction], [], mapOwnership);
+    world.settlements = [
+      {
+        id: 's1', name: 'Capital', position: { x: 0, y: 0 },
+        factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      },
+      {
+        id: 's2', name: 'Frontier East', position: { x: 3, y: 3 },
+        factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      },
+      {
+        id: 's3', name: 'Frontier South', position: { x: 2, y: 3 },
+        factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      },
+    ];
+    world.map.tiles[3][3].settlementId = 's2';
+    world.map.tiles[3][2].settlementId = 's3';
+
+    expect(faction.settlements).toEqual(expect.arrayContaining(['s2', 's3']));
+
+    const event = fractureFaction(world, faction, 100, new SeededRNG(1));
+    const rebelId = `faction_rebel_A_100`;
+    const rebelFaction = world.factions.find(f => f.id === rebelId);
+    const rebelSettlements = rebelFaction?.settlements ?? [];
+
+    expect(event).not.toBeNull();
+    expect(rebelFaction).toBeDefined();
+    expect(world.settlements.find(s => s.id === 's2')?.factionId).toBe(rebelId);
+    expect(world.settlements.find(s => s.id === 's3')?.factionId).toBe(rebelId);
+    expect(rebelSettlements).toEqual(expect.arrayContaining(['s2', 's3']));
+    expect(new Set(rebelSettlements).size).toBe(rebelSettlements.length);
+    expect(faction.settlements).toEqual(['s1']);
   });
 });

@@ -104,6 +104,10 @@ function resolveWar(
 
   const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
   const tilesToTransfer = Math.min(borderTiles.length, Math.max(1, Math.floor(borderTiles.length * 0.3)));
+
+  const loserSettlementsSet = new Set(loser.settlements);
+  const winnerSettlementsSet = new Set(winner.settlements);
+
   for (let i = 0; i < tilesToTransfer; i++) {
     const pos = borderTiles[i];
     const tile = world.map.tiles[pos.y][pos.x];
@@ -111,12 +115,15 @@ function resolveWar(
       const s = world.settlements.find(set => set.id === tile.settlementId);
       if (s) {
         s.factionId = winner.id;
-        loser.settlements  = loser.settlements.filter(id => id !== s.id);
-        winner.settlements = [...winner.settlements, s.id];
+        loserSettlementsSet.delete(s.id);
+        winnerSettlementsSet.add(s.id);
       }
     }
     tile.factionId = winner.id;
   }
+
+  loser.settlements = Array.from(loserSettlementsSet);
+  winner.settlements = Array.from(winnerSettlementsSet);
 
   const deltas: StatDelta[] = [
     { factionId: winner.id, stat: 'military',   delta: -10 },
@@ -203,6 +210,8 @@ export function fractureFaction(
     leaderId: null, // rebel faction starts without an inherited ruler
   };
 
+  const originalSettlementsSet = new Set(original.settlements);
+
   for (const pos of newTiles) {
     const tile = world.map.tiles[pos.y][pos.x];
     tile.factionId = newFactionId;
@@ -211,10 +220,12 @@ export function fractureFaction(
       if (s) {
         s.factionId = newFactionId;
         newFaction.settlements.push(s.id);
-        original.settlements = original.settlements.filter(id => id !== s.id);
+        originalSettlementsSet.delete(s.id);
       }
     }
   }
+
+  original.settlements = Array.from(originalSettlementsSet);
 
   world.factions.push(newFaction);
   world.relationships.push({
