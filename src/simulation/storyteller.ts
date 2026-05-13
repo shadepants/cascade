@@ -1,4 +1,4 @@
-﻿// ─── Storyteller Director ────────────────────────────────────────────────
+// ─── Storyteller Director ────────────────────────────────────────────────
 // Pacing layer inspired by RimWorld's Cassandra storyteller.
 // Does NOT invent events — biases simulation probability rolls and routes
 // cascade consequences to NPCs the player will actually encounter.
@@ -215,8 +215,7 @@ export type StorytellerIntervention =
  */
 export function fireDebtIntervention(
   state: StorytellerState,
-  world: WorldState,
-  _rng: GameRNG,
+  world: WorldState
 ): StorytellerIntervention | null {
   const debt = state.yearsSincePlayerDiscovery;
   if (debt < 30) return null;

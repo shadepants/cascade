@@ -82,7 +82,7 @@ export function generateItems(
         id: `item_s_${settlement.id}_${items.length}`,
         name: template.name,
         description: template.description,
-        type: template.type as any,
+        type: template.type,
         significance: template.significance,
         position,
         history: [],
@@ -106,7 +106,7 @@ export function generateItems(
         id: `item_r_${ruin.id}_${items.length}`,
         name: template.name,
         description: template.description,
-        type: template.type as any,
+        type: template.type,
         significance: template.significance + 1, // extra significance for being ancient
         position,
         history: [{ year: ruin.collapsedYear, ownerName: `The Fallen of ${ruin.formerFactionId}` }],

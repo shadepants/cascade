@@ -15,11 +15,7 @@ import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
 
-declare global {
-  interface Window {
-    __CASCADE_STATE?: unknown;
-  }
-}
+
 
 /** High-speed era year counter overlay for the 'jumping' phase. */
 function TemporalOverlay({ startYear, endYear }: { startYear: number; endYear: number }) {

@@ -172,17 +172,7 @@ export function PixiViewport() {
   const camera = useGameStore(s => s.camera);
   const zoom = useGameStore(s => s.camera.zoom ?? 1.0);
   
-  const updateCamera     = useGameStore(s => s.updateCamera);
-  const openDialogue     = useGameStore(s => s.openDialogue);
-  const closeDialogue    = useGameStore(s => s.closeDialogue);
-  const openAction       = useGameStore(s => s.openAction);
-  const closeAction      = useGameStore(s => s.closeAction);
-  const setPhase         = useGameStore(s => s.setPhase);
-  const updateWorld       = useGameStore(s => s.updateWorld);
-  const setPreviousWorld = useGameStore(s => s.setPreviousWorld);
-  const setCamera        = useGameStore(s => s.setCamera);
   const openIntervention = useGameStore(s => s.openIntervention);
-  const closeIntervention = useGameStore(s => s.closeIntervention);
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
@@ -242,7 +232,6 @@ export function PixiViewport() {
       const itemScroll = await load('itemScroll', SHEET_ITEM_SCROLL);
       const itemKey = await load('itemKey', SHEET_ITEM_KEY);
       const religion = await load('religion', SHEET_RELIGION);
-      console.log('[PIXI] Textures loaded successfully.');
       console.log('[PIXI] Textures loaded successfully.');
 
       if (!mounted) {
@@ -599,18 +588,26 @@ export function PixiViewport() {
     };
   }, []);
 
-  // ── Main keyboard handler (mirrors GameCanvas exactly) ────────────────
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  // ── Main keyboard handler ─────────────────────────────────────────────
+  // We use a stable ref for the handler to prevent the global listener from
+  // being re-registered on every world state change. This also fixes the
+  // React Compiler's memoization mismatch warnings.
+  const handlerRef = useRef<(e: KeyboardEvent) => void>(null);
+
+  handlerRef.current = (e: KeyboardEvent) => {
+    // Get freshest state from store directly to avoid handler churn
+    const state = useGameStore.getState();
+    const { world, camera, phase } = state;
     if (!world) return;
     if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
 
     // Zoom in / out
     if (e.key === '=' || e.key === '+') {
-      updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
+      state.updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
       return;
     }
     if (e.key === '-' || e.key === '_') {
-      updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
+      state.updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
       return;
     }
 
@@ -630,16 +627,16 @@ export function PixiViewport() {
           n => n.alive && n.position.x === newX && n.position.y === newY,
         );
         if (npcAtTarget) {
-          openDialogue(npcAtTarget);
+          state.openDialogue(npcAtTarget);
           return;
         }
 
-        updateWorld((w) => ({
+        state.updateWorld((w) => ({
           ...w,
           player: { ...w.player, position: { x: newX, y: newY } },
         }));
         const newCamera = centerOnPlayer(camera, { x: newX, y: newY }, world.map);
-        setCamera(newCamera);
+        state.setCamera(newCamera);
         break;
       }
 
@@ -648,27 +645,28 @@ export function PixiViewport() {
         const itemAtPlayer = world.items.find(
           item => item.position.x === playerPos.x && item.position.y === playerPos.y,
         );
-        if (itemAtPlayer) openAction(itemAtPlayer);
+        if (itemAtPlayer) state.openAction(itemAtPlayer);
         break;
       }
 
       case 'CLOSE_PANEL':
-        if (phase === 'dialogue') closeDialogue();
-        if (phase === 'action')   closeAction();
-        if (phase === 'intervention') closeIntervention();
+        if (phase === 'dialogue')     state.closeDialogue();
+        if (phase === 'action')       state.closeAction();
+        if (phase === 'intervention') state.closeIntervention();
         break;
 
       case 'JUMP':
-        setPreviousWorld(world);
-        setPhase('jumping');
+        state.setPreviousWorld(world);
+        state.setPhase('jumping');
         break;
     }
-  }, [world, camera, phase, zoom, updateCamera, openDialogue, updateWorld, setCamera, openAction, closeDialogue, closeAction, setPreviousWorld, setPhase]);
+  };
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+    const handleKey = (e: KeyboardEvent) => handlerRef.current?.(e);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   // ── Mouse hover: biome tooltip ────────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {

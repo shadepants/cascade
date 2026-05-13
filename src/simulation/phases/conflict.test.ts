@@ -66,6 +66,7 @@ describe('phaseConflict — war declaration', () => {
       nextInt: () => 0,
       next: () => 0,
       shuffle: (a) => a,
+      reseed: () => {},
     };
     const events = phaseConflict(world, 2, rng, []);
     expect(rel.state).toBe('war');
@@ -120,6 +121,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
       nextInt: () => 0,
       next: () => 0,
       shuffle: (a) => a,
+      reseed: () => {},
     };
 
     phaseConflict(world, 2, rng, []);

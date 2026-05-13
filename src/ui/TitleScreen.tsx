@@ -24,13 +24,11 @@ export function TitleScreen() {
 
   const [hasSave, setHasSave]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey]           = useState('');
+  const [apiKey, setApiKey]           = useState(() => getLLMConfig()?.apiKey ?? '');
   const [mode, setMode]               = useState<StorytellerMode>(configState.storytellerMode ?? 'clio');
 
   useEffect(() => {
     loadMostRecentSave().then(save => { if (save) setHasSave(true); });
-    const config = getLLMConfig();
-    if (config?.apiKey) setApiKey(config.apiKey);
   }, []);
 
   async function handleResume() {

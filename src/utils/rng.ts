@@ -7,12 +7,17 @@ export interface GameRNG {
   nextInt(max: number): number;
   next(): number;
   shuffle<T>(array: T[]): T[];
+  reseed(seed: number): void;
 }
 
 export class SeededRNG implements GameRNG {
   private state: number;
 
   constructor(seed: number) {
+    this.state = seed | 0;
+  }
+
+  reseed(seed: number): void {
     this.state = seed | 0;
   }
 

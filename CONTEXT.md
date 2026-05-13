@@ -24,7 +24,7 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] **emitEvent abstraction** adopted throughout tick.ts
 - [x] `pendingNotification` consumed in App.tsx after SET_WORLD (clear-before-dispatch)
 - [x] `.claude/settings.local.json` removed from tracking; `.claude/` added to .gitignore
-- [x] **Vitest regression tests** — 24 tests across 4 suites, all passing; `_forTesting` export in tick.ts
+- [x] **Vitest regression tests** — 176 tests across 21 files, all passing; `_forTesting` export in tick.ts
 - [x] **Task 004:** Gems High-Fidelity Upgrade — 128x128 map, FBM/Voronoi terrain, climate simulation, ruins, artifacts, internal politics, interest groups, succession, traits, resources, and enhanced renderer (hillshading, clouds, zoom).
 - [x] **PixiJS Phase 1:** `src/engine/tileMap.ts` + `src/ui/PixiViewport.tsx` (PixiJS v8 renderer, 4 sprite sheets)
 - [x] **PixiJS Phase 2:** Ghost of History ghost layer — dashed faction borders from `previousWorld` at 0.4 alpha when H held; batched per faction color
@@ -37,6 +37,7 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] **Mode persistence fix:** `TitleScreen` now initializes `mode` from `state.config.storytellerMode`; `SET_CONFIG` action added to store; selected mode is written back to config on New Game start
 - [x] **Task 005:** Tick Engine Refactor — Decomposed 1,007-line tick engine into 10 modular phases; optimized per-faction map scans via `MapOwnershipSummary` (P2 audit); improved type safety (P1 audit).
 - [x] **Cascade Scout:** AI context indexing system with `CODEBASE.md` generation and git `post-merge` hook integration.
+- [x] **Task 007:** TypeScript Integrity Stabilization — Formalized `GameRNG` interface (`reseed` method); standardized `fireDebtIntervention` signature; resolved `TemporalEcho` and `TestAction` type mismatches.
 - [ ] Zustand migration (defer until perf is felt)
 - [ ] Tauri wrapper (Phase 3)
 

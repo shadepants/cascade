@@ -43,7 +43,7 @@ export function generateWorld(config: WorldConfig): WorldState {
     generateFactions(map, config.numFactions, seed);
 
   // ── Step 3: Historical figures — one ruler per faction ─────────────────
-  const historicalFigures = spawnRulers(factions, seed, rng);
+  const historicalFigures = spawnRulers(factions, rng);
 
   // Assign rulers to their factions
   for (const hf of historicalFigures) {
@@ -57,7 +57,7 @@ export function generateWorld(config: WorldConfig): WorldState {
 
   // ── Step 4.5: Religions + Holy Sites ───────────────────────────────────
   const religions = generateReligions(factions, settlements, rng);
-  const holySites = spawnHolySites(religions, settlements, map, rng);
+  const holySites = spawnHolySites(religions, settlements);
 
   // ── Step 5: Pre-history simulation ────────────────────────────────────
   // Build an initial world stub and run the real tick engine.
@@ -132,7 +132,7 @@ function generateResourceNodes(map: GameMap, rng: SeededRNG): ResourceNode[] {
 // ─── Historical Figure Generation ────────────────────────────────────────
 
 /** Spawn one ruler per faction. Rulers' personality values modulate war. */
-function spawnRulers(factions: Faction[], _seed: number, rng: SeededRNG): HistoricalFigure[] {
+function spawnRulers(factions: Faction[], rng: SeededRNG): HistoricalFigure[] {
   const usedNames = new Set<string>();
   const traitPool: RulerTrait[] = ['bloodthirsty', 'industrious', 'xenophobic', 'diplomatic', 'pious', 'corrupt'];
 
@@ -258,7 +258,7 @@ function generateReligions(factions: Faction[], settlements: Settlement[], rng: 
 }
 
 /** Spawn holy sites at the origin of religions. */
-function spawnHolySites(religions: Religion[], settlements: Settlement[], _map: GameMap, _rng: SeededRNG): HolySite[] {
+function spawnHolySites(religions: Religion[], settlements: Settlement[]): HolySite[] {
   return religions.map((rel, i) => {
     const settlement = settlements.find(s => s.id === rel.originSettlementId);
     const pos = settlement ? settlement.position : { x: 0, y: 0 };

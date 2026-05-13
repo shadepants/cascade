@@ -2,8 +2,18 @@
 // Assembles historical context and applies faction/personality biases
 // to generate characterful dialogue via LLM or templates.
 
-import type { WorldState, NPC, GameEvent } from '../types';
-import { DIALOGUE, fillTemplate } from '../data/templates.ts';
+import type { WorldState, NPC, GameEvent, NPCKnowledge } from '../types';
+import { 
+  DIALOGUE, 
+  fillTemplate, 
+  EXPANDED_DIALOGUE, 
+  EVENT_ACTION_VOCAB, 
+  findKnowledgeChain, 
+  generateEthicsComment,
+  getAccuracyTier,
+  type EventActionType
+} from '../data/templates.ts';
+import { SeededRNG } from '../utils/rng.ts';
 
 /**
  * Assembly of context for the 'Socratic Gate' narrative layer.
@@ -62,25 +72,101 @@ export function assembleNarrativeContext(
 }
 
 /**
- * Generate a prompt for the Socratic Gate.
- * This can be sent to a proxy (Anthropic/OpenAI) or used to drive templates.
+ * Generate a prompt for the Socratic Gate (Deep Interrogation).
+ * This focuses on philosophical/emotional depth rather than facts.
  */
-export function buildSocraticPrompt(ctx: NarrativeContext): string {
+export function buildInterrogationPrompt(ctx: NarrativeContext): string {
   return `
 You are ${ctx.npcName}, a ${ctx.personality} member of the ${ctx.factionName} faction.
 Your faction's core ethics are: ${ctx.factionEthics}.
 
-Below is your knowledge of recent history. Speak about these events with the heavy bias 
-of your personality and faction. If your accuracy is low, be hesitant or prone to 
-superstitious exaggeration. If an event was caused by "The Traveler", react with 
-appropriate awe, fear, or skepticism.
-
-Historical Knowledge:
+Historical Context:
 ${ctx.recentEvents.join('\n')}
 
-Greeting: Describe your current mood and how you view the stranger before you.
-History: Synthesize the events above into a short, biased narrative.
+The stranger before you asks for deep insight. Speak from your soul. 
+How do these events make you feel? What do you believe they mean for the future of your people?
+Focus on philosophy, emotion, and the "why" rather than just repeating the facts. 
+Be concise but profound.
   `.trim();
+}
+
+/**
+ * Deterministically synthesize the NPC's known history into a characterful monologue.
+ * This is the "Simulated Dialogue" used for instant responses.
+ */
+export function synthesizeHistoryMonologue(npc: NPC, world: WorldState): string {
+  // Seed based on world and NPC to ensure consistency across re-renders but uniqueness per NPC/Year
+  const seed = world.seed + world.currentYear + npc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const rng = new SeededRNG(seed);
+  const pick = <T>(arr: T[]) => arr[rng.nextInt(arr.length)];
+
+  const faction = world.factions.find(f => f.id === npc.factionId);
+  const factionName = faction?.name ?? 'Unknown';
+
+  // 1. Greeting
+  const greeting = fillTemplate(EXPANDED_DIALOGUE.greeting[npc.personality], {
+    name: npc.name,
+    faction: factionName,
+  });
+
+  // 2. History Synthesis
+  const chain = findKnowledgeChain(npc.knowledge, world.events);
+  let history = '';
+
+  if (chain && chain.length >= 2) {
+    // Multi-event synthesis (The "Deep Thread")
+    const event1 = chain[0];
+    const event2 = chain[1];
+    
+    // Get voiced action descriptions
+    const action1 = EVENT_ACTION_VOCAB[event1.action as EventActionType]?.[npc.personality] ?? event1.description;
+    const action2 = EVENT_ACTION_VOCAB[event2.action as EventActionType]?.[npc.personality] ?? event2.description;
+
+    const synthComment = faction ? generateEthicsComment(event2.action, faction.ethics, pick) : '';
+
+    const subject1 = world.factions.find(f => f.id === event1.subject)?.name ?? event1.subject;
+    const object1  = world.factions.find(f => f.id === event1.object)?.name  ?? event1.object;
+    const subject2 = world.factions.find(f => f.id === event2.subject)?.name ?? event2.subject;
+    const object2  = world.factions.find(f => f.id === event2.object)?.name  ?? event2.object;
+
+    history = fillTemplate(EXPANDED_DIALOGUE.multiEventSynthesis[npc.personality], {
+      name: npc.name,
+      event1: fillTemplate(action1, { subject: subject1, object: object1 }),
+      event2: fillTemplate(action2, { subject: subject2, object: object2 }),
+      synthComment,
+      faction: factionName,
+    });
+  } else {
+    // Single significant event or general knowledge (The "Snapshot")
+    const topKnowledge = npc.knowledge
+      .map(k => ({ knowledge: k, event: world.events.find(e => e.id === k.eventId) }))
+      .filter((k): k is { knowledge: NPCKnowledge, event: GameEvent } => k.event != null)
+      .sort((a, b) => (b.event.significance * b.knowledge.accuracy) - (a.event.significance * a.knowledge.accuracy))[0];
+
+    if (topKnowledge) {
+      const event = topKnowledge.event;
+      const accuracyTier = getAccuracyTier(topKnowledge.knowledge.accuracy);
+      const template = EXPANDED_DIALOGUE.eventKnowledge[accuracyTier][npc.personality];
+      
+      const action = EVENT_ACTION_VOCAB[event.action as EventActionType]?.[npc.personality] ?? event.description;
+      const ethicsComment = faction ? generateEthicsComment(event.action, faction.ethics, pick) : '';
+
+      const subject = world.factions.find(f => f.id === event.subject)?.name ?? event.subject;
+      const object  = world.factions.find(f => f.id === event.object)?.name  ?? event.object;
+
+      history = fillTemplate(template, {
+        name: npc.name,
+        year: String(event.year),
+        event: fillTemplate(action, { subject, object }),
+        ethicsComment,
+        faction: factionName,
+      });
+    } else {
+      history = fillTemplate(EXPANDED_DIALOGUE.noKnowledge, { name: npc.name });
+    }
+  }
+
+  return `${greeting}\n\n${history}`;
 }
 
 /**

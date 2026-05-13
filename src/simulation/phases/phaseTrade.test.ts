@@ -119,6 +119,7 @@ describe('phaseTrade', () => {
       nextInt: (max: number) => { const v = intCalls++ % 2 === 0 ? 0 : Math.min(1, max - 1); return v; },
       next: () => 0,
       shuffle: (a) => a,
+      reseed: () => {},
     };
     phaseTrade(world, 2, rng);
     expect(world.tradeRoutes.length).toBeGreaterThan(0);

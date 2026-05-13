@@ -24,7 +24,7 @@ export function InterventionMenu() {
         position: activeTile
       };
 
-      const newWorld = executeEcho(world!, echo as any);
+      const newWorld = executeEcho(world!, echo);
       
       // Add a visual effect
       newWorld.visuals.push({
@@ -39,8 +39,8 @@ export function InterventionMenu() {
       setWorld(newWorld);
       showNotification(`${type.toUpperCase()} manifested at ${activeTile!.x}, ${activeTile!.y}`);
       closeIntervention();
-    } catch (e: any) {
-      showNotification(e.message);
+    } catch (e: unknown) {
+      showNotification(e instanceof Error ? e.message : String(e));
     }
   }
 

@@ -63,7 +63,7 @@ describe('phaseEcology', () => {
     const summary = getMapOwnershipSummary(world.map);
 
     // Use RNG that always returns < 0.4 to guarantee famine fires
-    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     const events = phaseEcology(world, 2, rng, summary);
     expect(events.some(e => e.action === 'famine')).toBe(true);
   });
@@ -78,7 +78,7 @@ describe('phaseEcology', () => {
     const summary = getMapOwnershipSummary(world.map);
 
     // RNG always returns 0 → popDelta > 0 branch and rng.nextFloat() < 0.3 satisfied
-    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     const events = phaseEcology(world, 2, rng, summary);
     expect(events.some(e => e.action === 'population_boom')).toBe(true);
   });

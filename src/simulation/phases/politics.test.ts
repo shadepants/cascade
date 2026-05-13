@@ -46,7 +46,7 @@ describe('phasePolitics', () => {
     const world = makeWorld([fA, fB], [rel]);
 
     // Force RNG to return < 0.05 for alliance check
-    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     const events = phasePolitics(world, 2, rng, []);
     expect(rel.state).toBe('alliance');
     expect(events.some(e => e.action === 'alliance_formed')).toBe(true);
@@ -57,7 +57,7 @@ describe('phasePolitics', () => {
     const fB = makeFaction('B', { stability: 60 });
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: 30, animosity: 5, state: 'peace' };
     const world = makeWorld([fA, fB], [rel]);
-    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     phasePolitics(world, 2, rng, []);
     expect(rel.state).toBe('peace');
   });

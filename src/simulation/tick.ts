@@ -106,7 +106,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     // Storyteller Director — year-end hooks
     decayTension(world.storyteller);
     accumulateDebt(world.storyteller, world, year);
-    const intervention = fireDebtIntervention(world.storyteller, world, rng);
+    const intervention = fireDebtIntervention(world.storyteller, world);
     if (intervention) applyIntervention(intervention, world, rng, year);
 
     world.currentYear = year;

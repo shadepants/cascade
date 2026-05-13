@@ -55,7 +55,7 @@ export function generateFactions(
 
   const centers = pickFactionCenters(map, numFactions, rng);
 
-  const factions: Faction[] = centers.map((_pos, i) => {
+  const factions: Faction[] = centers.map((_, i) => {
     const template = FACTION_TEMPLATES[i % FACTION_TEMPLATES.length];
     const archetype = archetypes[i % archetypes.length];
     
@@ -83,7 +83,7 @@ export function generateFactions(
   });
 
   assignTerritory(map, centers, factions);
-  const settlements = placeSettlements(map, factions, centers, rng);
+  const settlements = placeSettlements(map, factions, centers);
   const relationships = generateRelationships(factions, rng);
 
   return { factions, relationships, settlements };
@@ -173,13 +173,12 @@ function placeSettlements(
   map: GameMap,
   factions: Faction[],
   centers: Position[],
-  rng: SeededRNG,
 ): Settlement[] {
   const settlements: Settlement[] = [];
 
   for (let i = 0; i < factions.length; i++) {
     const center = centers[i];
-    const pos = findNearbyWalkable(map, center, rng);
+    const pos = findNearbyWalkable(map, center);
 
     const settlement: Settlement = {
       id: `settlement_${i}`,
@@ -201,7 +200,7 @@ function placeSettlements(
 }
 
 /** Find a walkable tile near a given position. */
-function findNearbyWalkable(map: GameMap, center: Position, _rng: SeededRNG): Position {
+function findNearbyWalkable(map: GameMap, center: Position): Position {
   for (let radius = 0; radius < 5; radius++) {
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {

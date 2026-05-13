@@ -80,7 +80,7 @@ describe('phaseSuccession', () => {
     world.storyteller.mode = 'tyche';
 
     // Force RNG to trigger death
-    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     const events = phaseSuccession(world, 100, rng);
 
     expect(ruler.diedYear).toBe(100);
@@ -93,7 +93,7 @@ describe('phaseSuccession', () => {
     const faction = makeFaction('A', 'r1');
     const world = makeWorld([faction], [ruler]);
 
-    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     phaseSuccession(world, 100, rng);
 
     expect(faction.leaderId).not.toBe('r1'); // new ruler assigned

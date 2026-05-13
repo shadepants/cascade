@@ -3,18 +3,20 @@
 //   title screen → new game → give item → jump → cascade fires →
 //   NPCs learn it → dialogue shows tiered text → "Remember this" notifies
 
+/// <reference path="../src/window.d.ts" />
 import { test, expect, type Page } from '@playwright/test';
+import type { NPC, GameEvent, NPCKnowledge, TestAction } from '../src/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 /** Read the full game state from the dev test hook. */
 async function getState(page: Page) {
-  return page.evaluate(() => (window as any).__CASCADE_STATE);
+  return page.evaluate(() => window.__CASCADE_STATE);
 }
 
 /** Dispatch a store action via the dev test hook. */
-async function dispatch(page: Page, action: object) {
-  return page.evaluate((a) => (window as any).__CASCADE_DISPATCH(a), action);
+async function dispatch(page: Page, action: TestAction) {
+  return page.evaluate((a) => window.__CASCADE_DISPATCH!(a), action);
 }
 
 /** Wait for game phase to match. */
@@ -122,7 +124,7 @@ test('giving an item creates a playerCaused event with statDeltas', async ({ pag
   await waitForPhase(page, 'exploring');
 
   const stateAfter = await getState(page);
-  const playerEvents = stateAfter.world.events.filter((e: any) => e.playerCaused);
+  const playerEvents = stateAfter?.world?.events.filter((e) => e.playerCaused) || [];
 
   expect(playerEvents.length).toBeGreaterThan(0);
   const giveEvent = playerEvents[0];
@@ -175,7 +177,7 @@ test('time jump produces cascade events with causedBy links', async ({ page }) =
   await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
-  const cascadeEvents = stateAfter.world.events.filter((e: any) => e.causedBy !== null);
+  const cascadeEvents = stateAfter?.world?.events.filter((e) => e.causedBy !== null) || [];
 
   // Cascade is probabilistic (40% per year) — with 20 years should fire at least once
   // Allow 0 with a soft check (some seeds may not cascade)
@@ -203,11 +205,11 @@ test('cascade events appear in NPC knowledge after jump', async ({ page }) => {
   await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
-  const allKnowledge = stateAfter.world.npcs.flatMap((n: any) => n.knowledge);
+  const allKnowledge = stateAfter.world.npcs.flatMap((n: NPC) => n.knowledge);
   const cascadeIds = new Set(
-    stateAfter.world.events.filter((e: any) => e.causedBy).map((e: any) => e.id),
+    stateAfter.world.events.filter((e: GameEvent) => e.causedBy).map((e: GameEvent) => e.id),
   );
-  const cascadeKnowledge = allKnowledge.filter((k: any) => cascadeIds.has(k.eventId));
+  const cascadeKnowledge = allKnowledge.filter((k: NPCKnowledge) => cascadeIds.has(k.eventId));
 
   console.log(`Total NPC knowledge entries: ${allKnowledge.length}`);
   console.log(`Cascade knowledge entries: ${cascadeKnowledge.length}`);
@@ -279,7 +281,7 @@ test('dialogue panel shows accuracy dot for NPCs with knowledge', async ({ page 
 
   const state = await getState(page);
   // Find an NPC with pre-history knowledge
-  const npcWithKnowledge = state.world.npcs.find((n: any) => n.knowledge.length > 0);
+  const npcWithKnowledge = state.world.npcs.find((n: NPC) => n.knowledge.length > 0);
 
   if (!npcWithKnowledge) {
     test.skip();
@@ -317,8 +319,8 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
   await waitForPhase(page, 'exploring', 90_000);
 
   const stateAfter = await getState(page);
-  const cascadeEvent = stateAfter.world.events.find(
-    (e: any) => e.playerCaused && e.causedBy !== null,
+  const cascadeEvent = stateAfter?.world?.events.find(
+    (e) => e.playerCaused && e.causedBy !== null,
   );
 
   if (!cascadeEvent) {
@@ -328,8 +330,8 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
   }
 
   // Find an NPC who knows about this cascade event
-  const witness = stateAfter.world.npcs.find(
-    (n: any) => n.knowledge.some((k: any) => k.eventId === cascadeEvent.id),
+  const witness = stateAfter?.world?.npcs.find(
+    (n) => n.knowledge.some((k) => k.eventId === cascadeEvent.id),
   );
 
   if (!witness) {
@@ -347,7 +349,8 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
   await rememberBtn.click();
 
   // Notification should appear — either cascade ripple or generic
-  const notification = await getState(page).then((s: any) => s?.notification);
+  const stateWithNotif = await getState(page);
+  const notification = stateWithNotif?.notification;
   console.log('Notification:', notification);
   // If it was a cascade event, notification contains "Cascade!" or "rippled"
   if (notification) {
@@ -356,8 +359,8 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
 
   // Knowledge log should have the event
   const statePost = await getState(page);
-  const logged = statePost.world.player.knowledgeLog.some(
-    (k: any) => k.eventId === cascadeEvent.id,
+  const logged = statePost?.world?.player.knowledgeLog.some(
+    (k) => k.eventId === cascadeEvent.id,
   );
   expect(logged).toBe(true);
 });

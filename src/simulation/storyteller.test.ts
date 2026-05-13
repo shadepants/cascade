@@ -302,19 +302,19 @@ describe('accumulateDebt', () => {
 // ─── fireDebtIntervention ────────────────────────────────────────────────────
 
 describe('fireDebtIntervention', () => {
-  const rng = new SeededRNG(1);
+
 
   it('returns null when debt < 30', () => {
     const state = makeState({ yearsSincePlayerDiscovery: 20 });
     const world = makeWorld({ storyteller: state });
-    expect(fireDebtIntervention(state, world, rng)).toBeNull();
+    expect(fireDebtIntervention(state, world)).toBeNull();
   });
 
   it('returns SEED_KNOWLEDGE at debt >= 30', () => {
     const event = makeEvent('e1', 5, true);
     const state = makeState({ yearsSincePlayerDiscovery: 30, debtInterventionsFired: 0 });
     const world = makeWorld({ storyteller: state, events: [event] });
-    const result = fireDebtIntervention(state, world, rng);
+    const result = fireDebtIntervention(state, world);
     expect(result?.type).toBe('SEED_KNOWLEDGE');
     expect(result?.eventId).toBe('e1');
   });
@@ -323,7 +323,7 @@ describe('fireDebtIntervention', () => {
     const events = [makeEvent('e1', 5, true), makeEvent('e2', 4, true)];
     const state = makeState({ yearsSincePlayerDiscovery: 55, debtInterventionsFired: 3 });
     const world = makeWorld({ storyteller: state, events });
-    const result = fireDebtIntervention(state, world, rng);
+    const result = fireDebtIntervention(state, world);
     expect(result?.type).toBe('PLACE_WITNESS');
   });
 
@@ -331,14 +331,14 @@ describe('fireDebtIntervention', () => {
     const events = [makeEvent('e1', 6, true)];
     const state = makeState({ yearsSincePlayerDiscovery: 75, debtInterventionsFired: 6 });
     const world = makeWorld({ storyteller: state, events });
-    const result = fireDebtIntervention(state, world, rng);
+    const result = fireDebtIntervention(state, world);
     expect(result?.type).toBe('FORCE_NOTIFICATION');
   });
 
   it('resets debt and returns null when no undiscovered events remain', () => {
     const state = makeState({ yearsSincePlayerDiscovery: 50 });
     const world = makeWorld({ storyteller: state, events: [] });
-    const result = fireDebtIntervention(state, world, rng);
+    const result = fireDebtIntervention(state, world);
     expect(result).toBeNull();
     expect(state.yearsSincePlayerDiscovery).toBe(0);
   });

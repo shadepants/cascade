@@ -75,7 +75,7 @@ describe('phaseStability', () => {
     const world = makeWorld([faction], [['A']]);
     const summary = getMapOwnershipSummary(world.map);
 
-    const rng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: (a) => a }; // < 0.25 threshold
+    const rng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} }; // < 0.25 threshold
     const events = phaseStability(world, 2, rng, summary);
     expect(events.some(e => e.action === 'internal_rebellion')).toBe(true);
   });

@@ -73,7 +73,7 @@ describe('phaseInterestGroups', () => {
     const world = makeWorld([faction]);
 
     // Force RNG to trigger ethics shift
-    const rng: GameRNG = { nextFloat: () => 0.05, nextInt: () => 0, next: () => 0, shuffle: (a) => a };
+    const rng: GameRNG = { nextFloat: () => 0.05, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     const events = phaseInterestGroups(world, 2, rng);
     expect(faction.ethics.mercy).toBe('embraced');
     expect(events.some(e => e.action === 'ethics_shift')).toBe(true);

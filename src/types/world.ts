@@ -137,13 +137,14 @@ export interface Player extends Entity {
   insight: number;
 }
 
-export type EchoType = 'whisper' | 'omen' | 'insight';
+export type EchoType = 'whisper' | 'omen' | 'insight' | 'bloom';
 
 export interface TemporalEcho {
   type: EchoType;
   topic?: string;
   targetId?: string;
   cost: number;
+  position?: Position | null;
 }
 
 export interface Item {

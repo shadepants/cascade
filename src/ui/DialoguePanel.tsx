@@ -4,13 +4,13 @@
 
 import { useGameStore } from '../store/index';
 import {
-  DIALOGUE, EXPANDED_DIALOGUE, fillTemplate,
+  EXPANDED_DIALOGUE, fillTemplate,
   getAccuracyTier, generateEthicsComment,
   findKnowledgeChain, EVENT_ACTION_VOCAB,
   type AccuracyTier, type EventActionType,
 } from '../data/templates.ts';
-import type { GameEvent, KnowledgeEntry } from '../types';
-import { assembleNarrativeContext, buildSocraticPrompt } from '../simulation/narrative.ts';
+import type { GameEvent, KnowledgeEntry, TemporalEcho } from '../types';
+import { assembleNarrativeContext, buildInterrogationPrompt, synthesizeHistoryMonologue } from '../simulation/narrative.ts';
 import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
 import { SeededRNG } from '../utils/rng.ts';
 import { useState, useEffect } from 'react';
@@ -64,28 +64,41 @@ export function DialoguePanel() {
 
   const [aiText, setAiText] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [hasInterrogated, setHasInterrogated] = useState(false);
 
   useEffect(() => {
     if (!activeNpc || !world) return;
 
-    const config = getLLMConfig();
-    if (config) {
-      setIsTyping(true);
-      const narrativeCtx = assembleNarrativeContext(activeNpc, world);
-      const prompt = buildSocraticPrompt(narrativeCtx);
+    // Default to instant simulation synthesis
+    const simText = synthesizeHistoryMonologue(activeNpc, world);
+    setAiText(simText);
+    setHasInterrogated(false);
+    setIsTyping(false);
+  }, [activeNpc, world]);
 
-      fetchNarrative(prompt, config)
-        .then(text => setAiText(text))
-        .catch(err => {
-          console.error('LLM Error:', err);
-          setAiText(null);
-        })
-        .finally(() => setIsTyping(false));
-    } else {
-      setAiText(null);
+  const handleAskForDepth = async () => {
+    if (!activeNpc || !world) return;
+    const config = getLLMConfig();
+    if (!config) {
+      showNotification("LLM not configured. Check settings.");
+      return;
+    }
+
+    setIsTyping(true);
+    setHasInterrogated(true);
+    const narrativeCtx = assembleNarrativeContext(activeNpc, world);
+    const prompt = buildInterrogationPrompt(narrativeCtx);
+
+    try {
+      const depthText = await fetchNarrative(prompt, config);
+      setAiText(prev => `${prev}\n\n[DEEP INTERROGATION]\n${depthText}`);
+    } catch (err) {
+      console.error('LLM Error:', err);
+      showNotification("AI failed to respond. Check API key.");
+    } finally {
       setIsTyping(false);
     }
-  }, [activeNpc, world]);
+  };
 
   if (!activeNpc || !world) return null;
 
@@ -98,11 +111,6 @@ export function DialoguePanel() {
   );
   const pick = <T,>(arr: T[]): T => arr[rng.nextInt(arr.length)];
 
-  // Greeting
-  const greeting = fillTemplate(DIALOGUE.greeting[activeNpc.personality], {
-    name:    activeNpc.name,
-    faction: factionName,
-  });
 
   // Resolve known events
   const knownEvents = activeNpc.knowledge
@@ -201,7 +209,7 @@ export function DialoguePanel() {
     }
 
       try {
-        const echo: any = { // TemporalEcho
+        const echo: TemporalEcho = {
           type: 'whisper',
           topic,
           targetId: activeNpc.id,
@@ -210,8 +218,8 @@ export function DialoguePanel() {
         const newWorld = executeEcho(world, echo);
         setWorld(newWorld);
         showNotification(`You whispered of ${topic} to ${activeNpc.name}.`);
-      } catch (e: any) {
-      showNotification(e.message);
+      } catch (e: unknown) {
+      showNotification(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -224,34 +232,61 @@ export function DialoguePanel() {
         </button>
       </div>
 
-      {isTyping ? (
-        <p className="dialogue-text" style={{ fontStyle: 'italic', color: '#adcbe3' }}>
-          {activeNpc.name} is speaking...
-        </p>
-      ) : aiText ? (
+      <div className="dialogue-text-container" style={{ position: 'relative' }}>
         <div className="dialogue-text" style={{ whiteSpace: 'pre-wrap' }}>
           {aiText}
         </div>
-      ) : (
-        <div className="dialogue-content">
-          <p className="dialogue-text">{greeting}</p>
-          <div className="whisper-section">
-            <span className="whisper-label">Whisper of...</span>
-            <div className="whisper-btns">
-              {['violence', 'expansion', 'trade', 'tradition', 'mercy'].map(topic => (
-                <button
-                  key={topic}
-                  className="whisper-btn"
-                  onClick={() => handleWhisper(topic)}
-                  disabled={world.player.insight < 10}
-                >
-                  {topic}
-                </button>
-              ))}
-            </div>
+
+        {isTyping && (
+          <p className="dialogue-text" style={{ fontStyle: 'italic', color: '#4ade80', marginTop: '12px' }}>
+            Interrogating the deeper simulation...
+          </p>
+        )}
+
+        {!isTyping && !hasInterrogated && getLLMConfig() && (
+          <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button 
+              className="depth-btn"
+              onClick={handleAskForDepth}
+              style={{ 
+                background: 'rgba(74, 222, 128, 0.1)', 
+                border: '1px solid #4ade80',
+                color: '#4ade80',
+                padding: '6px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.85em',
+                fontWeight: 'bold',
+                transition: 'all 0.2s'
+              }}
+            >
+              Ask for Depth (AI)
+            </button>
+            <span style={{ fontSize: '0.75em', color: '#666' }}>
+              Requires LLM Config
+            </span>
           </div>
+        )}
+      </div>
+
+      <div className="whisper-section" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+        <span className="whisper-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.8em', textTransform: 'uppercase', letterSpacing: '1px', color: '#888' }}>
+          Whisper of...
+        </span>
+        <div className="whisper-btns" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {['violence', 'expansion', 'trade', 'tradition', 'mercy'].map(topic => (
+            <button
+              key={topic}
+              className="whisper-btn"
+              onClick={() => handleWhisper(topic)}
+              disabled={world.player.insight < 10}
+              style={{ padding: '4px 10px', fontSize: '0.8em' }}
+            >
+              {topic}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {(!isTyping && eventLines.length > 0) && (
         <div className="dialogue-events">
