@@ -140,7 +140,7 @@ describe('Entity Creation', () => {
 
       const items = generateItems(settlements, ruins, mockMap, [], 12345);
 
-      // Given the RNG seed, it should generate some items, up to the max possible (20).
+      // Given the RNG seed, it should generate some items, but not exactly 20.
       expect(items.length).toBeGreaterThan(0);
       expect(items.length).toBeLessThanOrEqual(20);
 
