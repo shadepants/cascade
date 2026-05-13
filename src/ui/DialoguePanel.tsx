@@ -105,6 +105,9 @@ export function DialoguePanel() {
   const faction    = world.factions.find(f => f.id === activeNpc.factionId);
   const factionName = faction?.name ?? 'Unknown';
 
+  // Find the settlement where this NPC is located
+  const settlement = world.settlements.find(s => s.npcs.includes(activeNpc.id));
+
   // Deterministic RNG for phrase picks — consistent per NPC per year
   const rng = new SeededRNG(
     world.seed + world.currentYear + activeNpc.id.charCodeAt(0),
@@ -269,7 +272,38 @@ export function DialoguePanel() {
         )}
       </div>
 
-      <div className="whisper-section" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+      {settlement && settlement.faith.length > 0 && (
+        <div className="faith-section" style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+          <span className="whisper-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.8em', textTransform: 'uppercase', letterSpacing: '1px', color: '#888' }}>
+            Faith at {settlement.name}
+          </span>
+          <div className="faith-bars" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {[...settlement.faith].sort((a, b) => b.pressure - a.pressure).map(f => {
+              const rel = world.religions.find(r => r.id === f.religionId);
+              return (
+                <div key={f.religionId} className="faith-bar-container" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.75em', width: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {rel?.name ?? 'Unknown'}
+                  </span>
+                  <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', position: 'relative' }}>
+                    <div style={{ 
+                      position: 'absolute', left: 0, top: 0, height: '100%', 
+                      width: `${f.pressure}%`, 
+                      background: rel?.color ?? '#888',
+                      borderRadius: '3px',
+                      boxShadow: f.religionId === settlement.dominantReligionId ? `0 0 4px ${rel?.color ?? '#888'}` : 'none'
+                    }} />
+                  </div>
+                  <span style={{ fontSize: '0.75em', color: '#888', width: '25px' }}>{Math.round(f.pressure)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="whisper-section"
+ style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
         <span className="whisper-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.8em', textTransform: 'uppercase', letterSpacing: '1px', color: '#888' }}>
           Whisper of...
         </span>

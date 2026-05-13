@@ -72,6 +72,12 @@ export function phaseReligion(
     if (settlement.dominantReligionId && settlement.dominantReligionId !== oldDominant) {
       const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
       const hasOmen = world.map.tiles[settlement.position.y][settlement.position.x].modifiers?.some(m => m.type === 'omen');
+      
+      // Conversion adds significant tension
+      if (world.storyteller) {
+        world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 8 : 4));
+      }
+
       emitEvent(world, events, createEvent({
         tick: 0, year,
         subject: settlement.id, action: 'religious_conversion', object: settlement.dominantReligionId || 'unknown',
@@ -144,6 +150,11 @@ function checkSchism(
   const [faithA, faithB] = contested;
   const relA = world.religions.find(r => r.id === faithA.religionId);
   const relB = world.religions.find(r => r.id === faithB.religionId);
+
+  // Schism adds tension
+  if (world.storyteller) {
+    world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 12 : 6));
+  }
 
   emitEvent(world, events, createEvent({
     tick: 0, year,
