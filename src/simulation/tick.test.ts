@@ -40,6 +40,8 @@ function makeFaction(id: string, name: string, military = 50): Faction {
     },
     leaderId: null,
     interestGroups: [],
+    techLevel: 1,
+    innovations: [],
   };
 }
 
@@ -73,6 +75,7 @@ function makeWorld(
     items: [],
     tradeRoutes: [],
     events: [],
+    innovations: [],
     player: { id: 'player', name: 'Player', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: { ...defaultStorytellerState('clio'), ...storytellerOverrides },
     visuals: [],
@@ -192,6 +195,7 @@ describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
       items: [],
       faith: [],
       dominantReligionId: null,
+      innovations: [],
     };
   }
 
@@ -240,6 +244,7 @@ describe('phaseSettlementGrowth — settlement tile clearing guards', () => {
           items: [],
           faith: [],
           dominantReligionId: null,
+          innovations: [],
         },
         makeTestSettlement('s2', 0, 0),
       ]);

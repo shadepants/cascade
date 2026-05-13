@@ -45,6 +45,7 @@ function makeWorld(factions: Faction[], map: GameMap): WorldState {
     tradeRoutes: [],
     religions: [],
     holySites: [],
+    innovations: [],
     events: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState(),
@@ -56,7 +57,9 @@ function makeFaction(id: string): Faction {
   return {
     id, name: id, color: '#000', aggression: 50, settlements: [],
     population: 100, stability: 50, wealth: 50, military: 50, culture: 50,
-    ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
+      techLevel: 1,
+      innovations: [],
+      ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
     leaderId: null, interestGroups: [],
   };
 }

@@ -1,4 +1,4 @@
-import type { WorldState, GameEvent, Innovation, InnovationType, Settlement, StatDelta } from '../../types';
+import type { WorldState, GameEvent, Innovation, InnovationType, StatDelta } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';

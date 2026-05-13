@@ -18,6 +18,8 @@ function makeFaction(overrides: Partial<Faction> = {}): Faction {
     ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
     leaderId: null,
     interestGroups: [],
+    techLevel: 1,
+    innovations: [],
     ...overrides,
   };
 }
@@ -38,6 +40,7 @@ function makeWorld(factions: Faction[]): WorldState {
     tradeRoutes: [],
     religions: [],
     holySites: [],
+    innovations: [],
     events: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),

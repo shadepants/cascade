@@ -77,6 +77,7 @@ export function generateFactions(
       settlements: [],
       interestGroups: [], // initially empty
       innovations: [],
+      techLevel: 0,
     };
 
     faction.interestGroups = generateInterestGroups(faction, rng);

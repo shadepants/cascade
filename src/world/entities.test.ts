@@ -34,6 +34,8 @@ describe('Entity Creation', () => {
           ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
           leaderId: null,
           interestGroups: [],
+          innovations: [],
+          techLevel: 10,
         }
       ];
 
@@ -47,6 +49,7 @@ describe('Entity Creation', () => {
           items: [],
           faith: [],
           dominantReligionId: null,
+          innovations: [],
         }
       ];
 
@@ -73,7 +76,7 @@ describe('Entity Creation', () => {
       const mockMap: GameMap = { width: 10, height: 10, tiles: [] };
       const factions: Faction[] = [];
       const settlements: Settlement[] = [
-        { id: 's_1', name: 'S1', position: { x: 0, y: 0 }, factionId: 'invalid_faction', npcs: [], items: [], faith: [], dominantReligionId: null }
+        { id: 's_1', name: 'S1', position: { x: 0, y: 0 }, factionId: 'invalid_faction', npcs: [], items: [], faith: [], dominantReligionId: null, innovations: [] }
       ];
 
       const npcs = generateNPCs(settlements, factions, 2, mockMap, 12345);
@@ -128,6 +131,7 @@ describe('Entity Creation', () => {
         items: [],
         faith: [],
         dominantReligionId: null,
+        innovations: [],
       }));
 
       const ruins: Ruin[] = Array.from({ length: 10 }, (_, i) => ({

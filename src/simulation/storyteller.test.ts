@@ -36,6 +36,7 @@ function makeWorld(overrides: Partial<WorldState> = {}): WorldState {
     religions: [],
     holySites: [],
     events: [],
+    innovations: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: makeState(),
     visuals: [],
@@ -92,6 +93,7 @@ describe('computeTension', () => {
         wealth: 50, military: 50, culture: 50,
         ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
         leaderId: null, interestGroups: [],
+        techLevel: 1, innovations: [],
       }],
     });
     expect(computeTension(state, world)).toBeGreaterThan(0);
@@ -378,6 +380,7 @@ describe('applyIntervention — PLACE_WITNESS', () => {
       settlements: [{
         id: 's1', name: 'Town', position: { x: 0, y: 0 },
         factionId: 'f1', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       }],
     });
     applyIntervention(

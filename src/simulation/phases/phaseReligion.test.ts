@@ -22,6 +22,7 @@ describe('phaseReligion', () => {
       id: 'f1',
       name: 'Kingdom',
       color: '#ff0000',
+      aggression: 50,
       stability: 0,
       culture: 10,
       wealth: 10,
@@ -30,9 +31,10 @@ describe('phaseReligion', () => {
       settlements: ['s1'],
       ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
       interestGroups: [
-        { type: 'religious', power: 10, alignment: 0, leaderId: 'l1' }
+        { id: 'ig1', name: 'Faithful', type: 'religious', power: 10, ethicsBias: {} }
       ],
-      rulerId: 'r1'
+      techLevel: 1, innovations: [],
+      leaderId: 'r1'
     };
 
     const settlement: Settlement = {
@@ -40,13 +42,11 @@ describe('phaseReligion', () => {
       name: 'Holy City',
       factionId: 'f1',
       position: { x: 1, y: 1 },
-      population: 100,
-      growth: 0,
-      wealth: 10,
-      defense: 10,
+      npcs: [],
+      items: [],
       faith: [],
       dominantReligionId: null,
-      modifiers: []
+      innovations: [],
     };
 
     world = {
@@ -70,6 +70,7 @@ describe('phaseReligion', () => {
         { id: 'hs1', name: 'Great Temple', position: { x: 1, y: 1 }, religionId: 'rel_light' }
       ],
       events: [],
+      innovations: [],
       player: { id: 'p1', name: 'Traveler', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 100 },
       storyteller: defaultStorytellerState(),
       visuals: []
@@ -140,7 +141,7 @@ describe('phaseReligion', () => {
     // We need to force the RNG to trigger the schism (20% chance)
     const forcedRng = { 
       nextFloat: () => 0.1,
-      nextInt: (max: number) => 0,
+      nextInt: (_max: number) => 0,
       next: () => 0,
       shuffle: (arr: any[]) => arr,
       reseed: () => {}

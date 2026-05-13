@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { phaseTech } from './phaseTech';
-import { WorldState, defaultStorytellerState } from '../../types';
+import type { WorldState } from '../../types';
+import { defaultStorytellerState } from '../../types';
 import { SeededRNG } from '../../utils/rng';
 
 describe('phaseTech', () => {
@@ -21,7 +22,8 @@ describe('phaseTech', () => {
           wealth: 100,
           innovations: [],
           settlements: ['s1'],
-          // ... other fields
+          techLevel: 1,
+          military: 50
         } as any
       ],
       settlements: [

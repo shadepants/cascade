@@ -9,7 +9,9 @@ function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
     id, name: id, color: '#fff', aggression: 50, settlements: [],
     population: 300, stability: 60, wealth: 50, military: 40, culture: 30,
     ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
-    leaderId: null, interestGroups: [], ...overrides,
+    leaderId: null, interestGroups: [],
+    techLevel: 1, innovations: [],
+    ...overrides,
   };
 }
 
@@ -30,6 +32,7 @@ function makeWorld(factions: Faction[], mapRows: (string | null)[][] = [[null]],
     historicalFigures: [], settlements: [],
     ruins: [], resourceNodes: [], npcs: [], items: [],
     tradeRoutes: [], religions: [], holySites: [], events: [],
+    innovations: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),
     visuals: [],
@@ -44,6 +47,7 @@ describe('phaseStability', () => {
     world.settlements = [{
       id: 's1', name: 'Old City', position: { x: 0, y: 0 },
       factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      innovations: [],
     }];
     const summary = getMapOwnershipSummary(world.map);
     const events = phaseStability(world, 2, new SeededRNG(1), summary);
@@ -63,6 +67,7 @@ describe('phaseStability', () => {
     world.settlements = [{
       id: 's1', name: 'City', position: { x: 0, y: 0 },
       factionId: 'A', npcs: ['n1'], items: [], faith: [], dominantReligionId: null,
+      innovations: [],
     }];
     const summary = getMapOwnershipSummary(world.map);
     phaseStability(world, 2, new SeededRNG(1), summary);

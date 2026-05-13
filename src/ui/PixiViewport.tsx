@@ -335,12 +335,14 @@ export function PixiViewport() {
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
               const frameOffset = animStateRef.current.frameIndex * 16;
-              sprite.texture.frame = new Rectangle(
+              // In v8, frame is read-only. We mutate the underlying rectangle and update UVs.
+              sprite.texture.frame.copyFrom(new Rectangle(
                 baseRegion.x + frameOffset,
                 baseRegion.y,
                 baseRegion.w,
                 baseRegion.h
-              );
+              ));
+              sprite.texture.updateUvs();
             }
           });
         }
@@ -389,7 +391,7 @@ export function PixiViewport() {
       let tex = texPool.get(poolKey);
       if (!tex) {
         tex = new Texture({
-          source: sheets[sheetKey].source,
+          source: (sheets[sheetKey] as any).source,
           frame:  new Rectangle(region.x, region.y, region.w, region.h),
         });
         texPool.set(poolKey, tex);
@@ -400,7 +402,7 @@ export function PixiViewport() {
       const isAnimated = sheetKey === 'character' || sheetKey === 'player';
       const spriteTex = isAnimated 
         ? new Texture({ 
-            source: sheets[sheetKey].source, 
+            source: (sheets[sheetKey] as any).source, 
             frame: new Rectangle(region.x + (animStateRef.current.frameIndex * 16), region.y, region.w, region.h) 
           })
         : tex;
@@ -886,12 +888,6 @@ export function PixiViewport() {
         if (itemAtPlayer) state.openAction(itemAtPlayer);
         break;
       }
-
-      case 'CLOSE_PANEL':
-        if (phase === 'dialogue')     state.closeDialogue();
-        if (phase === 'action')       state.closeAction();
-        if (phase === 'intervention') state.closeIntervention();
-        break;
 
       case 'JUMP':
         if (isModalOpen) break;

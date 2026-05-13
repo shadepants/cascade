@@ -8,7 +8,9 @@ function makeFaction(id: string, leaderId: string | null = null, overrides: Part
     id, name: id, color: '#fff', aggression: 50, settlements: [],
     population: 200, stability: 60, wealth: 50, military: 40, culture: 30,
     ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
-    leaderId, interestGroups: [], ...overrides,
+    leaderId, interestGroups: [],
+    techLevel: 1, innovations: [],
+    ...overrides,
   };
 }
 
@@ -29,6 +31,7 @@ function makeWorld(factions: Faction[], figures: HistoricalFigure[] = []): World
     historicalFigures: figures,
     settlements: [], ruins: [], resourceNodes: [], npcs: [], items: [],
     tradeRoutes: [], religions: [], holySites: [], events: [],
+    innovations: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),
     visuals: [],

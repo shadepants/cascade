@@ -18,6 +18,7 @@ function makeWorld(): WorldState {
     npcs: [],
     items: [],
     tradeRoutes: [],
+    innovations: [],
     events: [],
     player: { id: 'player', name: 'Traveler', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: ['a1'], insight: 0 },
     storyteller: defaultStorytellerState('clio'),

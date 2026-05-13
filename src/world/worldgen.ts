@@ -57,7 +57,7 @@ export function generateWorld(config: WorldConfig): WorldState {
 
   // ── Step 4.5: Religions + Holy Sites ───────────────────────────────────
   const religions = generateReligions(factions, settlements, rng);
-  const holySites = spawnHolySites(religions, settlements, map, rng);
+  const holySites = spawnHolySites(religions, settlements, map);
 
   // ── Step 5: Pre-history simulation ────────────────────────────────────
   // Build an initial world stub and run the real tick engine.
@@ -259,7 +259,7 @@ function generateReligions(factions: Faction[], settlements: Settlement[], rng: 
 }
 
 /** Spawn holy sites at the origin of religions, preferably in scenic locations nearby. */
-function spawnHolySites(religions: Religion[], settlements: Settlement[], map: GameMap, rng: SeededRNG): HolySite[] {
+function spawnHolySites(religions: Religion[], settlements: Settlement[], map: GameMap): HolySite[] {
   return religions.map((rel, i) => {
     const settlement = settlements.find(s => s.id === rel.originSettlementId);
     let pos = settlement ? settlement.position : { x: 0, y: 0 };

@@ -8,7 +8,9 @@ function makeFaction(id: string, overrides: Partial<Faction> = {}): Faction {
     id, name: id, color: '#fff', aggression: 60, settlements: [],
     population: 500, stability: 60, wealth: 50, military: 60, culture: 30,
     ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
-    leaderId: null, interestGroups: [], ...overrides,
+    leaderId: null, interestGroups: [],
+    techLevel: 1, innovations: [],
+    ...overrides,
   };
 }
 
@@ -42,6 +44,7 @@ function makeWorld(
     historicalFigures: [], settlements: [],
     ruins: [], resourceNodes: [], npcs: [], items: [],
     tradeRoutes: [], religions: [], holySites: [], events: [],
+    innovations: [],
     player: { id: 'p', name: 'P', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 0 },
     storyteller: defaultStorytellerState('clio'),
     visuals: [],
@@ -103,10 +106,12 @@ describe('phaseConflict — war resolution settlement transfers', () => {
       {
         id: 'sA', name: 'Alpha', position: { x: 0, y: 0 },
         factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       },
       {
         id: 'sB', name: 'Borderhold', position: { x: 1, y: 0 },
         factionId: 'B', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       },
     ];
     world.map.tiles[0][1].settlementId = 'sB';
@@ -143,6 +148,7 @@ describe('fractureFaction', () => {
     world.settlements = [{
       id: 's1', name: 'Capital', position: { x: 0, y: 0 },
       factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      innovations: [],
     }];
     const result = fractureFaction(world, faction, 100, new SeededRNG(1));
     expect(result).toBeNull();
@@ -165,6 +171,7 @@ describe('fractureFaction', () => {
     world.settlements = [{
       id: 's1', name: 'Capital', position: { x: 0, y: 0 },
       factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+      innovations: [],
     }];
 
     const event = fractureFaction(world, faction, 100, new SeededRNG(1));
@@ -183,14 +190,17 @@ describe('fractureFaction', () => {
       {
         id: 's1', name: 'Capital', position: { x: 0, y: 0 },
         factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       },
       {
         id: 's2', name: 'Frontier East', position: { x: 3, y: 3 },
         factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       },
       {
         id: 's3', name: 'Frontier South', position: { x: 2, y: 3 },
         factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
       },
     ];
     world.map.tiles[3][3].settlementId = 's2';

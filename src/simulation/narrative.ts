@@ -7,13 +7,46 @@ import {
   DIALOGUE, 
   fillTemplate, 
   EXPANDED_DIALOGUE, 
-  EVENT_ACTION_VOCAB, 
-  findKnowledgeChain, 
+  EVENT_ACTION_VOCAB,
   generateEthicsComment,
   getAccuracyTier,
   type EventActionType
 } from '../data/templates.ts';
 import { SeededRNG } from '../utils/rng.ts';
+
+/**
+ * Deterministically mutate an event if accuracy is low (Legend tier).
+ * Swaps subjects/objects with other random factions.
+ */
+function mutateEvent(
+  event: GameEvent, 
+  accuracy: number, 
+  world: WorldState, 
+  rng: SeededRNG
+): GameEvent {
+  // Only legends (accuracy < 0.5) mutate
+  if (accuracy >= 0.5) return event;
+
+  const mutated = { ...event };
+  
+  // Lower accuracy = higher chance of subject/object swap
+  // Deterministic seed ensures the "hallucination" stays consistent for this NPC
+  if (rng.nextFloat() > accuracy + 0.2) {
+    const others = world.factions.filter(f => f.id !== event.subject);
+    if (others.length > 0) {
+      mutated.subject = others[rng.nextInt(others.length)].id;
+    }
+  }
+
+  if (rng.nextFloat() > accuracy + 0.3) {
+    const others = world.factions.filter(f => f.id !== event.object && f.id !== mutated.subject);
+    if (others.length > 0) {
+      mutated.object = others[rng.nextInt(others.length)].id;
+    }
+  }
+
+  return mutated;
+}
 
 /**
  * Assembly of context for the 'Socratic Gate' narrative layer.
@@ -111,8 +144,26 @@ export function synthesizeHistoryMonologue(npc: NPC, world: WorldState): string 
   const factionName = faction?.name ?? 'Unknown';
   const settlement = world.settlements.find(s => s.npcs.includes(npc.id));
 
-  // 1. Greeting
-  const greeting = fillTemplate(EXPANDED_DIALOGUE.greeting[npc.personality], {
+  // 1. Greeting (Sentiment-Driven)
+  const stability = faction?.stability ?? 50;
+  let greetingTemplate = EXPANDED_DIALOGUE.greeting[npc.personality];
+  
+  // Optional: check for special state-based greetings
+  if (stability < 40) {
+    // Faction is stressed - modify greeting tone
+    greetingTemplate = greetingTemplate.replace('Straightens up', 'Looks exhausted')
+                                       .replace('Eyes you warily', 'Watches you with bloodshot eyes')
+                                       .replace('Grabs your arm', 'Clutches your sleeve with a trembling hand')
+                                       .replace('Nods', 'Sighs heavily');
+  } else if (stability > 80) {
+    // Faction is proud
+    greetingTemplate = greetingTemplate.replace('straightens up', 'stands tall and proud')
+                                       .replace('eyes you warily', 'looks at you with a confident smirk')
+                                       .replace('grabs your arm', 'claps you on the shoulder')
+                                       .replace('nods', 'beams at you');
+  }
+
+  const greeting = fillTemplate(greetingTemplate, {
     name: npc.name,
     faction: factionName,
   });
@@ -133,64 +184,53 @@ export function synthesizeHistoryMonologue(npc: NPC, world: WorldState): string 
     }
   }
 
-  // 2. History Synthesis
-  const chain = findKnowledgeChain(npc.knowledge, world.events);
+  // 2. Spotlight Logic: Filter NPC knowledge for events the player hasn't logged yet
+  const loggedEventIds = new Set(world.player.knowledgeLog.map(k => k.eventId));
+  
+  const unseenKnowledge = npc.knowledge
+    .filter(k => !loggedEventIds.has(k.eventId))
+    .map(k => ({ knowledge: k, event: world.events.find(e => e.id === k.eventId) }))
+    .filter((k): k is { knowledge: NPCKnowledge, event: GameEvent } => k.event != null)
+    .sort((a, b) => (b.event.significance * b.knowledge.accuracy) - (a.event.significance * a.knowledge.accuracy));
+
+  const spotlight = unseenKnowledge[0];
   let history = '';
 
-  if (chain && chain.length >= 2) {
-    // Multi-event synthesis (The "Deep Thread")
-    const event1 = chain[0];
-    const event2 = chain[1];
+  if (spotlight) {
+    // Apply mutation if it's a legend
+    const displayEvent = mutateEvent(spotlight.event, spotlight.knowledge.accuracy, world, rng);
     
-    // Get voiced action descriptions
-    const action1 = EVENT_ACTION_VOCAB[event1.action as EventActionType]?.[npc.personality] ?? event1.description;
-    const action2 = EVENT_ACTION_VOCAB[event2.action as EventActionType]?.[npc.personality] ?? event2.description;
+    const accuracyTier = getAccuracyTier(spotlight.knowledge.accuracy);
+    const template = EXPANDED_DIALOGUE.eventKnowledge[accuracyTier][npc.personality];
+    
+    const action = EVENT_ACTION_VOCAB[displayEvent.action as EventActionType]?.[npc.personality] ?? displayEvent.description;
+    const ethicsComment = faction ? generateEthicsComment(displayEvent.action, faction.ethics, pick) : '';
 
-    const synthComment = faction ? generateEthicsComment(event2.action, faction.ethics, pick) : '';
+    const subject = world.factions.find(f => f.id === displayEvent.subject)?.name ?? displayEvent.subject;
+    const object  = world.factions.find(f => f.id === displayEvent.object)?.name  ?? displayEvent.object;
 
-    const subject1 = world.factions.find(f => f.id === event1.subject)?.name ?? event1.subject;
-    const object1  = world.factions.find(f => f.id === event1.object)?.name  ?? event1.object;
-    const subject2 = world.factions.find(f => f.id === event2.subject)?.name ?? event2.subject;
-    const object2  = world.factions.find(f => f.id === event2.object)?.name  ?? event2.object;
-
-    history = fillTemplate(EXPANDED_DIALOGUE.multiEventSynthesis[npc.personality], {
+    history = fillTemplate(template, {
       name: npc.name,
-      event1: fillTemplate(action1, { subject: subject1, object: object1 }),
-      event2: fillTemplate(action2, { subject: subject2, object: object2 }),
-      synthComment,
+      year: String(displayEvent.year),
+      event: fillTemplate(action, { subject, object }),
+      ethicsComment,
       faction: factionName,
     });
   } else {
-    // Single significant event or general knowledge (The "Snapshot")
+    // Fallback: If player knows EVERYTHING the NPC knows, tell one significant "old" thing
     const topKnowledge = npc.knowledge
       .map(k => ({ knowledge: k, event: world.events.find(e => e.id === k.eventId) }))
       .filter((k): k is { knowledge: NPCKnowledge, event: GameEvent } => k.event != null)
       .sort((a, b) => (b.event.significance * b.knowledge.accuracy) - (a.event.significance * a.knowledge.accuracy))[0];
 
     if (topKnowledge) {
-      const event = topKnowledge.event;
-      const accuracyTier = getAccuracyTier(topKnowledge.knowledge.accuracy);
-      const template = EXPANDED_DIALOGUE.eventKnowledge[accuracyTier][npc.personality];
-      
-      const action = EVENT_ACTION_VOCAB[event.action as EventActionType]?.[npc.personality] ?? event.description;
-      const ethicsComment = faction ? generateEthicsComment(event.action, faction.ethics, pick) : '';
-
-      const subject = world.factions.find(f => f.id === event.subject)?.name ?? event.subject;
-      const object  = world.factions.find(f => f.id === event.object)?.name  ?? event.object;
-
-      history = fillTemplate(template, {
-        name: npc.name,
-        year: String(event.year),
-        event: fillTemplate(action, { subject, object }),
-        ethicsComment,
-        faction: factionName,
-      });
+      history = `You've heard it all before, haven't you? We remember ${topKnowledge.event.description} the most. Not much else to say.`;
     } else {
       history = fillTemplate(EXPANDED_DIALOGUE.noKnowledge, { name: npc.name });
     }
   }
 
-  return `${greeting}\n\n${history}`;
+  return `${greeting}${innovationMention}\n\n${history}`;
 }
 
 /**

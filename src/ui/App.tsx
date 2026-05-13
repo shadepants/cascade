@@ -151,9 +151,6 @@ export function App() {
     return () => clearTimeout(timer);
   }, [notification, clearNotification]);
 
-  // Relative era year for the jump overlay (starts at 1 for the player)
-  const eraYearOffset = config.pregenYears - 1;
-
   return (
     <div className="app">
       {phase === 'title' && <TitleScreen />}

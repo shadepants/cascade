@@ -30,10 +30,11 @@ describe('echoSystem', () => {
           id: 'npc1',
           name: 'Elder',
           position: { x: 2, y: 2 },
+          factionId: 'f1',
+          personality: 'pragmatist',
           knowledge: [],
-          traits: [],
-          factionId: null,
-          profession: 'hermit'
+          dialogueKey: 'default',
+          alive: true
         }
       ],
       items: [],
@@ -44,6 +45,7 @@ describe('echoSystem', () => {
       holySites: [
         { id: 'hs1', name: 'Great Temple', position: { x: 1, y: 1 }, religionId: 'r1' }
       ],
+      innovations: [],
       events: [],
       player: { id: 'p1', name: 'Traveler', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 100 },
       storyteller: defaultStorytellerState(),

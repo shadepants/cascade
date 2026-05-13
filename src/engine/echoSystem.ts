@@ -99,10 +99,10 @@ function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
   };
 }
 
-function applyChronicle(world: WorldState, echo: TemporalEcho): WorldState {
+function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
   // Chronicle grants a large boost to insight and seeds knowledge of a significant past event
-  const significantEvents = world.events.filter(e => e.significance >= 6 && e.year < world.currentYear);
-  const randomEvent = significantEvents[Math.floor(Math.random() * significantEvents.length)];
+  // const significantEvents = world.events.filter(e => e.significance >= 6 && e.year < world.currentYear);
+  // const randomEvent = significantEvents[Math.floor(Math.random() * significantEvents.length)];
 
   return {
     ...world,
