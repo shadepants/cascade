@@ -93,8 +93,8 @@ describe('phaseReligion', () => {
     
     const s1 = world.settlements[0];
     const lightFaith = s1.faith.find(f => f.religionId === 'rel_light');
-    // Base is 25, 0 stabilityKingdom = 25 pressure. Doubled = 50.
-    expect(lightFaith?.pressure).toBe(50);
+    // Base is 25, 0 stabilityKingdom = 25 pressure. 4x multiplier for Holy Site + Omen = 100.
+    expect(lightFaith?.pressure).toBe(100);
   });
 
   it('converts settlement when pressure exceeds 40', () => {

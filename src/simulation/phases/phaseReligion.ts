@@ -17,21 +17,25 @@ export function phaseReligion(
   const settlements = world.settlements;
   const holySites = world.holySites;
 
-  // 1. Spread from Holy Sites to their parent settlements
+  // 1. Spread from Holy Sites to nearby settlements
   for (const site of holySites) {
-    const settlement = settlements.find(s => 
-      s.position.x === site.position.x && s.position.y === site.position.y
-    );
-    if (settlement) {
-      let pressure = 25; // Base pressure from Holy Site
+    // Find settlements within range (e.g., 10 tiles)
+    for (const settlement of settlements) {
+      const dx = site.position.x - settlement.position.x;
+      const dy = site.position.y - settlement.position.y;
+      const distSq = dx * dx + dy * dy;
       
-      // Sacred Omen check: doubling pressure if player has intervened
-      const tile = world.map.tiles[site.position.y][site.position.x];
-      if (tile.modifiers?.some(m => m.type === 'omen')) {
-        pressure *= 2;
+      if (distSq < 100) { // Within 10 tiles
+        let pressure = Math.max(1, 25 - Math.floor(Math.sqrt(distSq) * 1.5));
+        
+        // Sacred Omen check: doubling pressure if player has intervened
+        const tile = world.map.tiles[site.position.y][site.position.x];
+        if (tile.modifiers?.some(m => m.type === 'omen')) {
+          pressure *= 4; // Holy Site + Omen = 4x impact
+        }
+        
+        applyPressure(world, settlement, site.religionId, pressure);
       }
-      
-      applyPressure(world, settlement, site.religionId, pressure);
     }
   }
 

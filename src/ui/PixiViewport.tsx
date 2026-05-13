@@ -389,16 +389,44 @@ export function PixiViewport() {
       }
 
       // Faith Bloom Overlay (when R is active)
-      if (showReligionOverlay && settlement.faith.length > 0) {
+      if (showReligionOverlay) {
         const bloom = new Graphics();
-        for (const f of settlement.faith) {
-          const religion = world.religions.find(r => r.id === f.religionId);
+        
+        // 1. Settlement Blooms
+        for (const settlement of world.settlements) {
+          if (settlement.faith.length === 0) continue;
+          const col = settlement.position.x - camera.x;
+          const row = settlement.position.y - camera.y;
+          if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
+
+          for (const f of settlement.faith) {
+            const religion = world.religions.find(r => r.id === f.religionId);
+            if (religion) {
+              const color = parseInt(religion.color.replace('#', ''), 16);
+              const alpha = (f.pressure / 100) * 0.3;
+              const radius = (tileDisplay * 2.5) * (f.pressure / 100);
+              bloom.beginFill(color, alpha);
+              bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
+              bloom.endFill();
+            }
+          }
+        }
+
+        // 2. Holy Site Blooms (High intensity)
+        for (const site of world.holySites) {
+          const col = site.position.x - camera.x;
+          const row = site.position.y - camera.y;
+          if (col < -4 || row < -4 || col >= camera.viewportWidth + 4 || row >= camera.viewportHeight + 4) continue;
+
+          const religion = world.religions.find(r => r.id === site.religionId);
           if (religion) {
             const color = parseInt(religion.color.replace('#', ''), 16);
-            const alpha = (f.pressure / 100) * 0.4;
-            const radius = (tileDisplay * 2) * (f.pressure / 100);
-            bloom.beginFill(color, alpha);
-            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
+            // Holy Sites have a constant strong bloom
+            bloom.beginFill(color, 0.2);
+            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 4);
+            bloom.endFill();
+            bloom.beginFill(color, 0.4);
+            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 1.5);
             bloom.endFill();
           }
         }

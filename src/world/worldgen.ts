@@ -57,7 +57,7 @@ export function generateWorld(config: WorldConfig): WorldState {
 
   // ── Step 4.5: Religions + Holy Sites ───────────────────────────────────
   const religions = generateReligions(factions, settlements, rng);
-  const holySites = spawnHolySites(religions, settlements);
+  const holySites = spawnHolySites(religions, settlements, map, rng);
 
   // ── Step 5: Pre-history simulation ────────────────────────────────────
   // Build an initial world stub and run the real tick engine.
@@ -257,11 +257,53 @@ function generateReligions(factions: Faction[], settlements: Settlement[], rng: 
   return religions;
 }
 
-/** Spawn holy sites at the origin of religions. */
-function spawnHolySites(religions: Religion[], settlements: Settlement[]): HolySite[] {
+/** Spawn holy sites at the origin of religions, preferably in scenic locations nearby. */
+function spawnHolySites(religions: Religion[], settlements: Settlement[], map: GameMap, rng: SeededRNG): HolySite[] {
   return religions.map((rel, i) => {
     const settlement = settlements.find(s => s.id === rel.originSettlementId);
-    const pos = settlement ? settlement.position : { x: 0, y: 0 };
+    let pos = settlement ? settlement.position : { x: 0, y: 0 };
+
+    if (settlement) {
+      // Look for a scenic spot nearby (mountain, coast, or high elevation)
+      const candidates: Position[] = [];
+      const SEARCH_RADIUS = 3;
+      
+      for (let dy = -SEARCH_RADIUS; dy <= SEARCH_RADIUS; dy++) {
+        for (let dx = -SEARCH_RADIUS; dx <= SEARCH_RADIUS; dx++) {
+          const nx = pos.x + dx;
+          const ny = pos.y + dy;
+          if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
+          
+          const tile = map.tiles[ny][nx];
+          if (!tile.walkable) continue;
+
+          // Scenic criteria: Mountain, Coast, or high elevation
+          let score = 0;
+          if (tile.biome === 'mountain') score += 10;
+          if (tile.biome === 'coast') score += 8;
+          if (tile.elevation > 0.6) score += 5;
+          if (tile.rainfall > 0.7) score += 3;
+          
+          // Distance penalty (prefer closer to settlement)
+          const dist = Math.abs(dx) + Math.abs(dy);
+          score -= dist * 2;
+
+          if (score > 0) {
+            candidates.push({ x: nx, y: ny });
+          }
+        }
+      }
+
+      if (candidates.length > 0) {
+        // Pick the best scenic spot
+        candidates.sort((a, b) => {
+          const scoreA = getScenicScore(map.tiles[a.y][a.x], a, pos);
+          const scoreB = getScenicScore(map.tiles[b.y][b.x], b, pos);
+          return scoreB - scoreA;
+        });
+        pos = candidates[0];
+      }
+    }
 
     return {
       id: `holy_${i}`,
@@ -270,4 +312,13 @@ function spawnHolySites(religions: Religion[], settlements: Settlement[]): HolyS
       religionId: rel.id,
     };
   });
+}
+
+function getScenicScore(tile: any, pos: Position, center: Position): number {
+  let score = 0;
+  if (tile.biome === 'mountain') score += 10;
+  if (tile.biome === 'coast') score += 8;
+  if (tile.elevation > 0.6) score += 5;
+  const dist = Math.abs(pos.x - center.x) + Math.abs(pos.y - center.y);
+  return score - dist * 2;
 }
