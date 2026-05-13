@@ -91,8 +91,8 @@ export const RESOURCE_SPRITE: Record<ResourceNodeType, {
   sheetKey: 'ore' | 'itemAmulet';
   region: TileRegion;
 }> = {
-  iron:  { sheetKey: 'ore',        region: { x:  0, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
-  gold:  { sheetKey: 'ore',        region: { x: 16, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
+  iron:  { sheetKey: 'ore',        region: { x: 80, y: 32, w: 16, h: 16 } },
+  gold:  { sheetKey: 'ore',        region: { x:  0, y: 32, w: 16, h: 16 } },
   relic: { sheetKey: 'itemAmulet', region: { x:  0, y: 0, w: 16, h: 16 } },
 };
 
