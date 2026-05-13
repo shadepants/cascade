@@ -38,7 +38,7 @@ export const SHEET_ORE        = '/assets/DawnLike/Objects/Ore0.png';
 export const SHEET_ITEM_AMULET = '/assets/DawnLike/Items/Amulet.png';
 export const SHEET_ITEM_SCROLL = '/assets/DawnLike/Items/Scroll.png';
 export const SHEET_ITEM_KEY    = '/assets/DawnLike/Items/Key.png';
-export const SHEET_RELIGION    = '/assets/DawnLike/Objects/Symbol0.png';
+export const SHEET_RELIGION    = '/assets/DawnLike/Items/Amulet.png';
 
 // ─── Terrain tiles — DawnLike/Objects/Tile.png ───────────────────────────
 // Sheet is 8 cols × 4 rows (128×64 px), each tile 16×16 px.

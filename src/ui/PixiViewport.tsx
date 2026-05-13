@@ -205,6 +205,7 @@ export function PixiViewport() {
     const app = new Application();
 
     (async () => {
+      console.log('[PIXI] Initializing application...');
       await app.init({
         width:      canvasWidth,
         height:     canvasHeight,
@@ -213,26 +214,37 @@ export function PixiViewport() {
         // roundPixels keeps pixel-art sharp at non-integer zoom levels
         roundPixels: true,
       });
+      console.log('[PIXI] Application initialized.');
 
       if (!mounted) {
         app.destroy();
         return;
       }
 
-      // Parallel texture load — never await sequentially (React best-practice)
-      const [terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion] =
-        await Promise.all([
-          Assets.load<Texture>(SHEET_TERRAIN),
-          Assets.load<Texture>(SHEET_SETTLEMENT),
-          Assets.load<Texture>(SHEET_CHARACTER),
-          Assets.load<Texture>(SHEET_PLAYER),
-          Assets.load<Texture>(SHEET_TREE),
-          Assets.load<Texture>(SHEET_ORE),
-          Assets.load<Texture>(SHEET_ITEM_AMULET),
-          Assets.load<Texture>(SHEET_ITEM_SCROLL),
-          Assets.load<Texture>(SHEET_ITEM_KEY),
-          Assets.load<Texture>(SHEET_RELIGION),
-        ]);
+      console.log('[PIXI] Loading textures...');
+      const load = async (name: string, url: string) => {
+        try {
+          const tex = await Assets.load<Texture>(url);
+          console.log(`[PIXI] Loaded ${name}: ${url}`);
+          return tex;
+        } catch (e) {
+          console.error(`[PIXI] Failed to load ${name}: ${url}`, e);
+          throw e;
+        }
+      };
+
+      const terrain = await load('terrain', SHEET_TERRAIN);
+      const settlement = await load('settlement', SHEET_SETTLEMENT);
+      const character = await load('character', SHEET_CHARACTER);
+      const player = await load('player', SHEET_PLAYER);
+      const tree = await load('tree', SHEET_TREE);
+      const ore = await load('ore', SHEET_ORE);
+      const itemAmulet = await load('itemAmulet', SHEET_ITEM_AMULET);
+      const itemScroll = await load('itemScroll', SHEET_ITEM_SCROLL);
+      const itemKey = await load('itemKey', SHEET_ITEM_KEY);
+      const religion = await load('religion', SHEET_RELIGION);
+      console.log('[PIXI] Textures loaded successfully.');
+      console.log('[PIXI] Textures loaded successfully.');
 
       if (!mounted) {
         app.destroy();
