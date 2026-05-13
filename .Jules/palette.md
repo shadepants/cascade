@@ -1,0 +1,1 @@
+## 2025-05-12 - Inconsistent Panel Hints\n**Learning:** The intervention menu was missing the visual hint for 'Escape to cancel' that other overlay panels had. Consistent microcopy across similar UI components (overlays) is important for user learnability.\n**Action:** Added 'Press Escape to cancel' to InterventionMenu to match ActionMenu and DialoguePanel.

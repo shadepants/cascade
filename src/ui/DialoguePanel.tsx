@@ -219,7 +219,7 @@ export function DialoguePanel() {
     <div className="panel dialogue-panel">
       <div className="panel-header">
         <span>{activeNpc.name} — {factionName}</span>
-        <button onClick={closeDialogue}>
+        <button onClick={closeDialogue} aria-label="Close dialogue panel">
           ✕
         </button>
       </div>
