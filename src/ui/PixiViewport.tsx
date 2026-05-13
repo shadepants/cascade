@@ -40,6 +40,7 @@ import {
   RESOURCE_SPRITE,
   ITEM_SPRITE,
   INNOVATION_SPRITE,
+  ALTAR_PATHS,
 } from '../engine/tileMap.ts';
 
 // ─── Internal types ──────────────────────────────────────────────────────
@@ -251,6 +252,13 @@ export function PixiViewport() {
       const religion = await load('religion', SHEET_RELIGION);
       const books = await load('books', SHEET_BOOKS);
       const icons = await load('icons', SHEET_ICONS);
+      
+      // Load individual DCSS altar textures
+      const altars: Record<string, Texture> = {};
+      for (const [tenet, path] of Object.entries(ALTAR_PATHS)) {
+        altars[tenet] = await load(`altar_${tenet}`, path);
+      }
+
       console.log('[PIXI] Textures loaded successfully.');
 
       if (!mounted) {
@@ -279,7 +287,7 @@ export function PixiViewport() {
       app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, innovationLayer, tradeLayer, modifiersLayer, visualsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
-      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion, books, icons } as any;
+      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion, books, icons, altars } as any;
       layersRef.current = {
         terrain:   terrainLayer,
         mid:       midLayer,
@@ -451,22 +459,18 @@ export function PixiViewport() {
             const sy = row * tileDisplay + tileDisplay / 2;
 
             if (mod.type === 'bloom') {
-              g.beginFill(0x4ade80, 0.2); // Greenish
-              g.drawCircle(sx, sy, tileDisplay / 1.5);
-              g.endFill();
+              g.fill({ color: 0x4ade80, alpha: 0.2 }); // Greenish
+              g.circle(sx, sy, tileDisplay / 1.5);
             } else if (mod.type === 'omen') {
               const alpha = 0.3 + Math.sin(Date.now() / 400) * 0.1;
-              g.beginFill(0x00ccff, alpha); // Cyan
-              g.drawStar?.(sx, sy, 4, tileDisplay / 3) || g.drawCircle(sx, sy, tileDisplay / 3);
-              g.endFill();
+              g.fill({ color: 0x00ccff, alpha }); // Cyan
+              g.drawStar?.(sx, sy, 4, tileDisplay / 3) || g.circle(sx, sy, tileDisplay / 3);
             } else if (mod.type === 'plague') {
-              g.beginFill(0x8b5cf6, 0.25); // Purple
-              g.drawRect(col * tileDisplay, row * tileDisplay, tileDisplay, tileDisplay);
-              g.endFill();
+              g.fill({ color: 0x8b5cf6, alpha: 0.25 }); // Purple
+              g.rect(col * tileDisplay, row * tileDisplay, tileDisplay, tileDisplay);
             } else if (mod.type === 'blessing') {
-              g.beginFill(0xfacc15, 0.2); // Yellow/Gold
-              g.drawCircle(sx, sy, tileDisplay / 2);
-              g.endFill();
+              g.fill({ color: 0xfacc15, alpha: 0.2 }); // Yellow/Gold
+              g.circle(sx, sy, tileDisplay / 2);
             }
             layersRef.current.modifiers.addChild(g);
           }
@@ -506,9 +510,8 @@ export function PixiViewport() {
         if (religion) {
           const glow = new Graphics();
           const color = parseInt(religion.color.replace('#', ''), 16);
-          glow.beginFill(color, 0.25);
-          glow.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
-          glow.endFill();
+          glow.fill({ color, alpha: 0.25 });
+          glow.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
           mid.addChild(glow);
         }
       }
@@ -530,9 +533,8 @@ export function PixiViewport() {
               const color = parseInt(religion.color.replace('#', ''), 16);
               const alpha = (f.pressure / 100) * 0.3;
               const radius = (tileDisplay * 2.5) * (f.pressure / 100);
-              bloom.beginFill(color, alpha);
-              bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
-              bloom.endFill();
+              bloom.fill({ color, alpha });
+              bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
             }
           }
         }
@@ -547,12 +549,10 @@ export function PixiViewport() {
           if (religion) {
             const color = parseInt(religion.color.replace('#', ''), 16);
             // Holy Sites have a constant strong bloom
-            bloom.beginFill(color, 0.2);
-            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 4);
-            bloom.endFill();
-            bloom.beginFill(color, 0.4);
-            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 1.5);
-            bloom.endFill();
+            bloom.fill({ color, alpha: 0.2 });
+            bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 4);
+            bloom.fill({ color, alpha: 0.4 });
+            bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 1.5);
           }
         }
         layersRef.current.religion.addChild(bloom);
@@ -593,9 +593,20 @@ export function PixiViewport() {
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
       
       const religion = world.religions.find(r => r.id === site.religionId);
-      const sprite = makeSprite('religion', HOLYSITE_TILE, col, row);
-      if (religion) {
-        sprite.tint = parseInt(religion.color.replace('#', ''), 16);
+      
+      // Use deity-specific altar if possible, fallback to generic shrine
+      let sprite: Sprite;
+      if (religion && sheets.altars[religion.tenets[0]]) {
+        sprite = new Sprite(sheets.altars[religion.tenets[0]]);
+        sprite.x      = col * tileDisplay;
+        sprite.y      = row * tileDisplay;
+        sprite.width  = tileDisplay;
+        sprite.height = tileDisplay;
+      } else {
+        sprite = makeSprite('religion', HOLYSITE_TILE, col, row);
+        if (religion) {
+          sprite.tint = parseInt(religion.color.replace('#', ''), 16);
+        }
       }
       layersRef.current.religion.addChild(sprite);
     }
@@ -672,12 +683,11 @@ export function PixiViewport() {
         if (effect.type === 'ripple') {
           // Pulse expansion
           const scale = 1.0 + (Math.sin(Date.now() / 200) * 0.2);
-          visualsG.lineStyle(2, color, 0.7);
-          visualsG.drawCircle(screenX, screenY, (tileDisplay * 1.5) * scale);
+          visualsG.stroke({ width: 2, color, alpha: 0.7 });
+          visualsG.circle(screenX, screenY, (tileDisplay * 1.5) * scale);
         } else if (effect.type === 'sparkle') {
-          visualsG.beginFill(color, 1.0);
-          visualsG.drawCircle(screenX, screenY, tileDisplay / 6);
-          visualsG.endFill();
+          visualsG.fill({ color, alpha: 1.0 });
+          visualsG.circle(screenX, screenY, tileDisplay / 6);
         }
       }
     }

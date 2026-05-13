@@ -55,7 +55,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
   }
 
   for (let i = 0; i < jumpYears; i++) {
-    const year = world.currentYear + i + 1;
+    const year = world.currentYear + 1;
 
     // Storyteller Director — per-year hooks
     pruneCooldowns(world.storyteller, year);

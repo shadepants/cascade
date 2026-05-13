@@ -177,8 +177,8 @@ export function App() {
           {/* Overlay panels */}
           {phase === 'jumping' && world && (
             <TemporalOverlay 
-              startYear={world.currentYear - eraYearOffset}
-              endYear={world.currentYear - eraYearOffset + 10}
+              startYear={world.currentYear - (config.pregenYears - 1)}
+              endYear={world.currentYear - (config.pregenYears - 1) + 10}
             />
           )}
           {phase === 'dialogue' && <DialoguePanel />}

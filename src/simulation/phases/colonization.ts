@@ -1,4 +1,4 @@
-﻿// ─── Phase 1b/1c: Colonization & Settlement ───────────────────────────────
+// ─── Phase 1b/1c: Colonization & Settlement ───────────────────────────────
 // Colony founding, pioneer spawning, and settlement abandonment.
 
 import type { WorldState, GameEvent, Faction, Settlement, NPC, Position } from '../../types';
@@ -140,6 +140,7 @@ export function phaseColonization(world: WorldState, year: number, rng: GameRNG)
         items:     [],
         faith:     [],
         dominantReligionId: null,
+        innovations: [],
       };
 
       world.settlements.push(newSettlement);
