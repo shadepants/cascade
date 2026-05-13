@@ -115,7 +115,7 @@ describe('formatNotificationValue', () => {
   });
 
   it('returns String() representation for circular objects that fail stringification', () => {
-    const circular: { self?: unknown } = {};
+    const circular: Record<string, unknown> = {};
     circular.self = circular;
     expect(formatNotificationValue(circular)).toBe('[object Object]');
   });
