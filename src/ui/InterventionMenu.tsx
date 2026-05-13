@@ -52,7 +52,7 @@ export function InterventionMenu() {
     <div className="intervention-panel">
       <div className="panel-header">
         <span>Coordinate {activeTile.x}, {activeTile.y}</span>
-        <button onClick={closeIntervention}>✕</button>
+        <button onClick={closeIntervention} aria-label="Close intervention menu">✕</button>
       </div>
 
       <h2 className="intervention-title">Temporal Intervention</h2>
@@ -104,7 +104,10 @@ export function InterventionMenu() {
         </button>
       </div>
 
-      <p className="dialogue-hint" style={{ marginTop: '24px' }}>Insight Balance: {insight} ✨</p>
+      <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p className="dialogue-hint" style={{ marginTop: 0 }}>Press Escape to cancel</p>
+        <p className="dialogue-hint" style={{ marginTop: 0 }}>Insight Balance: {insight} ✨</p>
+      </div>
     </div>
   );
 }

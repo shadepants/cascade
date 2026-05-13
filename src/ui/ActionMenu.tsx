@@ -112,7 +112,7 @@ export function ActionMenu() {
     <div className="panel action-panel">
       <div className="panel-header">
         <span>{activeItem.name}</span>
-        <button onClick={closeAction}>
+        <button onClick={closeAction} aria-label="Close action menu">
           ✕
         </button>
       </div>
