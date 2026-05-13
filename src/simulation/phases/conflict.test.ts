@@ -113,8 +113,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
     expect(loser.settlements).toContain('sB');
     expect(winner.settlements).not.toContain('sB');
 
-    // nextFloat rolls for resolveWar: [war-ends check, winner selection].
-    // 0 forces resolution to proceed and picks faction A as winner.
+    // Deterministic rolls force the war-resolution path and select faction A.
     const rollSequence = [0, 0];
     const rng: GameRNG = {
       nextFloat: () => rollSequence.shift() ?? 0,
@@ -128,6 +127,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
     expect(world.map.tiles[0][1].factionId).toBe('A');
     expect(world.settlements.find(s => s.id === 'sB')?.factionId).toBe('A');
     expect(loser.settlements).not.toContain('sB');
+    expect(new Set(loser.settlements).size).toBe(loser.settlements.length);
     expect(winner.settlements).toContain('sB');
     expect(new Set(winner.settlements).size).toBe(winner.settlements.length);
   });
@@ -208,6 +208,5 @@ describe('fractureFaction', () => {
     expect(rebelSettlements).toEqual(expect.arrayContaining(['s2', 's3']));
     expect(new Set(rebelSettlements).size).toBe(rebelSettlements.length);
     expect(faction.settlements).toEqual(['s1']);
-    expect(new Set(faction.settlements).size).toBe(faction.settlements.length);
   });
 });
