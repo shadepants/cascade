@@ -149,7 +149,7 @@ graph LR
 | src/simulation/tick.test.ts | 261 | 1 | 🟢 |
 | src/world/factions.ts | 251 | 1 | 🟢 |
 
-## Recent Changes (Last 10 Merges/Commits)
+## Recent Changes (Last Merge/Commit)
 ```
 be17876 feat: implement event generation and efficient causal chain building with performance testing
 ```

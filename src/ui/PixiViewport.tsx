@@ -184,7 +184,7 @@ export function PixiViewport() {
   const openIntervention = useGameStore(s => s.openIntervention);
   const closeIntervention = useGameStore(s => s.closeIntervention);
 
-  // Local UI state — mirrors GameCanvas exactly
+  // Local UI state
   const [showHistory, setShowHistory] = useState(false);
 
   // Hover tooltip state
@@ -599,7 +599,7 @@ export function PixiViewport() {
     };
   }, []);
 
-  // ── Main keyboard handler (mirrors GameCanvas exactly) ────────────────
+  // ── Main keyboard handler ─────────────────────────────────────────────
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!world) return;
     if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
