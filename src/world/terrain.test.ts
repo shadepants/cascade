@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateTerrain } from './terrain.ts';
+import type { Biome } from '../types';
 
 describe('generateTerrain', () => {
   it('generates a map of the correct size', () => {
@@ -46,7 +47,7 @@ describe('generateTerrain', () => {
     const size = 20;
     const map = generateTerrain(12345, size);
 
-    const validBiomes = ['ocean', 'coast', 'grassland', 'forest', 'rainforest', 'arid', 'desert', 'tundra', 'mountain'];
+    const validBiomes: Biome[] = ['ocean', 'coast', 'grassland', 'forest', 'rainforest', 'arid', 'desert', 'tundra', 'mountain'];
 
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
@@ -78,7 +79,7 @@ describe('generateTerrain', () => {
   it('has a distribution of different biomes', () => {
     const size = 50; // larger size to ensure biome variety
     const map = generateTerrain(12345, size);
-    const biomes = new Set();
+    const biomes = new Set<Biome>();
 
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
