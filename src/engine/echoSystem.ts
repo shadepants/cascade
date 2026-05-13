@@ -5,15 +5,9 @@ import type { WorldState, TemporalEcho, TileModifier } from '../types/world';
  * Returns a new WorldState with the effect applied and insight spent.
  */
 export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
-  let cost = echo.cost;
-
-  // Holy Site Intervention Cost: 2x
-  if (echo.type === 'omen' && echo.targetId) {
-    const [tx, ty] = echo.targetId.split(',').map(Number);
-    if (world.holySites.some(hs => hs.position.x === tx && hs.position.y === ty)) {
-      cost *= 2;
-    }
-  }
+  // Trust the cost passed from UI (which already accounts for Holy Site doubling)
+  // to avoid "double-doubling" if we re-calculate it here.
+  const cost = echo.cost;
 
   if (world.player.insight < cost) {
     throw new Error('Insufficient Insight');
@@ -32,6 +26,8 @@ export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
       return applyWhisper(newWorld, echo);
     case 'omen':
       return applyOmen(newWorld, echo);
+    case 'bloom':
+      return applyBloom(newWorld, echo);
     default:
       return newWorld;
   }
@@ -54,6 +50,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
     description: `A mysterious whisper of ${echo.topic} reached ${npc?.name || 'the ears of many'}.`,
     motivation: 'as if spoken by the ghost of history itself',
     statDeltas: [],
+    significance: 5,
     playerCaused: true,
     causedBy: null,
   };
@@ -83,7 +80,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
       {
         id: `ripple-${echo.targetId}-${Date.now()}`,
         type: 'ripple',
-        position: npc?.position || { x: 0, y: 0 },
+        position: npc?.position || echo.position || { x: 0, y: 0 },
         startTime: 0,
         duration: 2,
         color: '#ffcc00'
@@ -92,27 +89,33 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   };
 }
 
-function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
-  if (!echo.targetId) return world;
+function applyBloom(world: WorldState, echo: TemporalEcho): WorldState {
+  // Bloom targeting prefers explicit position, then parses targetId
+  let x = echo.position?.x;
+  let y = echo.position?.y;
 
-  // targetId for omen is expected to be "x,y"
-  const [x, y] = echo.targetId.split(',').map(Number);
-  if (isNaN(x) || isNaN(y)) return world;
+  if (x === undefined || y === undefined) {
+    if (!echo.targetId) return world;
+    const [tx, ty] = echo.targetId.split(',').map(Number);
+    x = tx; y = ty;
+  }
 
-  const newMap = { ...world.map };
-  const tile = { ...newMap.tiles[y][x] };
+  if (isNaN(x!) || isNaN(y!)) return world;
+
+  const tile = { ...world.map.tiles[y!][x!] };
   const modifiers = [...(tile.modifiers || [])];
 
-  const isHolySite = world.holySites.some(hs => hs.position.x === x && hs.position.y === y);
+  modifiers.push({
+    type: 'bloom',
+    duration: 20
+  });
 
-  const modifier: TileModifier = {
-    type: 'omen',
-    duration: isHolySite ? 40 : 10 // 4x impact duration on Holy Sites
-  };
-
-  modifiers.push(modifier);
   tile.modifiers = modifiers;
-  newMap.tiles[y][x] = tile;
+
+  const newTiles = world.map.tiles.map((row, ri) => 
+    ri === y ? row.map((t, ci) => ci === x ? tile : t) : row
+  );
+  const newMap = { ...world.map, tiles: newTiles };
 
   return {
     ...world,
@@ -120,9 +123,56 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `sparkle-${echo.targetId}-${Date.now()}`,
+        id: `bloom-${echo.targetId || `${x},${y}`}-${Date.now()}`,
         type: 'sparkle',
-        position: { x, y },
+        position: { x: x!, y: y! },
+        startTime: 0,
+        duration: 5,
+        color: '#4ade80' // Greenish for bloom
+      }
+    ]
+  };
+}
+
+function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
+  // Omen targeting prefers explicit position, then parses targetId
+  let x = echo.position?.x;
+  let y = echo.position?.y;
+
+  if (x === undefined || y === undefined) {
+    if (!echo.targetId) return world;
+    const [tx, ty] = echo.targetId.split(',').map(Number);
+    x = tx; y = ty;
+  }
+
+  if (isNaN(x!) || isNaN(y!)) return world;
+  
+  const tile = { ...world.map.tiles[y!][x!] };
+  const modifiers = [...(tile.modifiers || [])];
+
+  const isHolySite = world.holySites.some(hs => hs.position.x === x && hs.position.y === y);
+  const modifier: TileModifier = {
+    type: 'omen',
+    duration: isHolySite ? 40 : 10
+  };
+
+  modifiers.push(modifier);
+  tile.modifiers = modifiers;
+
+  const newTiles = world.map.tiles.map((row, ri) => 
+    ri === y ? row.map((t, ci) => ci === x ? tile : t) : row
+  );
+  const newMap = { ...world.map, tiles: newTiles };
+
+  return {
+    ...world,
+    map: newMap,
+    visuals: [
+      ...(world.visuals || []),
+      {
+        id: `sparkle-${echo.targetId || `${x},${y}`}-${Date.now()}`,
+        type: 'sparkle',
+        position: { x: x!, y: y! },
         startTime: 0,
         duration: 5,
         color: '#00ccff'
@@ -130,3 +180,4 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
     ]
   };
 }
+

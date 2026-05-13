@@ -7,6 +7,7 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
   activeItem: null,
   activeTile: null,
   notification: null,
+  showReligionOverlay: false,
 
   setPhase: (phase) => set({ phase }),
 
@@ -43,4 +44,8 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
   showNotification: (text) => set({ notification: text }),
 
   clearNotification: () => set({ notification: null }),
+
+  toggleReligionOverlay: () => set((state) => ({ 
+    showReligionOverlay: !state.showReligionOverlay 
+  })),
 });

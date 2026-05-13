@@ -23,6 +23,7 @@ export interface UISlice {
   activeItem: Item | null;
   activeTile: { x: number, y: number } | null;
   notification: string | null;
+  showReligionOverlay: boolean;
   setPhase: (phase: GamePhase) => void;
   openDialogue: (npc: NPC) => void;
   closeDialogue: () => void;
@@ -32,6 +33,7 @@ export interface UISlice {
   closeIntervention: () => void;
   showNotification: (text: string) => void;
   clearNotification: () => void;
+  toggleReligionOverlay: () => void;
 }
 
 export interface ConfigSlice {

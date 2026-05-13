@@ -59,7 +59,7 @@ export function HUD() {
           <>
             <span className="hud-hint">
               ↑↓←→ move | Enter: use item | J: jump | Click tile: intervene
-              {hasPreviousWorld && ' | H: hold for history'}
+              | R: religion {hasPreviousWorld && ' | H: hold for history'}
             </span>
             <button
               className="hud-score-btn"

@@ -31,7 +31,7 @@ export function phaseReligion(
         pressure *= 2;
       }
       
-      applyPressure(settlement, site.religionId, pressure);
+      applyPressure(world, settlement, site.religionId, pressure);
     }
   }
 
@@ -46,7 +46,7 @@ export function phaseReligion(
       
       if (distSq < 625) { // Within 25 tiles
         const basePressure = Math.max(1, 8 - Math.floor(Math.sqrt(distSq) / 3));
-        shareFaith(s1, s2, basePressure);
+        shareFaith(world, s1, s2, basePressure);
       }
     }
   }
@@ -59,12 +59,15 @@ export function phaseReligion(
       const s2 = settlements.find(s => s.id === route.endSettlementId);
       if (s1 && s2) {
         const pressure = Math.floor(route.volume / 8);
-        shareFaith(s1, s2, pressure);
+        shareFaith(world, s1, s2, pressure);
       }
     }
   }
 
-  // 4. Update dominance and process effects
+  // 4. Martyrdom Effect: Check for pious ruler deaths in previous year
+  checkMartyrdom(world, year, events);
+
+  // 5. Update dominance and process effects
   for (const settlement of settlements) {
     const oldDominant = settlement.dominantReligionId;
     updateSettlementDominance(settlement);
@@ -121,10 +124,15 @@ export function phaseReligion(
     // Schism: two faiths competing above pressure threshold
     checkSchism(world, settlement, year, rng, events);
 
-    // Natural decay of minority faiths
+    // 6. Natural decay and Religious Persecution
+    const dominantFaith = settlement.faith.find(f => f.religionId === settlement.dominantReligionId);
+    const dominantPressure = dominantFaith?.pressure || 0;
+
     for (const f of settlement.faith) {
       if (f.religionId !== settlement.dominantReligionId) {
-        f.pressure = Math.max(0, f.pressure - 3);
+        // Base decay + persecution from dominant faith (up to 5 extra per year)
+        const persecution = Math.floor(dominantPressure / 20);
+        f.pressure = Math.max(0, f.pressure - (3 + persecution));
       }
     }
     settlement.faith = settlement.faith.filter(f => f.pressure > 0);
@@ -174,26 +182,70 @@ function checkSchism(
   }
 }
 
-function applyPressure(settlement: Settlement, religionId: string, amount: number) {
-  const existing = settlement.faith.find(f => f.religionId === religionId);
-  if (existing) {
-    existing.pressure = Math.min(100, existing.pressure + amount);
-  } else {
-    settlement.faith.push({ religionId, pressure: amount });
+/** Check for "Martyrdom" events (deaths of pious rulers) to boost faith. */
+function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
+  // Look at events from the previous year
+  const recentDeaths = world.events.filter(e => 
+    e.year === year - 1 && e.action === 'death'
+  );
+
+  for (const death of recentDeaths) {
+    const figure = world.historicalFigures.find(hf => hf.id === death.subject);
+    if (figure && figure.traits.includes('pious')) {
+      const faction = world.factions.find(f => f.id === figure.factionId);
+      const primaryReligion = world.religions.find(r => r.id === `rel_${figure.factionId}`);
+      
+      if (faction && primaryReligion) {
+        // Boost faith in all settlements of this faction
+        for (const sId of faction.settlements) {
+          const settlement = world.settlements.find(s => s.id === sId);
+          if (settlement) {
+            applyPressure(world, settlement, primaryReligion.id, 15);
+          }
+        }
+
+        emitEvent(world, events, createEvent({
+          tick: 0, year,
+          subject: figure.id, action: 'martyrdom', object: primaryReligion.id,
+          causedBy: death.id, playerCaused: false,
+          description: `The passing of the pious ${figure.name} has sparked a wave of religious fervor for ${primaryReligion.name}.`,
+          significance: 5
+        }), year);
+      }
+    }
   }
 }
 
-function shareFaith(s1: Settlement, s2: Settlement, amount: number) {
+function applyPressure(world: WorldState, settlement: Settlement, religionId: string, amount: number) {
+  const faction = world.factions.find(f => f.id === settlement.factionId);
+  let effectiveAmount = amount;
+  
+  if (faction) {
+    // Stability acts as a buffer against conversion. 
+    // 100 stability = 50% resistance.
+    const resistance = faction.stability / 200;
+    effectiveAmount = Math.max(1, Math.floor(amount * (1 - resistance)));
+  }
+
+  const existing = settlement.faith.find(f => f.religionId === religionId);
+  if (existing) {
+    existing.pressure = Math.min(100, existing.pressure + effectiveAmount);
+  } else {
+    settlement.faith.push({ religionId, pressure: effectiveAmount });
+  }
+}
+
+function shareFaith(world: WorldState, s1: Settlement, s2: Settlement, amount: number) {
   // S1 -> S2
   for (const f1 of s1.faith) {
     if (f1.pressure > 15) {
-      applyPressure(s2, f1.religionId, Math.floor(amount * (f1.pressure / 100)));
+      applyPressure(world, s2, f1.religionId, Math.floor(amount * (f1.pressure / 100)));
     }
   }
   // S2 -> S1
   for (const f2 of s2.faith) {
     if (f2.pressure > 15) {
-      applyPressure(s1, f2.religionId, Math.floor(amount * (f2.pressure / 100)));
+      applyPressure(world, s1, f2.religionId, Math.floor(amount * (f2.pressure / 100)));
     }
   }
 }
@@ -218,4 +270,3 @@ function shiftTowardEmbraced(current: 'shunned' | 'neutral' | 'embraced'): 'shun
   if (current === 'neutral') return 'embraced';
   return 'embraced';
 }
-

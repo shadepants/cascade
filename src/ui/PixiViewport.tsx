@@ -173,6 +173,7 @@ export function PixiViewport() {
   const zoom = useGameStore(s => s.camera.zoom ?? 1.0);
   
   const openIntervention = useGameStore(s => s.openIntervention);
+  const showReligionOverlay = useGameStore(s => s.showReligionOverlay);
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
@@ -374,7 +375,7 @@ export function PixiViewport() {
       const row = settlement.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
 
-      // Faith underlay glow
+      // Faith underlay glow (standard)
       if (settlement.dominantReligionId) {
         const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
         if (religion) {
@@ -385,6 +386,23 @@ export function PixiViewport() {
           glow.endFill();
           mid.addChild(glow);
         }
+      }
+
+      // Faith Bloom Overlay (when R is active)
+      if (showReligionOverlay && settlement.faith.length > 0) {
+        const bloom = new Graphics();
+        for (const f of settlement.faith) {
+          const religion = world.religions.find(r => r.id === f.religionId);
+          if (religion) {
+            const color = parseInt(religion.color.replace('#', ''), 16);
+            const alpha = (f.pressure / 100) * 0.4;
+            const radius = (tileDisplay * 2) * (f.pressure / 100);
+            bloom.beginFill(color, alpha);
+            bloom.drawCircle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
+            bloom.endFill();
+          }
+        }
+        layersRef.current.religion.addChild(bloom);
       }
 
       mid.addChild(makeSprite('settlement', SETTLEMENT_TILE, col, row));
@@ -612,6 +630,12 @@ export function PixiViewport() {
     }
 
     const action = mapKeyToAction(e.key, phase);
+
+    // Religion Overlay Toggle (R key)
+    if (e.key.toLowerCase() === 'r') {
+      state.toggleReligionOverlay();
+      return;
+    }
 
     switch (action.type) {
       case 'MOVE': {
