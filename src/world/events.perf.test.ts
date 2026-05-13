@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildCausalChains, createEvent } from './events';
 import type { GameEvent } from '../types';
 
