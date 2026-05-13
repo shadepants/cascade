@@ -17,11 +17,19 @@ export function phaseTrade(
   const newRoutes: TradeRoute[] = [...(world.tradeRoutes || [])];
   let insightGained = 0;
 
+  // Precompute lookups to optimize the trade route loop (O(N) to O(1))
+  const settlementMap = new Map(settlements.map(s => [s.id, s]));
+  const factionMap = new Map(world.factions.map(f => [f.id, f]));
+  const relMap = new Map(world.relationships.map(r => {
+    const key = r.factionA < r.factionB ? `${r.factionA}:${r.factionB}` : `${r.factionB}:${r.factionA}`;
+    return [key, r];
+  }));
+
   // 1. Update and process existing routes
   for (let i = 0; i < newRoutes.length; i++) {
     const route = { ...newRoutes[i] };
-    const start = settlements.find(s => s.id === route.startSettlementId);
-    const end = settlements.find(s => s.id === route.endSettlementId);
+    const start = settlementMap.get(route.startSettlementId);
+    const end = settlementMap.get(route.endSettlementId);
 
     if (!start || !end || !route.active) {
       route.active = false;
@@ -29,10 +37,8 @@ export function phaseTrade(
       continue;
     }
 
-    const rel = world.relationships.find(r => 
-      (r.factionA === start.factionId && r.factionB === end.factionId) ||
-      (r.factionA === end.factionId && r.factionB === start.factionId)
-    );
+    const relKey = start.factionId < end.factionId ? `${start.factionId}:${end.factionId}` : `${end.factionId}:${start.factionId}`;
+    const rel = relMap.get(relKey);
 
     const oldVolume = route.volume;
     if (rel?.state === 'war') {
@@ -58,7 +64,7 @@ export function phaseTrade(
       if (wealthDelta > 0) {
         // Apply deltas directly — no event needed; trade_transfer was significance=1 noise
         for (const factionId of [start.factionId, end.factionId]) {
-          const faction = world.factions.find(f => f.id === factionId);
+          const faction = factionMap.get(factionId);
           if (faction) faction.wealth = Math.min(100, faction.wealth + wealthDelta);
         }
       }
