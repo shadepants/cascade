@@ -44,7 +44,7 @@ function getCommitInfo(filePath, shallowRepo) {
   }
 
   try {
-    const gitPath = filePath.replace(/\\/g, '/');
+    const gitPath = path.posix.normalize(filePath.split(path.sep).join(path.posix.sep));
     const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', gitPath], { encoding: 'utf-8' }).trim();
     const parsed = parseInt(churn, 10);
 
@@ -151,6 +151,7 @@ async function run() {
       if (a.score === null && b.score === null) {
         return b.lineCount - a.lineCount;
       }
+      // Keep files with unknown churn (null score) at the bottom.
       if (a.score === null) {
         return 1;
       }
