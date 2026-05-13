@@ -24,7 +24,16 @@ async function walk(dir) {
 function getCommitInfo(filePath) {
   try {
     // Use git rev-list --count for cross-platform commit counting
-    const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', filePath], { encoding: 'utf-8' }).trim();
+function getCommitInfo(filePath) {
+  try {
+    const gitPath = filePath.replace(/\\/g, '/');
+    // Use git rev-list --count for cross-platform commit counting
+    const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', gitPath], { encoding: 'utf-8' }).trim();
+    return parseInt(churn) || 1;
+  } catch (e) {
+    return 1;
+  }
+}
     return parseInt(churn) || 1;
   } catch (e) {
     return 1;
