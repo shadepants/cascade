@@ -97,7 +97,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
     const winner = makeFaction('A', { settlements: ['sA'] });
     const loser = makeFaction('B', { settlements: ['sB'] });
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -80, animosity: 100, state: 'war' };
-    const world = makeWorld([winner, loser], [rel], [['A', 'B'], ['A', 'B']]);
+    const world = makeWorld([winner, loser], [rel], [['A', 'B']]);
     world.settlements = [
       {
         id: 'sA', name: 'Alpha', position: { x: 0, y: 0 },
@@ -114,7 +114,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
     expect(winner.settlements).not.toContain('sB');
 
     // nextFloat rolls for resolveWar: [war-ends check, winner selection].
-    // 0 forces war resolution to proceed (<= 0.4) and picks faction A as winner.
+    // 0 forces resolution to proceed and picks faction A as winner.
     const rollSequence = [0, 0];
     const rng: GameRNG = {
       nextFloat: () => rollSequence.shift() ?? 0,
@@ -175,8 +175,8 @@ describe('fractureFaction', () => {
   });
   it('moves captured settlements to the rebel faction and updates original list once', () => {
     const faction = makeFaction('A', { settlements: ['s1', 's2', 's3'] });
-    const rows: (string | null)[][] = Array(4).fill(null).map(() => Array(4).fill('A'));
-    const world = makeWorld([faction], [], rows);
+    const mapOwnership: (string | null)[][] = Array(4).fill(null).map(() => Array(4).fill('A'));
+    const world = makeWorld([faction], [], mapOwnership);
     world.settlements = [
       {
         id: 's1', name: 'Capital', position: { x: 0, y: 0 },
