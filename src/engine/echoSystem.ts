@@ -28,9 +28,102 @@ export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
       return applyOmen(newWorld, echo);
     case 'bloom':
       return applyBloom(newWorld, echo);
+    case 'fortify':
+      return applyFortify(newWorld, echo);
+    case 'chronicle':
+      return applyChronicle(newWorld, echo);
+    case 'reinforce':
+      return applyReinforce(newWorld, echo);
     default:
       return newWorld;
   }
+}
+
+function applyReinforce(world: WorldState, echo: TemporalEcho): WorldState {
+  if (!echo.targetId) return world;
+  const settlement = world.settlements.find(s => s.id === echo.targetId);
+  if (!settlement) return world;
+
+  return {
+    ...world,
+    factions: world.factions.map(f => f.id === settlement.factionId 
+      ? { ...f, stability: Math.min(100, f.stability + 20) }
+      : f
+    ),
+    visuals: [
+      ...(world.visuals || []),
+      {
+        id: `reinforce-${Date.now()}`,
+        type: 'aura',
+        position: settlement.position,
+        startTime: 0,
+        duration: 3,
+        color: '#60a5fa' // Blue for engineering
+      }
+    ]
+  };
+}
+
+function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
+  if (!echo.targetId) return world;
+  const settlement = world.settlements.find(s => s.id === echo.targetId);
+  if (!settlement) return world;
+
+  const tile = { ...world.map.tiles[settlement.position.y][settlement.position.x] };
+  const modifiers = [...(tile.modifiers || [])];
+  modifiers.push({ type: 'blessing', duration: 30 });
+  tile.modifiers = modifiers;
+
+  const newTiles = world.map.tiles.map((row, ri) => 
+    ri === settlement.position.y ? row.map((t, ci) => ci === settlement.position.x ? tile : t) : row
+  );
+
+  return {
+    ...world,
+    map: { ...world.map, tiles: newTiles },
+    factions: world.factions.map(f => f.id === settlement.factionId 
+      ? { ...f, military: Math.min(100, f.military + 15), stability: Math.min(100, f.stability + 10) }
+      : f
+    ),
+    visuals: [
+      ...(world.visuals || []),
+      {
+        id: `fortify-${Date.now()}`,
+        type: 'aura',
+        position: settlement.position,
+        startTime: 0,
+        duration: 5,
+        color: '#facc15'
+      }
+    ]
+  };
+}
+
+function applyChronicle(world: WorldState, echo: TemporalEcho): WorldState {
+  // Chronicle grants a large boost to insight and seeds knowledge of a significant past event
+  const significantEvents = world.events.filter(e => e.significance >= 6 && e.year < world.currentYear);
+  const randomEvent = significantEvents[Math.floor(Math.random() * significantEvents.length)];
+
+  return {
+    ...world,
+    player: {
+      ...world.player,
+      insight: world.player.insight + 50, // Paradox: spending insight to gain more? 
+      // Maybe Chronicle should be free but requires Scholarship?
+      // No, let's make it a 'Discovery' action that costs 0 but can only be used once per era.
+    },
+    visuals: [
+      ...(world.visuals || []),
+      {
+        id: `chronicle-${Date.now()}`,
+        type: 'tech_spark',
+        position: world.player.position,
+        startTime: 0,
+        duration: 4,
+        color: '#ffffff'
+      }
+    ]
+  };
 }
 
 function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {

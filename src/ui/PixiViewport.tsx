@@ -28,6 +28,8 @@ import {
   SHEET_ITEM_SCROLL,
   SHEET_ITEM_KEY,
   SHEET_RELIGION,
+  SHEET_BOOKS,
+  SHEET_ICONS,
   BIOME_TILES,
   SETTLEMENT_TILE,
   RUIN_TILE,
@@ -37,6 +39,7 @@ import {
   TREE_TILES,
   RESOURCE_SPRITE,
   ITEM_SPRITE,
+  INNOVATION_SPRITE,
 } from '../engine/tileMap.ts';
 
 // ─── Internal types ──────────────────────────────────────────────────────
@@ -52,18 +55,24 @@ interface Sheets {
   itemScroll: Texture;
   itemKey:    Texture;
   religion:   Texture;
+  books:      Texture;
+  icons:      Texture;
+  decor:      Texture;
+  altars:     Record<string, Texture>;
 }
 
 interface Layers {
-  terrain:   Container;
-  mid:       Container;  // settlements, ruins, tree canopy
-  resources: Container;  // ore deposits and relic sites
-  items:     Container;  // pickup items (artifacts, letters, keys)
-  religion:  Container;  // Holy Sites (shrines, temples)
-  trade:     Container;  // Phase 1: trade routes (golden pulsing lines)
-  visuals:   Container;  // Phase 0: Echo System visual feedback (ripples, sparks)
-  top:       Container;  // characters (NPCs + player)
-  ghost:     Container;  // Phase 2: Ghost of History overlay
+  terrain:     Container;
+  mid:         Container;  // settlements, ruins, tree canopy
+  resources:   Container;  // ore deposits and relic sites
+  items:       Container;  // pickup items (artifacts, letters, keys)
+  religion:    Container;  // Holy Sites (shrines, temples)
+  innovations: Container;  // Innovation icons
+  trade:       Container;  // Phase 1: trade routes (golden pulsing lines)
+  modifiers:   Container;  // Persistent tile modifiers (Omens, Blooms)
+  visuals:     Container;  // Phase 0: Echo System visual feedback (ripples, sparks)
+  top:         Container;  // characters (NPCs + player)
+  ghost:       Container;  // Phase 2: Ghost of History overlay
 }
 
 /** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
@@ -186,6 +195,13 @@ export function PixiViewport() {
     y: number;
   } | null>(null);
 
+  // ─── Animation state (Ref based for 60FPS performance) ──────────────────
+  const animStateRef = useRef({
+    time: 0,
+    frameIndex: 0,
+    lastFrameToggle: 0
+  });
+
   const canvasWidth  = camera.viewportWidth  * TILE_SIZE * zoom;
   const canvasHeight = camera.viewportHeight * TILE_SIZE * zoom;
 
@@ -233,6 +249,8 @@ export function PixiViewport() {
       const itemScroll = await load('itemScroll', SHEET_ITEM_SCROLL);
       const itemKey = await load('itemKey', SHEET_ITEM_KEY);
       const religion = await load('religion', SHEET_RELIGION);
+      const books = await load('books', SHEET_BOOKS);
+      const icons = await load('icons', SHEET_ICONS);
       console.log('[PIXI] Textures loaded successfully.');
 
       if (!mounted) {
@@ -252,25 +270,74 @@ export function PixiViewport() {
       const resourcesLayer = new Container();
       const itemsLayer     = new Container();
       const religionLayer  = new Container();
+      const innovationLayer = new Container();
       const tradeLayer     = new Container();
+      const modifiersLayer = new Container();
       const visualsLayer   = new Graphics(); // Use Graphics for ripples/lines
       const topLayer       = new Container();
       const ghostLayer     = new Container();
-      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, tradeLayer, visualsLayer, topLayer, ghostLayer);
+      app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, innovationLayer, tradeLayer, modifiersLayer, visualsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
-      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion };
+      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion, books, icons } as any;
       layersRef.current = {
         terrain:   terrainLayer,
         mid:       midLayer,
         resources: resourcesLayer,
         items:     itemsLayer,
         religion:  religionLayer,
+        innovations: innovationLayer,
         trade:     tradeLayer,
+        modifiers: modifiersLayer,
         visuals:   visualsLayer as unknown as Container, // Cast to match interface or update interface
         top:       topLayer,
         ghost:     ghostLayer,
       };
+
+      // ── Animation Ticker ───────────────────────────────────────────────
+      const tickerCallback = () => {
+        if (!mounted || !layersRef.current) return;
+        const now = performance.now();
+        const delta = app.ticker.elapsedMS;
+        animStateRef.current.time += delta;
+
+        // 1. Sinusoidal Pulse (2s cycle)
+        const pulse = (Math.sin(animStateRef.current.time / 2000 * Math.PI * 2) + 1) / 2;
+        
+        // Apply to Trade Routes
+        if (layersRef.current.trade) {
+          layersRef.current.trade.alpha = 0.4 + pulse * 0.6;
+        }
+
+        // Apply to Visual Effects (Ripples)
+        if (layersRef.current.visuals) {
+          // Visuals layer uses Graphics, we can scale or fade it
+          layersRef.current.visuals.alpha = 0.7 + pulse * 0.3;
+        }
+
+        // 2. Character 2-frame animation (500ms cycle)
+        if (now - animStateRef.current.lastFrameToggle > 500) {
+          animStateRef.current.frameIndex = (animStateRef.current.frameIndex + 1) % 2;
+          animStateRef.current.lastFrameToggle = now;
+
+          // Update all character sprites in the top layer
+          layersRef.current.top.children.forEach(child => {
+            const sprite = child as Sprite;
+            const meta = (sprite as any)._cascadeMeta;
+            if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
+              const baseRegion = meta.baseRegion;
+              const frameOffset = animStateRef.current.frameIndex * 16;
+              sprite.texture.frame = new Rectangle(
+                baseRegion.x + frameOffset,
+                baseRegion.y,
+                baseRegion.w,
+                baseRegion.h
+              );
+            }
+          });
+        }
+      };
+      app.ticker.add(tickerCallback);
 
       setReady(true);
     })();
@@ -292,7 +359,9 @@ export function PixiViewport() {
 
   // ── Resize renderer when zoom or viewport size changes ────────────────
   useEffect(() => {
-    appRef.current?.renderer.resize(canvasWidth, canvasHeight);
+    if (appRef.current) {
+      appRef.current.renderer.resize(canvasWidth, canvasHeight);
+    }
   }, [canvasWidth, canvasHeight]);
 
   // ── Rebuild sprites on world / camera / history change ───────────────
@@ -317,35 +386,91 @@ export function PixiViewport() {
         });
         texPool.set(poolKey, tex);
       }
-      const sprite = new Sprite(tex);
+
+      // Characters/Players need unique texture instances so we can animate their frames
+      // without affecting other sprites (like common terrain) or each other.
+      const isAnimated = sheetKey === 'character' || sheetKey === 'player';
+      const spriteTex = isAnimated 
+        ? new Texture({ 
+            source: sheets[sheetKey].source, 
+            frame: new Rectangle(region.x + (animStateRef.current.frameIndex * 16), region.y, region.w, region.h) 
+          })
+        : tex;
+
+      const sprite = new Sprite(spriteTex);
       sprite.x      = col * tileDisplay;
       sprite.y      = row * tileDisplay;
       sprite.width  = tileDisplay;
       sprite.height = tileDisplay;
+
+      if (isAnimated) {
+        (sprite as any)._cascadeMeta = { sheetKey, baseRegion: region };
+      }
+
       return sprite;
     }
 
-    // Clear all layers
-    terrain.removeChildren();
-    mid.removeChildren();
-    resources.removeChildren();
-    items.removeChildren();
-    layersRef.current.religion.removeChildren();
-    trade.removeChildren();
-    top.removeChildren();
-    ghost.removeChildren();
+    // Clear all layers and destroy children to prevent memory leaks
+    const clearLayer = (layer: Container) => {
+      while (layer.children[0]) {
+        const child = layer.children[0];
+        // For characters, we want to destroy the unique texture instance too
+        const destroyTexture = (child as any)._cascadeMeta !== undefined;
+        child.destroy({ children: true, texture: destroyTexture });
+      }
+    };
+
+    clearLayer(terrain);
+    clearLayer(mid);
+    clearLayer(resources);
+    clearLayer(items);
+    clearLayer(layersRef.current.religion);
+    clearLayer(layersRef.current.innovations);
+    clearLayer(layersRef.current.modifiers);
+    clearLayer(trade);
+    clearLayer(top);
+    clearLayer(ghost);
 
     // ── Layer 1: terrain ────────────────────────────────────────────────
     for (let row = 0; row < camera.viewportHeight; row++) {
       for (let col = 0; col < camera.viewportWidth; col++) {
         const wx = camera.x + col;
         const wy = camera.y + row;
-        if (wx >= world.map.width || wy >= world.map.height) continue;
+        if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) continue;
         const tile = world.map.tiles[wy][wx];
         const sprite = makeSprite('terrain', BIOME_TILES[tile.biome], col, row);
         // Apply subtle elevation/rainfall tint for visual variety
         sprite.tint = terrainTint(tile.biome, tile.elevation, tile.rainfall);
         terrain.addChild(sprite);
+
+        // Render Tile Modifiers
+        if (tile.modifiers && tile.modifiers.length > 0) {
+          for (const mod of tile.modifiers) {
+            const g = new Graphics();
+            const sx = col * tileDisplay + tileDisplay / 2;
+            const sy = row * tileDisplay + tileDisplay / 2;
+
+            if (mod.type === 'bloom') {
+              g.beginFill(0x4ade80, 0.2); // Greenish
+              g.drawCircle(sx, sy, tileDisplay / 1.5);
+              g.endFill();
+            } else if (mod.type === 'omen') {
+              const alpha = 0.3 + Math.sin(Date.now() / 400) * 0.1;
+              g.beginFill(0x00ccff, alpha); // Cyan
+              g.drawStar?.(sx, sy, 4, tileDisplay / 3) || g.drawCircle(sx, sy, tileDisplay / 3);
+              g.endFill();
+            } else if (mod.type === 'plague') {
+              g.beginFill(0x8b5cf6, 0.25); // Purple
+              g.drawRect(col * tileDisplay, row * tileDisplay, tileDisplay, tileDisplay);
+              g.endFill();
+            } else if (mod.type === 'blessing') {
+              g.beginFill(0xfacc15, 0.2); // Yellow/Gold
+              g.drawCircle(sx, sy, tileDisplay / 2);
+              g.endFill();
+            }
+            layersRef.current.modifiers.addChild(g);
+          }
+        }
       }
     }
 
@@ -473,6 +598,26 @@ export function PixiViewport() {
         sprite.tint = parseInt(religion.color.replace('#', ''), 16);
       }
       layersRef.current.religion.addChild(sprite);
+    }
+
+    // ── Layer 4.3: Innovations ──────────────────────────────────────────
+    for (const settlement of world.settlements) {
+      if (settlement.innovations.length === 0) continue;
+      const col = settlement.position.x - camera.x;
+      const row = settlement.position.y - camera.y;
+      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
+
+      // Render the latest innovation as a small icon offset from settlement
+      const latestId = settlement.innovations[settlement.innovations.length - 1];
+      const tech = world.innovations.find(i => i.id === latestId);
+      if (tech) {
+        const { sheetKey, region } = INNOVATION_SPRITE[tech.type];
+        const sprite = makeSprite(sheetKey as any, region, col, row);
+        sprite.width = tileDisplay / 2;
+        sprite.height = tileDisplay / 2;
+        sprite.x += tileDisplay / 2; // Offset to top-right of tile
+        layersRef.current.innovations.addChild(sprite);
+      }
     }
 
     // ── Layer 4.5: trade routes ─────────────────────────────────────────
@@ -643,30 +788,60 @@ export function PixiViewport() {
   handlerRef.current = (e: KeyboardEvent) => {
     // Get freshest state from store directly to avoid handler churn
     const state = useGameStore.getState();
-    const { world, camera, phase } = state;
+    const { world, camera, phase, showLedger } = state;
     if (!world) return;
-    if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
 
-    // Zoom in / out
-    if (e.key === '=' || e.key === '+') {
-      state.updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
+    // Block game actions if a modal is open, EXCEPT for Escape (to close)
+    const isModalOpen = phase === 'dialogue' || phase === 'action' || phase === 'intervention' || phase === 'jumping' || phase === 'worldgen' || showLedger;
+    
+    if (isModalOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showLedger) state.toggleLedger();
+        else if (phase === 'dialogue') state.closeDialogue();
+        else if (phase === 'action') state.closeAction();
+        else if (phase === 'intervention') state.closeIntervention();
+        return;
+      }
+      
+      // Strict isolation: block all keys when modal is open to prevent 
+      // movement or unintended actions in the background.
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
-    if (e.key === '-' || e.key === '_') {
-      state.updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
-      return;
+
+    if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
+
+    // Zoom in / out (Allowed even if ledger is open? No, let's block to be safe)
+    if (!isModalOpen) {
+      if (e.key === '=' || e.key === '+') {
+        state.updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
+        return;
+      }
+      if (e.key === '-' || e.key === '_') {
+        state.updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
+        return;
+      }
     }
 
     const action = mapKeyToAction(e.key, phase);
 
     // Religion Overlay Toggle (R key)
-    if (e.key.toLowerCase() === 'r') {
+    if (!isModalOpen && e.key.toLowerCase() === 'r') {
       state.toggleReligionOverlay();
+      return;
+    }
+
+    // Ledger Toggle (L key)
+    if (e.key.toLowerCase() === 'l') {
+      state.toggleLedger();
       return;
     }
 
     switch (action.type) {
       case 'MOVE': {
+        if (isModalOpen) break;
         const player = world.player;
         const newX = player.position.x + action.direction.x;
         const newY = player.position.y + action.direction.y;
@@ -693,6 +868,7 @@ export function PixiViewport() {
       }
 
       case 'INTERACT': {
+        if (isModalOpen) break;
         const playerPos = world.player.position;
         const itemAtPlayer = world.items.find(
           item => item.position.x === playerPos.x && item.position.y === playerPos.y,
@@ -708,6 +884,7 @@ export function PixiViewport() {
         break;
 
       case 'JUMP':
+        if (isModalOpen) break;
         state.setPreviousWorld(world);
         state.setPhase('jumping');
         break;

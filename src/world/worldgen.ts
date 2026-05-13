@@ -80,6 +80,7 @@ export function generateWorld(config: WorldConfig): WorldState {
     tradeRoutes: [],
     religions,
     holySites,
+    innovations: [],
     events: [],
     visuals: [],
     player,

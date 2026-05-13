@@ -59,9 +59,11 @@ export interface Faction {
   wealth: number;
   military: number;
   culture: number;
+  techLevel: number; // 0 to 100
   ethics: FactionEthics;
   leaderId: string | null;
   interestGroups: InterestGroup[];
+  innovations: string[]; // ids of known innovations
 }
 
 export interface InterestGroup {
@@ -137,7 +139,7 @@ export interface Player extends Entity {
   insight: number;
 }
 
-export type EchoType = 'whisper' | 'omen' | 'insight' | 'bloom';
+export type EchoType = 'whisper' | 'omen' | 'insight' | 'bloom' | 'fortify' | 'chronicle' | 'reinforce';
 
 export interface TemporalEcho {
   type: EchoType;
@@ -189,6 +191,7 @@ export interface Settlement {
   items: string[];
   faith: FaithPressure[];
   dominantReligionId: string | null;
+  innovations: string[]; // ids of known innovations
 }
 
 export interface Ruin {
@@ -237,9 +240,20 @@ export interface HolySite {
   religionId: string;
 }
 
+export type InnovationType = 'agriculture' | 'metallurgy' | 'navigation' | 'scholarship' | 'engineering';
+
+export interface Innovation {
+  id: string;
+  name: string;
+  type: InnovationType;
+  description: string;
+  originYear: number;
+  originSettlementId: string;
+}
+
 export interface VisualEffect {
   id: string;
-  type: 'ripple' | 'aura' | 'sparkle';
+  type: 'ripple' | 'aura' | 'sparkle' | 'tech_spark';
   position: Position;
   startTime: number; // in-game tick or year
   duration: number; // ticks or years
@@ -261,6 +275,7 @@ export interface WorldState {
   tradeRoutes: TradeRoute[];
   religions: Religion[];
   holySites: HolySite[];
+  innovations: Innovation[];
   events: GameEvent[];
   player: Player;
   storyteller: StorytellerState;

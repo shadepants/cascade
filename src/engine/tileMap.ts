@@ -13,7 +13,7 @@
 //   col 6 (x= 96): gold/sandy hex  → desert
 //   col 7 (x=112): solid light blue → ocean
 
-import type { Biome, ItemType } from '../types';
+import type { Biome, ItemType, InnovationType } from '../types';
 
 /** Native px per tile in all source sheets (DawnLike / Toen Medieval). */
 export const SPRITE_SIZE = 16;
@@ -39,6 +39,18 @@ export const SHEET_ITEM_AMULET = '/assets/DawnLike/Items/Amulet.png';
 export const SHEET_ITEM_SCROLL = '/assets/DawnLike/Items/Scroll.png';
 export const SHEET_ITEM_KEY    = '/assets/DawnLike/Items/Key.png';
 export const SHEET_RELIGION    = '/assets/DawnLike/Items/Amulet.png';
+export const SHEET_BOOKS       = '/assets/DawnLike/Items/Book.png';
+export const SHEET_ICONS       = '/assets/DawnLike/Commissions/Icons.png';
+export const SHEET_DECOR       = '/assets/DawnLike/Objects/Decor0.png';
+
+// DCSS Altar paths (individual files)
+export const ALTAR_PATHS: Record<string, string> = {
+  war:       '/assets/DCSS/dungeon/altars/altar_makhleb_flame_1.png',
+  peace:     '/assets/DCSS/dungeon/altars/altar_elyvilon.png',
+  charity:   '/assets/DCSS/dungeon/altars/altar_shining_one.png',
+  knowledge: '/assets/DCSS/dungeon/altars/altar_ashenzari.png',
+  wealth:    '/assets/DCSS/dungeon/altars/altar_okawaru.png',
+};
 
 // ─── Terrain tiles — DawnLike/Objects/Tile.png ───────────────────────────
 // Sheet is 8 cols × 4 rows (128×64 px), each tile 16×16 px.
@@ -67,25 +79,21 @@ export const TREE_TILES: Partial<Record<Biome, TileRegion>> = {
 };
 
 // ─── Settlements / Ruins — Toen's Medieval Strategy sheet ────────────────
-// TODO CALIBRATE: open the Toen PNG and identify castle & destroyed-village sprites.
-
-export const SETTLEMENT_TILE: TileRegion = { x:  0, y:  0, w: 16, h: 16 }; // castle/village
-export const RUIN_TILE:       TileRegion = { x: 16, y:  0, w: 16, h: 16 }; // destroyed site
-export const HOLYSITE_TILE:   TileRegion = { x: 32, y:  0, w: 16, h: 16 }; // shrine/temple (DawnLike Symbol0 or Toen)
+// Toen's Medieval Strategy (16x16) v1.0
+// Row 0: 0=Village, 1=Castle, 2=Tower, 3=RuinedVillage, 4=RuinedCastle
+export const SETTLEMENT_TILE: TileRegion = { x: 16, y:  0, w: 16, h: 16 }; // Castle
+export const RUIN_TILE:       TileRegion = { x: 48, y:  0, w: 16, h: 16 }; // RuinedCastle
+export const HOLYSITE_TILE:   TileRegion = { x: 32, y:  0, w: 16, h: 16 }; // Watchtower (as Holy Site proxy/shrine)
 
 // ─── Characters — DawnLike Characters sheets ─────────────────────────────
 // Humanoid0.png row 0 = guards/knights (frame 0 = idle left).
 // Player0.png   row 0 col 0 = hero (frame 0).
-// TODO CALIBRATE: confirm frame positions in each sheet.
-
-export const NPC_TILE:    TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Humanoid0
-export const PLAYER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Player0
+export const NPC_TILE:    TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Humanoid0 - Guard
+export const PLAYER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Player0 - Hero
 
 // ─── Resource nodes — DawnLike/Objects/Ore0.png + Items/Amulet.png ───────
 // iron/gold pull from Ore0.png; relic reuses the itemAmulet sheet.
-
 export type ResourceNodeType = 'iron' | 'gold' | 'relic';
-
 export const RESOURCE_SPRITE: Record<ResourceNodeType, {
   sheetKey: 'ore' | 'itemAmulet';
   region: TileRegion;
@@ -96,9 +104,7 @@ export const RESOURCE_SPRITE: Record<ResourceNodeType, {
 };
 
 // ─── Items on the ground — DawnLike Items sheets ─────────────────────────
-// Each ItemType maps to a sheet name (used as SheetKey) and a source rectangle.
-// TODO CALIBRATE: open each Items PNG and verify row/col for the desired sprite.
-
+// artifact = Amulet, letter = Scroll, key = Key
 export const ITEM_SPRITE: Record<ItemType, {
   sheetKey: 'itemAmulet' | 'itemScroll' | 'itemKey';
   region: TileRegion;
@@ -107,3 +113,20 @@ export const ITEM_SPRITE: Record<ItemType, {
   letter:   { sheetKey: 'itemScroll', region: { x: 0, y: 0, w: 16, h: 16 } },
   key:      { sheetKey: 'itemKey',    region: { x: 0, y: 0, w: 16, h: 16 } },
 };
+
+// ─── Innovations — DawnLike Books/Icons sheets ───────────────────────────
+// Icons.png: agriculture=col0, metallurgy=col1, navigation=col2, engineering=col3
+export const INNOVATION_SPRITE: Record<InnovationType, {
+  sheetKey: 'books' | 'icons';
+  region: TileRegion;
+}> = {
+  agriculture: { sheetKey: 'icons', region: { x:  0, y: 0, w: 16, h: 16 } },
+  metallurgy:  { sheetKey: 'icons', region: { x: 16, y: 0, w: 16, h: 16 } },
+  navigation:  { sheetKey: 'icons', region: { x: 32, y: 0, w: 16, h: 16 } },
+  scholarship: { sheetKey: 'books', region: { x:  0, y: 0, w: 16, h: 16 } },
+  engineering: { sheetKey: 'icons', region: { x: 48, y: 0, w: 16, h: 16 } },
+};
+
+// ─── Faction Banners — DawnLike/Objects/Decor0.png ───────────────────────
+
+export const BANNER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 };

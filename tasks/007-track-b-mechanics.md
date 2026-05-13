@@ -17,18 +17,18 @@ Expansion of the simulation engine with new mechanics and player agency.
 - [x] Visual: Pulsing golden lines in `PixiViewport.tsx`
 
 ## Phase 2: The Prophet's Word (Religion)
-- [ ] Define `Religion` and `FaithPressure` types
-- [ ] Implement `src/simulation/phases/phaseReligion.ts`
-- [ ] Add 'Holy Site' building type to map generation
-- [ ] Hook: 'Interventions' on Holy Sites cost 2x but have 4x impact
-- [ ] Visual: Subtle 'bloom'/heat-map for faith influence
+- [x] Define `Religion` and `FaithPressure` types
+- [x] Implement `src/simulation/phases/phaseReligion.ts`
+- [x] Add 'Holy Site' building type to map generation
+- [x] Hook: 'Interventions' on Holy Sites cost 2x but have 4x impact
+- [x] Visual: Subtle 'bloom'/heat-map for faith influence
 
 ## Phase 3: The Scholar's Ledger (Tech)
-- [ ] Define `Innovation` type and Gossip category
-- [ ] Implement `src/simulation/phases/phaseTech.ts`
-- [ ] Hook: 'Whispering' about tech speeds up its adoption
-- [ ] Unlock new player `Action` types based on era tech
-- [ ] Visual: Innovation notification icons in UI
+- [x] Define `Innovation` type and Gossip category
+- [x] Implement `src/simulation/phases/phaseTech.ts`
+- [x] Hook: 'Whispering' about tech speeds up its adoption
+- [x] Unlock new player `Action` types based on era tech
+- [x] Visual: Innovation notification icons in UI
 
 ## Phase 4: Integration & Polish
 - [ ] Create 'The Oracle's Eye' UI for Echo actions

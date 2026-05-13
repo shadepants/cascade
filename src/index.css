@@ -758,3 +758,131 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ─── Global Ledger ──────────────────────────────────────────────────── */
+
+.ledger-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  max-width: 90vw;
+  max-height: 85vh;
+  background: rgba(15, 15, 25, 0.95);
+  backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(173, 203, 227, 0.4);
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.9);
+  padding: 24px;
+  z-index: 2100;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  animation: modal-slide-up 0.3s ease-out;
+}
+
+.ledger-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 12px;
+  margin-top: 16px;
+}
+
+.ledger-section {
+  margin-bottom: 32px;
+}
+
+.ledger-section h3 {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 4px;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ledger-table th {
+  text-align: left;
+  color: var(--text-dim);
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ledger-table td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.innovation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.innovation-item {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.innovation-item strong {
+  display: block;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.innovation-item span {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.innovation-item p {
+  font-size: 0.8rem;
+  margin-top: 8px;
+  line-height: 1.4;
+  color: #adcbe3;
+}
+
+.religion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.religion-item {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+
+.religion-item strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.religion-item span {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.tenets {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tenet-tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  text-transform: uppercase;
+}

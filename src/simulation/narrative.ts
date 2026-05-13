@@ -25,6 +25,7 @@ export interface NarrativeContext {
   factionName: string;
   factionEthics: string;
   recentEvents: string[]; // Formatted summaries for the LLM
+  innovations: string[];
 }
 
 /** 
@@ -36,6 +37,7 @@ export function assembleNarrativeContext(
 ): NarrativeContext {
   const faction = world.factions.find(f => f.id === npc.factionId);
   const factionName = faction?.name ?? 'Unknown';
+  const settlement = world.settlements.find(s => s.npcs.includes(npc.id));
 
   // Identify top 3 most significant/accurate events the NPC knows
   const knownEvents = npc.knowledge
@@ -68,6 +70,7 @@ export function assembleNarrativeContext(
     factionName,
     factionEthics: ethicsStr,
     recentEvents: eventSummaries,
+    innovations: settlement?.innovations.map(id => world.innovations.find(i => i.id === id)?.name).filter(Boolean) as string[],
   };
 }
 
@@ -76,9 +79,13 @@ export function assembleNarrativeContext(
  * This focuses on philosophical/emotional depth rather than facts.
  */
 export function buildInterrogationPrompt(ctx: NarrativeContext): string {
+  const innovationStr = ctx.innovations.length > 0
+    ? `\nYour settlement has mastered: ${ctx.innovations.join(', ')}.`
+    : '';
+
   return `
 You are ${ctx.npcName}, a ${ctx.personality} member of the ${ctx.factionName} faction.
-Your faction's core ethics are: ${ctx.factionEthics}.
+Your faction's core ethics are: ${ctx.factionEthics}.${innovationStr}
 
 Historical Context:
 ${ctx.recentEvents.join('\n')}
@@ -102,12 +109,29 @@ export function synthesizeHistoryMonologue(npc: NPC, world: WorldState): string 
 
   const faction = world.factions.find(f => f.id === npc.factionId);
   const factionName = faction?.name ?? 'Unknown';
+  const settlement = world.settlements.find(s => s.npcs.includes(npc.id));
 
   // 1. Greeting
   const greeting = fillTemplate(EXPANDED_DIALOGUE.greeting[npc.personality], {
     name: npc.name,
     faction: factionName,
   });
+
+  // 1.5 Innovation mention (if any)
+  let innovationMention = '';
+  if (settlement && settlement.innovations.length > 0) {
+    const techId = settlement.innovations[settlement.innovations.length - 1];
+    const tech = world.innovations.find(i => i.id === techId);
+    if (tech) {
+      const templates = [
+        `We have recently mastered ${tech.name}. It changes everything.`,
+        `The scholars speak much of ${tech.name} these days.`,
+        `${tech.name} has brought new life to ${settlement.name}.`,
+        `I still don't quite understand ${tech.name}, but the rulers say it is our future.`
+      ];
+      innovationMention = `\n\n${pick(templates)}`;
+    }
+  }
 
   // 2. History Synthesis
   const chain = findKnowledgeChain(npc.knowledge, world.events);

@@ -76,6 +76,7 @@ export function generateFactions(
       leaderId: null, // set by worldgen after HistoricalFigures are created
       settlements: [],
       interestGroups: [], // initially empty
+      innovations: [],
     };
 
     faction.interestGroups = generateInterestGroups(faction, rng);
@@ -189,6 +190,7 @@ function placeSettlements(
       items: [],
       faith: [],
       dominantReligionId: null,
+      innovations: [],
     };
 
     map.tiles[pos.y][pos.x].settlementId = settlement.id;

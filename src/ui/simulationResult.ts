@@ -95,6 +95,18 @@ export function processSimulationResult(
   newWorld.storyteller.pendingNotification = undefined;
 
   let notification = rawNotification;
+
+  // Fallback: pick the most significant event from the jump as a "headline"
+  if (!notification && newEvents.length > 0) {
+    const headline = [...newEvents]
+      .filter(e => !e.action.includes('gossip') && !e.action.includes('knowledge'))
+      .sort((a, b) => b.significance - a.significance)[0];
+    
+    if (headline && headline.significance >= 4) {
+      notification = `Headlines from the past years: ${headline.description}`;
+    }
+  }
+
   if (insightDelta > 0) {
     const insightMsg = `+${insightDelta} Insight from flourishing trade routes`;
     notification = notification ? `${notification} | ${insightMsg}` : insightMsg;

@@ -30,6 +30,7 @@ import { phaseSuccession } from './phases/succession.ts';
 import { phaseColonization, phaseSettlementGrowth } from './phases/colonization.ts';
 import { phaseReligion } from './phases/phaseReligion.ts';
 import { phaseTrade } from './phases/phaseTrade.ts';
+import { phaseTech } from './phases/phaseTech.ts';
 import { getMapOwnershipSummary } from './helpers/spatial.ts';
 import {
   computeTension, decayTension, pruneCooldowns,
@@ -69,13 +70,14 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     const econ = phaseEconomics(world, year, rng, eco, mapSummary);
     const trd  = phaseTrade(world, year, rng);
     const rel  = phaseReligion(world, year, rng);
+    const tch  = phaseTech(world, year, rng);
     const ig   = phaseInterestGroups(world, year, rng);
-    const pol  = phasePolitics(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...ig]);
-    const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...pol]);
+    const pol  = phasePolitics(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...tch, ...ig]);
+    const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...tch, ...pol]);
     const stab = phaseStability(world, year, rng, mapSummary);
     const succ = phaseSuccession(world, year, rng);
 
-    const priorEvents = [...col, ...gro, ...eco, ...econ, ...trd, ...rel, ...ig, ...pol, ...con, ...stab, ...succ];
+    const priorEvents = [...col, ...gro, ...eco, ...econ, ...trd, ...rel, ...tch, ...ig, ...pol, ...con, ...stab, ...succ];
     const cas  = phaseCascade(world, priorEvents, year, rng);
     const allYearEvents = [...priorEvents, ...cas];
     const gos  = runKnowledgePipeline(world, allYearEvents, year, rng);
@@ -85,7 +87,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     if (!headless && yearEvents.length > 0) {
       console.log(
         `[TICK y=${year}] col:${col.length} gro:${gro.length} eco:${eco.length} ` +
-        `econ:${econ.length} trd:${trd.length} rel:${rel.length} ig:${ig.length} pol:${pol.length} ` +
+        `econ:${econ.length} trd:${trd.length} rel:${rel.length} tech:${tch.length} ig:${ig.length} pol:${pol.length} ` +
         `conflict:${con.length} stab:${stab.length} succ:${succ.length} cascade:${cas.length}`,
       );
       for (const e of con) {

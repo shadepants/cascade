@@ -11,6 +11,7 @@ import { ActionMenu } from './ActionMenu.tsx';
 import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
 import { InterventionMenu } from './InterventionMenu.tsx';
+import { GlobalLedger } from './GlobalLedger.tsx';
 import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
@@ -57,6 +58,7 @@ export function App() {
   const world = useGameStore(s => s.world);
   const config = useGameStore(s => s.config);
   const notification = useGameStore(s => s.notification);
+  const showLedger = useGameStore(s => s.showLedger);
   
   const setWorld = useGameStore(s => s.setWorld);
   const setPhase = useGameStore(s => s.setPhase);
@@ -182,6 +184,7 @@ export function App() {
           {phase === 'dialogue' && <DialoguePanel />}
           {phase === 'action' && <ActionMenu />}
           {phase === 'intervention' && <InterventionMenu />}
+          {showLedger && <GlobalLedger />}
         </div>
       )}
 

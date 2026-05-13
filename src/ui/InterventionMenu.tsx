@@ -15,7 +15,13 @@ export function InterventionMenu() {
 
   const insight = world.player.insight;
 
-  function handleIntervention(type: 'omen' | 'whisper' | 'bloom', cost: number) {
+  // Tech-based unlocks
+  const hasMetallurgy = world.innovations.some(i => i.type === 'metallurgy');
+  const hasEngineering = world.innovations.some(i => i.type === 'engineering');
+  const hasScholarship = world.innovations.some(i => i.type === 'scholarship');
+  const hasAgriculture = world.innovations.some(i => i.type === 'agriculture');
+
+  function handleIntervention(type: 'omen' | 'whisper' | 'bloom' | 'fortify' | 'chronicle' | 'reinforce', cost: number) {
     try {
       const echo = {
         type,
@@ -33,7 +39,7 @@ export function InterventionMenu() {
         position: activeTile!,
         startTime: world!.currentYear,
         duration: 3,
-        color: type === 'omen' ? '#facc15' : '#adcbe3'
+        color: type === 'omen' ? '#facc15' : type === 'fortify' ? '#ef4444' : '#adcbe3'
       });
 
       setWorld(newWorld);
@@ -47,6 +53,7 @@ export function InterventionMenu() {
   // Cost calculation (matching echoSystem.ts logic)
   const isHolySite = !!holySite;
   const omenCost = isHolySite ? 40 : 20; // 2x cost for Holy Sites
+  const bloomCost = hasAgriculture ? 10 : 15; // Cheaper with Agriculture
 
   return (
     <div className="intervention-panel">
@@ -80,14 +87,56 @@ export function InterventionMenu() {
         {settlement && (
           <button 
             className="intervention-btn"
-            disabled={insight < 15}
-            onClick={() => handleIntervention('bloom', 15)}
+            disabled={insight < bloomCost}
+            onClick={() => handleIntervention('bloom', bloomCost)}
           >
             <div>
               <strong>Bloom</strong>
               <span className="desc">Accelerate growth and prosperity for a generation.</span>
             </div>
-            <span className="cost">15 ✨</span>
+            <span className="cost">{bloomCost} ✨</span>
+          </button>
+        )}
+
+        {settlement && hasMetallurgy && (
+          <button 
+            className="intervention-btn"
+            disabled={insight < 25}
+            onClick={() => handleIntervention('fortify', 25)}
+          >
+            <div>
+              <strong>Fortify</strong>
+              <span className="desc">Manifest superior arms and defenses in this settlement.</span>
+            </div>
+            <span className="cost">25 ✨</span>
+          </button>
+        )}
+
+        {settlement && hasEngineering && (
+          <button 
+            className="intervention-btn"
+            disabled={insight < 20}
+            onClick={() => handleIntervention('reinforce', 20)}
+          >
+            <div>
+              <strong>Reinforce</strong>
+              <span className="desc">Stabilize infrastructure and prevent collapse.</span>
+            </div>
+            <span className="cost">20 ✨</span>
+          </button>
+        )}
+
+        {hasScholarship && (
+          <button 
+            className="intervention-btn"
+            disabled={insight < 30}
+            onClick={() => handleIntervention('chronicle', 30)}
+          >
+            <div>
+              <strong>Chronicle</strong>
+              <span className="desc">Distill local history into pure Insight.</span>
+            </div>
+            <span className="cost">30 ✨</span>
           </button>
         )}
 
