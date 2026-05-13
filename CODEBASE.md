@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-13T04:41:47.082Z | Commit: 67cf289a241cdd55dca3b23ed24ccd8546608072 | Run: `npm run scout`
+> Generated: 2026-05-13T05:44:24.853Z | Commit: be17876dff7c812873ac49eef0b8b7cea68e0f21 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -73,7 +73,7 @@
 | src/ui/HUD.tsx | HUD | 79 | — |
 | src/ui/InterventionMenu.tsx | InterventionMenu | 114 | — |
 | src/ui/KnowledgeLog.tsx | KnowledgeLog | 39 | — |
-| src/ui/PixiViewport.tsx | PixiViewport | 784 | — |
+| src/ui/PixiViewport.tsx | PixiViewport | 770 | — |
 | src/ui/simulationResult.test.ts |  | 128 | — |
 | src/ui/simulationResult.ts | formatNotificationValue, processSimulationResult | 105 | ✓ |
 | src/ui/TitleScreen.tsx | TitleScreen | 149 | — |
@@ -82,7 +82,8 @@
 | src/utils/rng.test.ts |  | 87 | — |
 | src/utils/rng.ts | GameRNG, SeededRNG | 47 | ✓ |
 | src/world/entities.ts | generateNPCs, createPlayer, generateItems | 172 | — |
-| src/world/events.ts | createEvent, buildCausalChains, resetEventIds, initEventIds | 99 | — |
+| src/world/events.perf.test.ts |  | 43 | — |
+| src/world/events.ts | createEvent, buildCausalChains, resetEventIds, initEventIds | 113 | — |
 | src/world/factions.ts | generateFactions, generateRelationships, computeEthicsDivergence | 251 | — |
 | src/world/index.ts |  | 12 | — |
 | src/world/terrain.ts | generateTerrain | 148 | — |
@@ -93,51 +94,42 @@
 graph LR
   data --> src
   engine --> src
-  engine --> src\types
-  engine --> src\engine
-  engine --> src\data
-  src --> src\ui
+  engine --> types
+  engine --> data
+  src --> ui
   simulation --> src
-  simulation --> src\world
-  simulation --> src\utils
-  simulation --> src\simulation
-  simulation --> src\data
-  simulation --> src\simulation\helpers
-  simulation --> src\simulation\phases
-  simulation_helpers --> src\simulation\helpers
+  simulation --> world
+  simulation --> utils
+  simulation --> data
+  simulation --> simulation_helpers
+  simulation --> simulation_phases
   simulation_helpers --> src
   simulation_phases --> src
-  simulation_phases --> src\world
-  simulation_phases --> src\utils
-  simulation_phases --> src\simulation
-  simulation_phases --> src\simulation\helpers
-  simulation_phases --> src\data
-  simulation_phases --> src\simulation\phases
-  simulation_phases --> src\types
-  store --> src\store
-  store --> src\store\slices
+  simulation_phases --> world
+  simulation_phases --> utils
+  simulation_phases --> simulation
+  simulation_phases --> simulation_helpers
+  simulation_phases --> data
+  simulation_phases --> types
+  store --> store_slices
   store --> src
-  store_slices --> src\store
+  store_slices --> store
   store_slices --> src
-  types --> src\types
-  ui --> src\store
+  ui --> store
   ui --> src
-  ui --> src\world
-  ui --> src\simulation
-  ui --> src\ui
-  ui --> src\data
-  ui --> src\utils
-  ui --> src\engine
-  utils --> src\utils
+  ui --> world
+  ui --> simulation
+  ui --> data
+  ui --> utils
+  ui --> engine
   world --> src
-  world --> src\data
-  world --> src\utils
-  world --> src\world
-  world --> src\simulation
+  world --> data
+  world --> utils
+  world --> simulation
 ```
 
 ## Hub Files (Most Imported)
-- src/types (39 imports)
+- src/types (40 imports)
 - src/simulation/../types (28 imports)
 - src/simulation/../utils/rng.ts (21 imports)
 - src/utils/rng.ts (12 imports)
@@ -146,27 +138,18 @@ graph LR
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 784 | 10 | 🔴 |
-| src/ui/App.tsx | 196 | 19 | 🟡 |
-| src/world/worldgen.ts | 274 | 11 | 🟡 |
-| src/simulation/tick.ts | 146 | 19 | 🟡 |
-| src/ui/DialoguePanel.tsx | 284 | 8 | 🟡 |
-| src/data/templates.ts | 504 | 3 | 🟢 |
-| src/simulation/storyteller.ts | 349 | 4 | 🟢 |
-| src/engine/renderer.ts | 344 | 4 | 🟢 |
-| src/simulation/tick.test.ts | 261 | 5 | 🟢 |
-| src/world/factions.ts | 251 | 5 | 🟢 |
+| src/ui/PixiViewport.tsx | 770 | 1 | 🟢 |
+| src/data/templates.ts | 504 | 1 | 🟢 |
+| src/simulation/storyteller.test.ts | 402 | 1 | 🟢 |
+| src/simulation/storyteller.ts | 349 | 1 | 🟢 |
+| src/engine/renderer.ts | 344 | 1 | 🟢 |
+| src/ui/DialoguePanel.tsx | 284 | 1 | 🟢 |
+| src/types/world.ts | 279 | 1 | 🟢 |
+| src/world/worldgen.ts | 274 | 1 | 🟢 |
+| src/simulation/tick.test.ts | 261 | 1 | 🟢 |
+| src/world/factions.ts | 251 | 1 | 🟢 |
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
-3b0b14a Merge pull request #23 from shadepants/optimize-phase-trade-4140283301708192861
-62b20c5 Merge pull request #21 from shadepants/testing-improvement-format-notification-value-6046543382860882357
-0cdd85d perf(simulation): optimize lookups in phaseTrade.ts
-061214e Merge pull request #22 from shadepants/palette-ux-improvements-13985168638285329121
-69d4003 UX and a11y improvements to panel overlays
-376759d 🧪 test: finalize formatNotificationValue tests and fix linting
-dbc3d9a Merge pull request #20 from shadepants/testing-improvement-format-notification-value-6046543382860882357
-b46145a test: replace any with explicit circular object type
-bf8a671 Improve texture loading diagnostics and asset paths
-f92d014 🧪 test: add comprehensive tests for formatNotificationValue utility
+be17876 feat: implement event generation and efficient causal chain building with performance testing
 ```

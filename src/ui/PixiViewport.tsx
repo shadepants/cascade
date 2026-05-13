@@ -186,7 +186,6 @@ export function PixiViewport() {
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
-  const [debugMode, setDebugMode] = useState<'none' | 'elevation' | 'rainfall'>('none');
 
   // Hover tooltip state
   const [tooltip, setTooltip] = useState<{
@@ -605,16 +604,6 @@ export function PixiViewport() {
     if (!world) return;
     if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
 
-    // Debug view cycle: none → elevation → rainfall → none
-    if (e.key.toLowerCase() === 'm') {
-      setDebugMode(prev => {
-        if (prev === 'none') return 'elevation';
-        if (prev === 'elevation') return 'rainfall';
-        return 'none';
-      });
-      return;
-    }
-
     // Zoom in / out
     if (e.key === '=' || e.key === '+') {
       updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
@@ -738,9 +727,6 @@ export function PixiViewport() {
 
   const handleMouseLeave = useCallback(() => setTooltip(null), []);
 
-  // debugMode is read here for future use (elevation/rainfall overlay in Phase 3+).
-  // Suppress unused-variable lint until then.
-  void debugMode;
 
   return (
     <div
