@@ -83,7 +83,6 @@ export const PLAYER_TILE: TileRegion = { x: 0, y: 0, w: 16, h: 16 }; // Player0
 
 // ─── Resource nodes — DawnLike/Objects/Ore0.png + Items/Amulet.png ───────
 // iron/gold pull from Ore0.png; relic reuses the itemAmulet sheet.
-// TODO CALIBRATE: open Ore0.png and verify exact column positions.
 
 export type ResourceNodeType = 'iron' | 'gold' | 'relic';
 
@@ -91,8 +90,8 @@ export const RESOURCE_SPRITE: Record<ResourceNodeType, {
   sheetKey: 'ore' | 'itemAmulet';
   region: TileRegion;
 }> = {
-  iron:  { sheetKey: 'ore',        region: { x:  0, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
-  gold:  { sheetKey: 'ore',        region: { x: 16, y: 0, w: 16, h: 16 } }, // TODO CALIBRATE
+  iron:  { sheetKey: 'ore',        region: { x: 80, y: 32, w: 16, h: 16 } },
+  gold:  { sheetKey: 'ore',        region: { x:  0, y: 32, w: 16, h: 16 } },
   relic: { sheetKey: 'itemAmulet', region: { x:  0, y: 0, w: 16, h: 16 } },
 };
 
