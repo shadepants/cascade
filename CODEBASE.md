@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-10T19:45:55.875Z | Commit: 80eb097c47da6ddb831cdc858134267c965326ad | Run: `npm run scout`
+> Generated: 2026-05-12T08:09:33.601Z | Commit: f827fb885817a7d991b85bfe886022ff8570a113 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -93,47 +93,38 @@
 graph LR
   data --> src
   engine --> src
-  engine --> src\types
-  engine --> src\engine
-  engine --> src\data
-  src --> src\ui
+  engine --> types
+  engine --> data
+  src --> ui
   simulation --> src
-  simulation --> src\world
-  simulation --> src\utils
-  simulation --> src\simulation
-  simulation --> src\data
-  simulation --> src\simulation\helpers
-  simulation --> src\simulation\phases
-  simulation_helpers --> src\simulation\helpers
+  simulation --> world
+  simulation --> utils
+  simulation --> data
+  simulation --> simulation_helpers
+  simulation --> simulation_phases
   simulation_helpers --> src
   simulation_phases --> src
-  simulation_phases --> src\world
-  simulation_phases --> src\utils
-  simulation_phases --> src\simulation
-  simulation_phases --> src\simulation\helpers
-  simulation_phases --> src\data
-  simulation_phases --> src\simulation\phases
-  simulation_phases --> src\types
-  store --> src\store
-  store --> src\store\slices
+  simulation_phases --> world
+  simulation_phases --> utils
+  simulation_phases --> simulation
+  simulation_phases --> simulation_helpers
+  simulation_phases --> data
+  simulation_phases --> types
+  store --> store_slices
   store --> src
-  store_slices --> src\store
+  store_slices --> store
   store_slices --> src
-  types --> src\types
-  ui --> src\store
+  ui --> store
   ui --> src
-  ui --> src\world
-  ui --> src\simulation
-  ui --> src\ui
-  ui --> src\data
-  ui --> src\utils
-  ui --> src\engine
-  utils --> src\utils
+  ui --> world
+  ui --> simulation
+  ui --> data
+  ui --> utils
+  ui --> engine
   world --> src
-  world --> src\data
-  world --> src\utils
-  world --> src\world
-  world --> src\simulation
+  world --> data
+  world --> utils
+  world --> simulation
 ```
 
 ## Hub Files (Most Imported)
@@ -146,27 +137,18 @@ graph LR
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 772 | 9 | 🔴 |
-| src/ui/App.tsx | 196 | 19 | 🟡 |
-| src/world/worldgen.ts | 274 | 11 | 🟡 |
-| src/simulation/tick.ts | 146 | 19 | 🟡 |
-| src/ui/DialoguePanel.tsx | 284 | 7 | 🟢 |
-| src/data/templates.ts | 504 | 3 | 🟢 |
-| src/simulation/storyteller.ts | 349 | 4 | 🟢 |
-| src/engine/renderer.ts | 344 | 4 | 🟢 |
-| src/simulation/tick.test.ts | 261 | 5 | 🟢 |
-| src/world/factions.ts | 251 | 5 | 🟢 |
+| src/ui/PixiViewport.tsx | 772 | 1 | 🟢 |
+| src/data/templates.ts | 504 | 1 | 🟢 |
+| src/simulation/storyteller.test.ts | 402 | 1 | 🟢 |
+| src/simulation/storyteller.ts | 349 | 1 | 🟢 |
+| src/engine/renderer.ts | 344 | 1 | 🟢 |
+| src/ui/DialoguePanel.tsx | 284 | 1 | 🟢 |
+| src/types/world.ts | 279 | 1 | 🟢 |
+| src/world/worldgen.ts | 274 | 1 | 🟢 |
+| src/simulation/tick.test.ts | 261 | 1 | 🟢 |
+| src/world/factions.ts | 251 | 1 | 🟢 |
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
-d725e30 refactor: introduce GameRNG interface for type-safe RNG mocking across simulation phases
-865e098 refactor: replace 'any' mocks with GameRNG interface in tests
-f3b6f2e test: add comprehensive coverage for rng, noise, spatial, stats, storyteller, and all simulation phases
-8979d6e feat: activate dead systems, fix cascade bugs, expand simulation depth (#15)
-67c624f feat: implement faction generation with ethics-based territory assignment and UI state management
-8c0f5de chore: finalize zustand migration, fix missing insight and tradeRoutes in tests
-cc922e1 refactor(simulation): decompose tick monolith and optimize spatial queries
-2214411 feat: implement title screen with storyteller mode selection and AI settings alongside playtest SOP documentation
-b4d7ba3 test: increase playwright timeouts for slow-running jump/world tests
-717ad43 Reorganize root clutter and consolidate src/types barrel (#14)
+f827fb8 test: add comprehensive test suites for simulation phases and utilities with GameRNG interface integration
 ```
