@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const SRC_DIR = './src';
 const OUTPUT_FILE = './CODEBASE.md';
@@ -24,7 +24,7 @@ async function walk(dir) {
 function getCommitInfo(filePath) {
   try {
     // Use git rev-list --count for cross-platform commit counting
-    const churn = execSync(`git rev-list --count HEAD -- "${filePath}"`, { encoding: 'utf-8' }).trim();
+    const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', filePath], { encoding: 'utf-8' }).trim();
     return parseInt(churn) || 1;
   } catch (e) {
     return 1;
@@ -33,7 +33,7 @@ function getCommitInfo(filePath) {
 
 function getRecentCommits() {
   try {
-    return execSync('git log --oneline -n 10 -- src/', { encoding: 'utf-8' }).trim();
+    return execFileSync('git', ['log', '--oneline', '-n', '10', '--', 'src/'], { encoding: 'utf-8' }).trim();
   } catch (e) {
     return 'No git history found.';
   }
@@ -118,7 +118,7 @@ async function run() {
     .slice(0, 10);
 
   const timestamp = new Date().toISOString();
-  const commit = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+  const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
 
   let markdown = `# CODEBASE — Auto-Generated Index\n`;
   markdown += `> Generated: ${timestamp} | Commit: ${commit} | Run: \`npm run scout\`\n\n`;
