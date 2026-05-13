@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-13T05:44:24.853Z | Commit: be17876dff7c812873ac49eef0b8b7cea68e0f21 | Run: `npm run scout`
+> Generated: 2026-05-13T15:34:59.922Z | Commit: 90b42d79232b9a4cf89ae2eb82ae4a74bf779fb8 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -14,9 +14,9 @@
 | src/engine/input.ts | GameAction, mapKeyToAction | 41 | — |
 | src/engine/renderer.ts | RenderContext, renderWorld | 344 | — |
 | src/engine/tileMap.test.ts |  | 120 | — |
-| src/engine/tileMap.ts | SPRITE_SIZE, TileRegion, SHEET_TERRAIN, SHEET_SETTLEMENT, SHEET_CHARACTER | 111 | ✓ |
+| src/engine/tileMap.ts | SPRITE_SIZE, TileRegion, SHEET_TERRAIN, SHEET_SETTLEMENT, SHEET_CHARACTER | 110 | ✓ |
 | src/main.tsx |  | 11 | — |
-| src/simulation/cascade.ts | CascadeResult, CascadeTier, calculateCascade, formatChainAsTree | 68 | — |
+| src/simulation/cascade.ts | CascadeResult, CascadeTier, calculateCascade, formatChainAsTree | 74 | — |
 | src/simulation/constants.ts | WAR_ANIMOSITY_THRESHOLD, FAMINE_DESERT_THRESHOLD, FAMINE_POPULATION_MIN, REBELLION_STABILITY_MIN, ALLIANCE_OPINION_MIN | 39 | — |
 | src/simulation/emitEvent.ts | emitEvent | 13 | — |
 | src/simulation/helpers/spatial.test.ts |  | 166 | — |
@@ -28,8 +28,8 @@
 | src/simulation/narrative.ts | NarrativeContext, assembleNarrativeContext, buildSocraticPrompt, getTemplateDialogue | 106 | — |
 | src/simulation/phases/cascade.ts | phaseCascade, deriveConsequence, cascadeTesting | 186 | — |
 | src/simulation/phases/colonization.ts | phaseSettlementGrowth, phaseColonization | 178 | — |
-| src/simulation/phases/conflict.test.ts |  | 137 | — |
-| src/simulation/phases/conflict.ts | phaseConflict, fractureFaction | 240 | ✓ |
+| src/simulation/phases/conflict.test.ts |  | 213 | — |
+| src/simulation/phases/conflict.ts | phaseConflict, fractureFaction | 251 | ✓ |
 | src/simulation/phases/ecology.test.ts |  | 86 | — |
 | src/simulation/phases/ecology.ts | phaseEcology | 61 | ✓ |
 | src/simulation/phases/economics.test.ts |  | 100 | — |
@@ -81,12 +81,14 @@
 | src/utils/noise.ts | createNoise2D, createFBM2D | 113 | ✓ |
 | src/utils/rng.test.ts |  | 87 | — |
 | src/utils/rng.ts | GameRNG, SeededRNG | 47 | ✓ |
-| src/world/entities.ts | generateNPCs, createPlayer, generateItems | 172 | — |
+| src/world/entities.test.ts |  | 161 | — |
+| src/world/entities.ts | generateNPCs, createPlayer, generateItems | 172 | ✓ |
 | src/world/events.perf.test.ts |  | 43 | — |
-| src/world/events.ts | createEvent, buildCausalChains, resetEventIds, initEventIds | 113 | — |
+| src/world/events.ts | createEvent, buildCausalChains, resetEventIds, initEventIds | 116 | — |
 | src/world/factions.ts | generateFactions, generateRelationships, computeEthicsDivergence | 251 | — |
 | src/world/index.ts |  | 12 | — |
-| src/world/terrain.ts | generateTerrain | 148 | — |
+| src/world/terrain.test.ts |  | 93 | — |
+| src/world/terrain.ts | generateTerrain | 148 | ✓ |
 | src/world/worldgen.ts | generateWorld | 274 | — |
 
 ## Dependency Graph (Directory Level)
@@ -94,42 +96,51 @@
 graph LR
   data --> src
   engine --> src
-  engine --> types
-  engine --> data
-  src --> ui
+  engine --> src\types
+  engine --> src\engine
+  engine --> src\data
+  src --> src\ui
   simulation --> src
-  simulation --> world
-  simulation --> utils
-  simulation --> data
-  simulation --> simulation_helpers
-  simulation --> simulation_phases
+  simulation --> src\world
+  simulation --> src\utils
+  simulation --> src\simulation
+  simulation --> src\data
+  simulation --> src\simulation\helpers
+  simulation --> src\simulation\phases
+  simulation_helpers --> src\simulation\helpers
   simulation_helpers --> src
   simulation_phases --> src
-  simulation_phases --> world
-  simulation_phases --> utils
-  simulation_phases --> simulation
-  simulation_phases --> simulation_helpers
-  simulation_phases --> data
-  simulation_phases --> types
-  store --> store_slices
+  simulation_phases --> src\world
+  simulation_phases --> src\utils
+  simulation_phases --> src\simulation
+  simulation_phases --> src\simulation\helpers
+  simulation_phases --> src\data
+  simulation_phases --> src\simulation\phases
+  simulation_phases --> src\types
+  store --> src\store
+  store --> src\store\slices
   store --> src
-  store_slices --> store
+  store_slices --> src\store
   store_slices --> src
-  ui --> store
+  types --> src\types
+  ui --> src\store
   ui --> src
-  ui --> world
-  ui --> simulation
-  ui --> data
-  ui --> utils
-  ui --> engine
+  ui --> src\world
+  ui --> src\simulation
+  ui --> src\ui
+  ui --> src\data
+  ui --> src\utils
+  ui --> src\engine
+  utils --> src\utils
+  world --> src\world
   world --> src
-  world --> data
-  world --> utils
-  world --> simulation
+  world --> src\data
+  world --> src\utils
+  world --> src\simulation
 ```
 
 ## Hub Files (Most Imported)
-- src/types (40 imports)
+- src/types (41 imports)
 - src/simulation/../types (28 imports)
 - src/simulation/../utils/rng.ts (21 imports)
 - src/utils/rng.ts (12 imports)
@@ -138,18 +149,27 @@ graph LR
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 770 | 1 | 🟢 |
-| src/data/templates.ts | 504 | 1 | 🟢 |
-| src/simulation/storyteller.test.ts | 402 | 1 | 🟢 |
-| src/simulation/storyteller.ts | 349 | 1 | 🟢 |
-| src/engine/renderer.ts | 344 | 1 | 🟢 |
-| src/ui/DialoguePanel.tsx | 284 | 1 | 🟢 |
-| src/types/world.ts | 279 | 1 | 🟢 |
-| src/world/worldgen.ts | 274 | 1 | 🟢 |
-| src/simulation/tick.test.ts | 261 | 1 | 🟢 |
-| src/world/factions.ts | 251 | 1 | 🟢 |
+| src/ui/PixiViewport.tsx | 770 | 13 | 🔴 |
+| src/ui/App.tsx | 196 | 19 | 🟡 |
+| src/world/worldgen.ts | 274 | 11 | 🟡 |
+| src/simulation/tick.ts | 146 | 19 | 🟡 |
+| src/ui/DialoguePanel.tsx | 284 | 8 | 🟡 |
+| src/simulation/phases/conflict.test.ts | 213 | 10 | 🟡 |
+| src/data/templates.ts | 504 | 3 | 🟢 |
+| src/simulation/storyteller.ts | 349 | 4 | 🟢 |
+| src/engine/renderer.ts | 344 | 4 | 🟢 |
+| src/simulation/tick.test.ts | 261 | 5 | 🟢 |
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
-be17876 feat: implement event generation and efficient causal chain building with performance testing
+90b42d7 Merge pull request #28 from shadepants/perf-conflict-settlements-5364026750176608920
+45188dc Merge pull request #26 from shadepants/testing-improvement-entities-11106865380592894010
+9f6f7c5 Merge pull request #25 from shadepants/test-terrain-gen-13606219047782574064
+be912cb Merge pull request #27 from shadepants/remove-unused-debug-mode-16237029280120727085
+4e5c191 Merge pull request #29 from shadepants/calibrate-ore-sprites-2859346247638284623
+c94e1f2 🧪 Add tests for generateTerrain
+78319db fix: re-apply Biome type annotations to terrain.test.ts
+f48ebc6 test: align duplicate checks across transfer assertions
+883e3a8 test: simplify conflict transfer fixture setup
+8d15dde test: assert winner settlement presence and uniqueness
 ```
