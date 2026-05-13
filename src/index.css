@@ -665,3 +665,96 @@ body {
   color: #94a3b8;
   line-height: 1.4;
 }
+/* ─── Faith System ────────────────────────────────────────────────────── */
+
+.faith-section {
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 16px;
+}
+
+.faith-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.faith-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.faith-label {
+  font-size: 0.75em;
+  width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faith-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  position: relative;
+}
+
+.faith-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.faith-percentage {
+  font-size: 0.75em;
+  color: #888;
+  width: 25px;
+}
+
+.whisper-section {
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 16px;
+}
+
+.whisper-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.whisper-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.whisper-btn {
+  padding: 4px 10px;
+  font-size: 0.8em;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.whisper-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.whisper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

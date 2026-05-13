@@ -41,11 +41,26 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   if (!echo.targetId || !echo.topic) return world;
 
   const npc = world.npcs.find(n => n.id === echo.targetId);
+  const eventId = `whisper-${echo.topic}-${world.currentYear}-${Math.floor(Math.random() * 1000)}`;
 
-  // Find the NPC and add the topic to their next gossip
-  // For now, we simulate this by adding a specific 'whispered' knowledge entry
+  const whisperEvent = {
+    id: eventId,
+    tick: 0,
+    year: world.currentYear,
+    secondsOffset: 0,
+    subject: echo.targetId,
+    action: 'whisper',
+    object: echo.topic,
+    description: `A mysterious whisper of ${echo.topic} reached ${npc?.name || 'the ears of many'}.`,
+    motivation: 'as if spoken by the ghost of history itself',
+    statDeltas: [],
+    playerCaused: true,
+    causedBy: null,
+  };
+
   return {
     ...world,
+    events: [...world.events, whisperEvent],
     npcs: world.npcs.map(npc => {
       if (npc.id === echo.targetId) {
         return {
@@ -53,7 +68,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
           knowledge: [
             ...npc.knowledge,
             {
-              eventId: `whisper-${echo.topic}-${world.currentYear}`,
+              eventId: eventId,
               discoveredYear: world.currentYear,
               accuracy: 1.0,
               sourceId: 'player-echo'
@@ -69,8 +84,8 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
         id: `ripple-${echo.targetId}-${Date.now()}`,
         type: 'ripple',
         position: npc?.position || { x: 0, y: 0 },
-        startTime: 0, // current tick in simulation terms, but for visuals we might need real time or tick
-        duration: 2, // 2 years or frames
+        startTime: 0,
+        duration: 2,
         color: '#ffcc00'
       }
     ]

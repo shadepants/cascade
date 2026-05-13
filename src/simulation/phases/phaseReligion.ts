@@ -1,4 +1,4 @@
-﻿import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
+import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -208,6 +208,8 @@ function updateSettlementDominance(settlement: Settlement) {
   // Threshold to become dominant
   if (best.pressure > 40) {
     settlement.dominantReligionId = best.religionId;
+  } else {
+    settlement.dominantReligionId = null;
   }
 }
 
