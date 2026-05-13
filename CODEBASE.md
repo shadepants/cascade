@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-10T19:45:55.875Z | Commit: 80eb097c47da6ddb831cdc858134267c965326ad | Run: `npm run scout`
+> Generated: 2026-05-13T04:41:47.082Z | Commit: 67cf289a241cdd55dca3b23ed24ccd8546608072 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -41,7 +41,7 @@
 | src/simulation/phases/phaseReligion.test.ts |  | 165 | — |
 | src/simulation/phases/phaseReligion.ts | phaseReligion | 209 | ✓ |
 | src/simulation/phases/phaseTrade.test.ts |  | 145 | — |
-| src/simulation/phases/phaseTrade.ts | phaseTrade | 150 | ✓ |
+| src/simulation/phases/phaseTrade.ts | phaseTrade | 156 | ✓ |
 | src/simulation/phases/politics.test.ts |  | 74 | — |
 | src/simulation/phases/politics.ts | phasePolitics | 78 | ✓ |
 | src/simulation/phases/stability.test.ts |  | 109 | — |
@@ -71,11 +71,11 @@
 | src/ui/DialoguePanel.tsx | DialoguePanel | 284 | — |
 | src/ui/GameCanvas.tsx | GameCanvas | 182 | — |
 | src/ui/HUD.tsx | HUD | 79 | — |
-| src/ui/InterventionMenu.tsx | InterventionMenu | 111 | — |
+| src/ui/InterventionMenu.tsx | InterventionMenu | 114 | — |
 | src/ui/KnowledgeLog.tsx | KnowledgeLog | 39 | — |
-| src/ui/PixiViewport.tsx | PixiViewport | 772 | — |
-| src/ui/simulationResult.test.ts |  | 76 | — |
-| src/ui/simulationResult.ts | processSimulationResult | 105 | ✓ |
+| src/ui/PixiViewport.tsx | PixiViewport | 784 | — |
+| src/ui/simulationResult.test.ts |  | 128 | — |
+| src/ui/simulationResult.ts | formatNotificationValue, processSimulationResult | 105 | ✓ |
 | src/ui/TitleScreen.tsx | TitleScreen | 149 | — |
 | src/utils/noise.test.ts |  | 76 | — |
 | src/utils/noise.ts | createNoise2D, createFBM2D | 113 | ✓ |
@@ -146,11 +146,11 @@ graph LR
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 772 | 9 | 🔴 |
+| src/ui/PixiViewport.tsx | 784 | 10 | 🔴 |
 | src/ui/App.tsx | 196 | 19 | 🟡 |
 | src/world/worldgen.ts | 274 | 11 | 🟡 |
 | src/simulation/tick.ts | 146 | 19 | 🟡 |
-| src/ui/DialoguePanel.tsx | 284 | 7 | 🟢 |
+| src/ui/DialoguePanel.tsx | 284 | 8 | 🟡 |
 | src/data/templates.ts | 504 | 3 | 🟢 |
 | src/simulation/storyteller.ts | 349 | 4 | 🟢 |
 | src/engine/renderer.ts | 344 | 4 | 🟢 |
@@ -159,14 +159,14 @@ graph LR
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
-d725e30 refactor: introduce GameRNG interface for type-safe RNG mocking across simulation phases
-865e098 refactor: replace 'any' mocks with GameRNG interface in tests
-f3b6f2e test: add comprehensive coverage for rng, noise, spatial, stats, storyteller, and all simulation phases
-8979d6e feat: activate dead systems, fix cascade bugs, expand simulation depth (#15)
-67c624f feat: implement faction generation with ethics-based territory assignment and UI state management
-8c0f5de chore: finalize zustand migration, fix missing insight and tradeRoutes in tests
-cc922e1 refactor(simulation): decompose tick monolith and optimize spatial queries
-2214411 feat: implement title screen with storyteller mode selection and AI settings alongside playtest SOP documentation
-b4d7ba3 test: increase playwright timeouts for slow-running jump/world tests
-717ad43 Reorganize root clutter and consolidate src/types barrel (#14)
+3b0b14a Merge pull request #23 from shadepants/optimize-phase-trade-4140283301708192861
+62b20c5 Merge pull request #21 from shadepants/testing-improvement-format-notification-value-6046543382860882357
+0cdd85d perf(simulation): optimize lookups in phaseTrade.ts
+061214e Merge pull request #22 from shadepants/palette-ux-improvements-13985168638285329121
+69d4003 UX and a11y improvements to panel overlays
+376759d 🧪 test: finalize formatNotificationValue tests and fix linting
+dbc3d9a Merge pull request #20 from shadepants/testing-improvement-format-notification-value-6046543382860882357
+b46145a test: replace any with explicit circular object type
+bf8a671 Improve texture loading diagnostics and asset paths
+f92d014 🧪 test: add comprehensive tests for formatNotificationValue utility
 ```
