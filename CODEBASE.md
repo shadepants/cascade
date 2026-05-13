@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-13T04:04:24.843Z | Commit: c1823d15786d4ecf7947ce5e654f4ac998d293ea | Run: `npm run scout`
+> Generated: 2026-05-13T04:06:54.585Z | Commit: 5fb0585afb42357f569f84d46d57bfb2f9de8473 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -134,24 +134,30 @@ graph LR
 - src/utils/rng.ts (12 imports)
 - src/simulation/helpers/spatial.ts (11 imports)
 
-## Analysis Warnings
-- Repository has shallow git history. Hotspot churn and recent change data may be incomplete.
-
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 772 | N/A | ⚪ |
-| src/data/templates.ts | 504 | N/A | ⚪ |
-| src/simulation/storyteller.test.ts | 402 | N/A | ⚪ |
-| src/simulation/storyteller.ts | 349 | N/A | ⚪ |
-| src/engine/renderer.ts | 344 | N/A | ⚪ |
-| src/ui/DialoguePanel.tsx | 284 | N/A | ⚪ |
-| src/types/world.ts | 279 | N/A | ⚪ |
-| src/world/worldgen.ts | 274 | N/A | ⚪ |
-| src/simulation/tick.test.ts | 261 | N/A | ⚪ |
-| src/world/factions.ts | 251 | N/A | ⚪ |
+| src/ui/PixiViewport.tsx | 772 | 9 | 🔴 |
+| src/ui/App.tsx | 196 | 19 | 🟡 |
+| src/world/worldgen.ts | 274 | 11 | 🟡 |
+| src/simulation/tick.ts | 146 | 19 | 🟡 |
+| src/ui/DialoguePanel.tsx | 284 | 7 | 🟢 |
+| src/data/templates.ts | 504 | 3 | 🟢 |
+| src/simulation/storyteller.ts | 349 | 4 | 🟢 |
+| src/engine/renderer.ts | 344 | 4 | 🟢 |
+| src/simulation/tick.test.ts | 261 | 5 | 🟢 |
+| src/world/factions.ts | 251 | 5 | 🟢 |
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
-f827fb8 test: add comprehensive test suites for simulation phases and utilities with GameRNG interface integration
+d725e30 refactor: introduce GameRNG interface for type-safe RNG mocking across simulation phases
+865e098 refactor: replace 'any' mocks with GameRNG interface in tests
+f3b6f2e test: add comprehensive coverage for rng, noise, spatial, stats, storyteller, and all simulation phases
+8979d6e feat: activate dead systems, fix cascade bugs, expand simulation depth (#15)
+67c624f feat: implement faction generation with ethics-based territory assignment and UI state management
+8c0f5de chore: finalize zustand migration, fix missing insight and tradeRoutes in tests
+cc922e1 refactor(simulation): decompose tick monolith and optimize spatial queries
+2214411 feat: implement title screen with storyteller mode selection and AI settings alongside playtest SOP documentation
+b4d7ba3 test: increase playwright timeouts for slow-running jump/world tests
+717ad43 Reorganize root clutter and consolidate src/types barrel (#14)
 ```
