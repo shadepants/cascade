@@ -110,11 +110,9 @@ describe('phaseConflict — war resolution settlement transfers', () => {
     ];
     world.map.tiles[0][1].settlementId = 'sB';
 
+    const rollSequence = [0, 0];
     const rng: GameRNG = {
-      nextFloat: (() => {
-        const values = [0, 0];
-        return () => values.shift() ?? 0;
-      })(),
+      nextFloat: () => rollSequence.shift() ?? 0,
       nextInt: () => 0,
       next: () => 0,
       shuffle: (a) => a,
@@ -193,13 +191,14 @@ describe('fractureFaction', () => {
     const event = fractureFaction(world, faction, 100, new SeededRNG(1));
     const rebelId = `faction_rebel_A_100`;
     const rebelFaction = world.factions.find(f => f.id === rebelId);
+    const rebelSettlements = rebelFaction?.settlements ?? [];
 
     expect(event).not.toBeNull();
     expect(rebelFaction).toBeDefined();
     expect(world.settlements.find(s => s.id === 's2')?.factionId).toBe(rebelId);
     expect(world.settlements.find(s => s.id === 's3')?.factionId).toBe(rebelId);
-    expect(rebelFaction?.settlements).toEqual(expect.arrayContaining(['s2', 's3']));
-    expect(new Set(rebelFaction?.settlements).size).toBe(rebelFaction?.settlements.length);
+    expect(rebelSettlements).toEqual(expect.arrayContaining(['s2', 's3']));
+    expect(new Set(rebelSettlements).size).toBe(rebelSettlements.length);
     expect(faction.settlements).toEqual(['s1']);
   });
 });
