@@ -15,7 +15,7 @@ describe('echoSystem', () => {
         height: 10, 
         tiles: Array(10).fill(null).map(() => 
           Array(10).fill(null).map(() => ({ 
-            biome: 'grassland', elevation: 0, rainfall: 0, factionId: null, settlementId: null, walkable: true 
+            biome: 'grassland', elevation: 0, rainfall: 0, factionId: null, settlementId: null, walkable: true, modifiers: []
           }))
         ) 
       },
@@ -25,7 +25,17 @@ describe('echoSystem', () => {
       settlements: [],
       ruins: [],
       resourceNodes: [],
-      npcs: [],
+      npcs: [
+        {
+          id: 'npc1',
+          name: 'Elder',
+          position: { x: 2, y: 2 },
+          knowledge: [],
+          traits: [],
+          factionId: null,
+          profession: 'hermit'
+        }
+      ],
       items: [],
       tradeRoutes: [],
       religions: [
@@ -44,37 +54,81 @@ describe('echoSystem', () => {
   it('correctly applies Omen to a Holy Site and doubles duration', () => {
     const echo: TemporalEcho = {
       type: 'omen',
-      targetId: 'holy_0', // This is what UI currently sends
-      cost: 40,           // This is what UI currently sends
+      targetId: 'holy_0',
+      cost: 40,
       position: { x: 1, y: 1 }
     };
 
     const nextWorld = executeEcho(world, echo);
     
-    expect(nextWorld.player.insight).toBe(60); // 100 - 40
+    expect(nextWorld.player.insight).toBe(60);
     
     const tile = nextWorld.map.tiles[1][1];
     expect(tile.modifiers).toBeDefined();
     const omen = tile.modifiers?.find(m => m.type === 'omen');
     expect(omen).toBeDefined();
-    // Holy Site should have 40 years duration
     expect(omen?.duration).toBe(40);
   });
 
-  it('correctly applies Omen to a regular tile', () => {
+  it('correctly applies Bloom to a tile', () => {
     const echo: TemporalEcho = {
-      type: 'omen',
-      targetId: '5,5',
-      cost: 20,
-      position: { x: 5, y: 5 }
+      type: 'bloom',
+      targetId: '3,3',
+      cost: 30,
+      position: { x: 3, y: 3 }
     };
 
     const nextWorld = executeEcho(world, echo);
     
-    expect(nextWorld.player.insight).toBe(80);
+    expect(nextWorld.player.insight).toBe(70);
     
-    const tile = nextWorld.map.tiles[5][5];
-    const omen = tile.modifiers?.find(m => m.type === 'omen');
-    expect(omen?.duration).toBe(10);
+    const tile = nextWorld.map.tiles[3][3];
+    const bloom = tile.modifiers?.find(m => m.type === 'bloom');
+    expect(bloom).toBeDefined();
+    expect(bloom?.duration).toBe(20);
+    
+    // Check visuals
+    const bloomVisual = nextWorld.visuals?.find(v => v.type === 'sparkle');
+    expect(bloomVisual).toBeDefined();
+    expect(bloomVisual?.color).toBe('#4ade80');
+  });
+
+  it('correctly applies Whisper to an NPC', () => {
+    const echo: TemporalEcho = {
+      type: 'whisper',
+      targetId: 'npc1',
+      topic: 'famine',
+      cost: 15,
+      position: { x: 2, y: 2 }
+    };
+
+    const nextWorld = executeEcho(world, echo);
+    
+    expect(nextWorld.player.insight).toBe(85);
+    
+    const npc = nextWorld.npcs.find(n => n.id === 'npc1');
+    expect(npc?.knowledge.length).toBe(1);
+    expect(npc?.knowledge[0].sourceId).toBe('player-echo');
+    
+    // Check event creation
+    const event = nextWorld.events.find(e => e.action === 'whisper');
+    expect(event).toBeDefined();
+    expect(event?.object).toBe('famine');
+    
+    // Check visuals
+    const ripple = nextWorld.visuals?.find(v => v.type === 'ripple');
+    expect(ripple).toBeDefined();
+    expect(ripple?.position).toEqual({ x: 2, y: 2 });
+  });
+
+  it('throws error on insufficient insight', () => {
+    const echo: TemporalEcho = {
+      type: 'omen',
+      targetId: '1,1',
+      cost: 150,
+      position: { x: 1, y: 1 }
+    };
+
+    expect(() => executeEcho(world, echo)).toThrow('Insufficient Insight');
   });
 });

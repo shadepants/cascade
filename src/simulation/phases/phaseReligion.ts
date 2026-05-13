@@ -164,16 +164,20 @@ function checkSchism(
     world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 12 : 6));
   }
 
+  const schismDeltas: StatDelta[] = faction
+    ? [{ factionId: faction.id, stat: 'stability', delta: -8 }]
+    : [];
+
   emitEvent(world, events, createEvent({
     tick: 0, year,
     subject: settlement.id, action: 'religious_schism', object: settlement.factionId,
     causedBy: null, playerCaused: !!hasOmen,
     description: `A schism erupted in ${settlement.name} between followers of ${relA?.name ?? 'an old faith'} and ${relB?.name ?? 'a new faith'}.`,
     significance: 5,
-    statDeltas: faction
-      ? [{ factionId: faction.id, stat: 'stability', delta: -8 }]
-      : [],
+    statDeltas: schismDeltas,
   }), year);
+
+  if (schismDeltas.length > 0) applyStatDeltas(world, schismDeltas);
 
   // Boost military interest group from religious conflict
   if (faction?.interestGroups) {

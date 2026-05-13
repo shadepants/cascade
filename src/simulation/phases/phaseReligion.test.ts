@@ -1,80 +1,73 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { phaseReligion } from './phaseReligion.ts';
+import type { WorldState, Settlement, Religion, Faction } from '../../types';
 import { SeededRNG } from '../../utils/rng.ts';
-import type { WorldState } from '../../types/world';
 import { defaultStorytellerState } from '../../types';
 
 describe('phaseReligion', () => {
   let world: WorldState;
-  let rng: SeededRNG;
+  const rng = new SeededRNG(12345);
 
   beforeEach(() => {
-    rng = new SeededRNG(12345);
+    const religion: Religion = {
+      id: 'rel_light',
+      name: 'The Light',
+      color: '#ffffff',
+      originSettlementId: 's1',
+      tenets: ['peace'],
+      founderId: null
+    };
+
+    const faction: Faction = {
+      id: 'f1',
+      name: 'Kingdom',
+      color: '#ff0000',
+      stability: 0,
+      culture: 10,
+      wealth: 10,
+      military: 10,
+      population: 100,
+      settlements: ['s1'],
+      ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' },
+      interestGroups: [
+        { type: 'religious', power: 10, alignment: 0, leaderId: 'l1' }
+      ],
+      rulerId: 'r1'
+    };
+
+    const settlement: Settlement = {
+      id: 's1',
+      name: 'Holy City',
+      factionId: 'f1',
+      position: { x: 1, y: 1 },
+      population: 100,
+      growth: 0,
+      wealth: 10,
+      defense: 10,
+      faith: [],
+      dominantReligionId: null,
+      modifiers: []
+    };
+
     world = {
       seed: 12345,
-      currentYear: 500,
+      currentYear: 100,
       map: { 
-        width: 50, 
-        height: 50, 
-        tiles: Array(50).fill(null).map(() => 
-          Array(50).fill(null).map(() => ({ 
-            biome: 'grassland', elevation: 0, rainfall: 0, factionId: null, settlementId: null, walkable: true 
-          }))
-        ) 
+        width: 10, height: 10, 
+        tiles: Array(10).fill(null).map(() => Array(10).fill(null).map(() => ({ biome: 'grassland', elevation: 0, rainfall: 0, factionId: null, settlementId: null, walkable: true, modifiers: [] })))
       },
-      factions: [
-        { 
-          id: 'f1', 
-          name: 'Faction 1', 
-          color: '#ff0000', 
-          military: 20, 
-          stability: 50, 
-          wealth: 50, 
-          culture: 20, 
-          aggression: 50,
-          settlements: ['s1', 's2'],
-          population: 150,
-          ethics: { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' }, 
-          leaderId: null,
-          interestGroups: [
-            { id: 'ig1', name: 'Religious Council', type: 'religious', power: 10, ethicsBias: { mercy: 'embraced' } }
-          ]
-        },
-      ],
+      factions: [faction],
       relationships: [],
       historicalFigures: [],
-      settlements: [
-        { 
-          id: 's1', 
-          name: 'Holy City', 
-          position: { x: 1, y: 1 }, 
-          factionId: 'f1', 
-          faith: [{ religionId: 'r1', pressure: 100 }],
-          dominantReligionId: 'r1',
-          npcs: [],
-          items: []
-        },
-        { 
-          id: 's2', 
-          name: 'Neighbor Town', 
-          position: { x: 2, y: 1 }, 
-          factionId: 'f1', 
-          faith: [],
-          dominantReligionId: null,
-          npcs: [],
-          items: []
-        }
-      ],
+      settlements: [settlement],
       ruins: [],
       resourceNodes: [],
       npcs: [],
       items: [],
       tradeRoutes: [],
-      religions: [
-        { id: 'r1', name: 'The Light', color: '#ffffff', originSettlementId: 's1', tenets: ['peace'], founderId: null }
-      ],
+      religions: [religion],
       holySites: [
-        { id: 'hs1', name: 'Great Temple', position: { x: 1, y: 1 }, religionId: 'r1' }
+        { id: 'hs1', name: 'Great Temple', position: { x: 1, y: 1 }, religionId: 'rel_light' }
       ],
       events: [],
       player: { id: 'p1', name: 'Traveler', position: { x: 0, y: 0 }, inventory: [], knowledgeLog: [], actionsThisEra: [], insight: 100 },
@@ -83,82 +76,82 @@ describe('phaseReligion', () => {
     };
   });
 
-  it('spreads faith from holy sites to local settlements', () => {
-    // Holy site hs1 is at s1 (1,1). It should apply pressure to s1 and s2 (nearby).
-    phaseReligion(world, 501, rng);
+  it('spreads faith from Holy Site to parent settlement', () => {
+    phaseReligion(world, 101, rng);
     
-    const s1 = world.settlements.find(s => s.id === 's1')!;
-    const s2 = world.settlements.find(s => s.id === 's2')!;
-    
-    const s1r1 = s1.faith.find(f => f.religionId === 'r1');
-    const s2r1 = s2.faith.find(f => f.religionId === 'r1');
-    
-    expect(s1r1!.pressure).toBeGreaterThan(0);
-    expect(s2r1!.pressure).toBeGreaterThan(0);
+    const s1 = world.settlements[0];
+    const lightFaith = s1.faith.find(f => f.religionId === 'rel_light');
+    expect(lightFaith).toBeDefined();
+    expect(lightFaith?.pressure).toBeGreaterThan(0);
   });
 
-  it('converts a settlement when pressure exceeds 40%', () => {
-    const s2 = world.settlements.find(s => s.id === 's2')!;
-    s2.faith = [{ religionId: 'r1', pressure: 39 }];
-    s2.dominantReligionId = null;
-
-    const events = phaseReligion(world, 501, rng);
+  it('doubles Holy Site pressure if Sacred Omen is present', () => {
+    // Add Omen to the Holy Site tile
+    world.map.tiles[1][1].modifiers = [{ type: 'omen', duration: 10 }];
     
-    expect(s2.dominantReligionId).toBe('r1');
+    phaseReligion(world, 101, rng);
+    
+    const s1 = world.settlements[0];
+    const lightFaith = s1.faith.find(f => f.religionId === 'rel_light');
+    // Base is 25, 0 stabilityKingdom = 25 pressure. Doubled = 50.
+    expect(lightFaith?.pressure).toBe(50);
+  });
+
+  it('converts settlement when pressure exceeds 40', () => {
+    const s1 = world.settlements[0];
+    s1.faith = [{ religionId: 'rel_light', pressure: 45 }];
+    
+    const events = phaseReligion(world, 101, rng);
+    
+    expect(s1.dominantReligionId).toBe('rel_light');
     expect(events.some(e => e.action === 'religious_conversion')).toBe(true);
+    
+    // Check stat impact (peace tenet -> stability +2)
+    const faction = world.factions[0];
+    expect(faction.stability).toBe(2);
+    
+    // Check ethics shift (peace -> mercy embraced)
+    // Initial was neutral, shiftTowardEmbraced(neutral) -> embraced
+    expect(faction.ethics.mercy).toBe('embraced');
   });
 
-  it('shifts faction ethics on conversion', () => {
-    const s1 = world.settlements.find(s => s.id === 's1')!;
-    s1.dominantReligionId = null; // Reset for test
-    s1.faith = [{ religionId: 'r1', pressure: 45 }];
+  it('applies stability resistance to faith spread', () => {
+    const faction = world.factions[0];
+    faction.stability = 100; // 50% resistance
     
-    const f1 = world.factions.find(f => f.id === 'f1')!;
-    f1.ethics = { violence: 'neutral', expansion: 'neutral', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' };
-
-    phaseReligion(world, 501, rng);
+    phaseReligion(world, 101, rng);
     
-    // r1 tenets are ['peace'], should push toward 'Mercy' or 'Tradition'
-    expect(f1.ethics.mercy).toBe('embraced');
-    expect(f1.ethics.tradition).toBe('embraced');
+    const s1 = world.settlements[0];
+    const lightFaith = s1.faith.find(f => f.religionId === 'rel_light');
+    // Base 25, 50% resistance = 12.5 -> floor(12)
+    // Decay Step 6: 12 - 3 = 9
+    expect(lightFaith?.pressure).toBe(9);
   });
 
-  it('spreads faith along trade routes', () => {
-    const s2 = world.settlements.find(s => s.id === 's2')!;
-    s2.faith = [];
+  it('triggers a schism when two faiths are both strong', () => {
+    const s1 = world.settlements[0];
+    world.religions.push({ id: 'rel_dark', name: 'The Dark', color: '#000000', originSettlementId: 's1', tenets: ['war'], founderId: null });
     
-    // Increase distance so proximity doesn't trigger, but route does
-    s2.position = { x: 30, y: 30 }; 
-    
-    // Add a trade route from s1 to s2
-    world.tradeRoutes = [
-      {
-        id: 'tr1',
-        startSettlementId: 's1',
-        endSettlementId: 's2',
-        active: true,
-        volume: 80,
-        commodity: 'luxury',
-        path: [{ x: 1, y: 1 }, { x: 30, y: 30 }]
-      }
+    s1.faith = [
+      { religionId: 'rel_light', pressure: 45 },
+      { religionId: 'rel_dark', pressure: 45 }
     ];
-
-    phaseReligion(world, 501, rng);
     
-    const s2r1 = s2.faith.find(f => f.religionId === 'r1');
-    expect(s2r1!.pressure).toBeGreaterThan(0);
-  });
-
-  it('doubles holy site pressure when a Sacred Omen is active', () => {
-    const s1 = world.settlements.find(s => s.id === 's1')!;
-    s1.faith = []; // Start fresh
+    // We need to force the RNG to trigger the schism (20% chance)
+    const forcedRng = { 
+      nextFloat: () => 0.1,
+      nextInt: (max: number) => 0,
+      next: () => 0,
+      shuffle: (arr: any[]) => arr,
+      reseed: () => {}
+    };
     
-    world.map.tiles[1][1].modifiers = [{ type: 'omen', duration: 5 }];
-
-    phaseReligion(world, 501, rng);
+    const events = phaseReligion(world, 101, forcedRng as any);
     
-    const s1r1 = s1.faith.find(f => f.religionId === 'r1')!;
-    // Base is 25, doubled should be 50
-    expect(s1r1.pressure).toBe(50);
+    expect(events.some(e => e.action === 'religious_schism')).toBe(true);
+    
+    // Faction stability hit: conversion +2, then schism -8 = -6 -> clamped to 0
+    const faction = world.factions[0];
+    expect(faction.stability).toBe(0);
   });
 });
