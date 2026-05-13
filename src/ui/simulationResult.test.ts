@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultStorytellerState, type GameEvent, type WorldState } from '../types';
-import { processSimulationResult } from './simulationResult.ts';
+import { formatNotificationValue, processSimulationResult } from './simulationResult.ts';
 
 function makeWorld(): WorldState {
   return {
@@ -71,5 +71,57 @@ describe('processSimulationResult', () => {
     const aKnowledge = worldA.npcs.map(n => n.knowledge.map(k => k.eventId));
     const bKnowledge = worldB.npcs.map(n => n.knowledge.map(k => k.eventId));
     expect(aKnowledge).toEqual(bKnowledge);
+  });
+});
+
+describe('formatNotificationValue', () => {
+  it('returns null for null or undefined', () => {
+    expect(formatNotificationValue(null)).toBeNull();
+    expect(formatNotificationValue(undefined)).toBeNull();
+  });
+
+  it('returns null for empty or whitespace strings', () => {
+    expect(formatNotificationValue('')).toBeNull();
+    expect(formatNotificationValue('   ')).toBeNull();
+  });
+
+  it('returns trimmed plain strings', () => {
+    expect(formatNotificationValue('hello')).toBe('hello');
+    expect(formatNotificationValue('  world  ')).toBe('world');
+  });
+
+  it('unwraps valid JSON strings with message, text, or description keys', () => {
+    expect(formatNotificationValue('{"message": "foo"}')).toBe('foo');
+    expect(formatNotificationValue('{"text": "bar"}')).toBe('bar');
+    expect(formatNotificationValue('{"description": "baz"}')).toBe('baz');
+  });
+
+  it('returns trimmed original string for valid JSON without expected keys', () => {
+    expect(formatNotificationValue('{"other": "val"}')).toBe('{"other": "val"}');
+  });
+
+  it('returns trimmed original string for invalid JSON starting with { or [', () => {
+    expect(formatNotificationValue('{invalid json')).toBe('{invalid json');
+  });
+
+  it('unwraps objects with message, text, or description keys', () => {
+    expect(formatNotificationValue({ message: 'obj-foo' })).toBe('obj-foo');
+    expect(formatNotificationValue({ text: 'obj-bar' })).toBe('obj-bar');
+    expect(formatNotificationValue({ description: 'obj-baz' })).toBe('obj-baz');
+  });
+
+  it('returns JSON.stringify result for objects without expected keys', () => {
+    expect(formatNotificationValue({ other: 'obj-val' })).toBe('{"other":"obj-val"}');
+  });
+
+  it('returns String() representation for circular objects that fail stringification', () => {
+    const circular: any = {};
+    circular.self = circular;
+    expect(formatNotificationValue(circular)).toBe('[object Object]');
+  });
+
+  it('returns String() representation for other primitives', () => {
+    expect(formatNotificationValue(123)).toBe('123');
+    expect(formatNotificationValue(true)).toBe('true');
   });
 });
