@@ -4,7 +4,7 @@ import { SeededRNG } from '../utils/rng.ts';
 // Large prime multiplier helps spread year offsets and reduce seed collisions.
 const YEAR_SEED_MULTIPLIER = 9973;
 
-function formatNotificationValue(value: unknown): string | null {
+export function formatNotificationValue(value: unknown): string | null {
   if (value == null) return null;
 
   if (typeof value === 'string') {
