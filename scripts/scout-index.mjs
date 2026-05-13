@@ -46,7 +46,7 @@ function getCommitInfo(filePath, shallowRepo) {
   try {
     const gitPath = filePath.replace(/\\/g, '/');
     const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', gitPath], { encoding: 'utf-8' }).trim();
-    const parsed = Number.parseInt(churn, 10);
+    const parsed = parseInt(churn, 10);
 
     if (Number.isFinite(parsed) && parsed > 0) {
       return parsed;
@@ -151,7 +151,13 @@ async function run() {
       if (a.score === null && b.score === null) {
         return b.lineCount - a.lineCount;
       }
-      return (b.score ?? -1) - (a.score ?? -1);
+      if (a.score === null) {
+        return 1;
+      }
+      if (b.score === null) {
+        return -1;
+      }
+      return b.score - a.score;
     })
     .slice(0, 10);
 
