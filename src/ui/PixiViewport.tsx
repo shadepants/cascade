@@ -69,9 +69,9 @@ interface Layers {
   items:       Container;  // pickup items (artifacts, letters, keys)
   religion:    Container;  // Holy Sites (shrines, temples)
   innovations: Container;  // Innovation icons
-  trade:       Container;  // Phase 1: trade routes (golden pulsing lines)
-  modifiers:   Container;  // Persistent tile modifiers (Omens, Blooms)
-  visuals:     Container;  // Phase 0: Echo System visual feedback (ripples, sparks)
+  trade:       Graphics;   // Phase 1: trade routes (golden pulsing lines)
+  modifiers:   Graphics;   // Persistent tile modifiers (Omens, Blooms)
+  visuals:     Graphics;   // Phase 0: Echo System visual feedback (ripples, sparks)
   top:         Container;  // characters (NPCs + player)
   ghost:       Container;  // Phase 2: Ghost of History overlay
 }
@@ -183,7 +183,6 @@ export function PixiViewport() {
   const zoom = useGameStore(s => s.camera.zoom ?? 1.0);
   
   const openIntervention = useGameStore(s => s.openIntervention);
-  const showReligionOverlay = useGameStore(s => s.showReligionOverlay);
 
   // Local UI state — mirrors GameCanvas exactly
   const [showHistory, setShowHistory] = useState(false);
@@ -279,9 +278,9 @@ export function PixiViewport() {
       const itemsLayer     = new Container();
       const religionLayer  = new Container();
       const innovationLayer = new Container();
-      const tradeLayer     = new Container();
-      const modifiersLayer = new Container();
-      const visualsLayer   = new Graphics(); // Use Graphics for ripples/lines
+      const tradeLayer     = new Graphics();
+      const modifiersLayer = new Graphics();
+      const visualsLayer   = new Graphics();
       const topLayer       = new Container();
       const ghostLayer     = new Container();
       app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, innovationLayer, tradeLayer, modifiersLayer, visualsLayer, topLayer, ghostLayer);
@@ -297,50 +296,172 @@ export function PixiViewport() {
         innovations: innovationLayer,
         trade:     tradeLayer,
         modifiers: modifiersLayer,
-        visuals:   visualsLayer as unknown as Container, // Cast to match interface or update interface
+        visuals:   visualsLayer,
         top:       topLayer,
         ghost:     ghostLayer,
       };
 
-      // ── Animation Ticker ───────────────────────────────────────────────
       const tickerCallback = () => {
         if (!mounted || !layersRef.current) return;
         const now = performance.now();
         const delta = app.ticker.elapsedMS;
         animStateRef.current.time += delta;
 
-        // 1. Sinusoidal Pulse (2s cycle)
-        const pulse = (Math.sin(animStateRef.current.time / 2000 * Math.PI * 2) + 1) / 2;
-        
-        // Apply to Trade Routes
-        if (layersRef.current.trade) {
-          layersRef.current.trade.alpha = 0.4 + pulse * 0.6;
+        const { world, camera, showReligionOverlay } = useGameStore.getState();
+        if (!world) return;
+        const zoom = camera.zoom ?? 1.0;
+        const tileDisplay = TILE_SIZE * zoom;
+
+        // 1. Redraw Trade Routes
+        const tradeG = layersRef.current.trade;
+        if (tradeG) {
+          tradeG.clear();
+          const pulse = (Math.sin(animStateRef.current.time / 1000) + 1) / 2;
+          for (const route of world.tradeRoutes) {
+            if (!route.active || route.path.length < 2) continue;
+            
+            const startX = (route.path[0].x - camera.x) * tileDisplay + tileDisplay / 2;
+            const startY = (route.path[0].y - camera.y) * tileDisplay + tileDisplay / 2;
+            
+            // Culling
+            if (startX < -100 || startY < -100 || startX > canvasWidth + 100 || startY > canvasHeight + 100) continue;
+
+            tradeG.moveTo(startX, startY);
+            for (let i = 1; i < route.path.length; i++) {
+              const p = route.path[i];
+              tradeG.lineTo(
+                (p.x - camera.x) * tileDisplay + tileDisplay / 2,
+                (p.y - camera.y) * tileDisplay + tileDisplay / 2
+              );
+            }
+            const alpha = Math.max(0.2, (route.volume / 100) * (0.5 + pulse * 0.3));
+            const width = 1 + (route.volume / 40);
+            tradeG.stroke({ color: 0xffcc00, width, alpha });
+            
+            // Flow particles (very subtle dots moving along route)
+            const flowPos = (animStateRef.current.time / 2000) % 1;
+            const flowIdx = Math.floor(flowPos * (route.path.length - 1));
+            const p1 = route.path[flowIdx];
+            const p2 = route.path[flowIdx + 1];
+            if (p1 && p2) {
+              const lerp = (flowPos * (route.path.length - 1)) % 1;
+              const fx = ((p1.x + (p2.x - p1.x) * lerp) - camera.x) * tileDisplay + tileDisplay / 2;
+              const fy = ((p1.y + (p2.y - p1.y) * lerp) - camera.y) * tileDisplay + tileDisplay / 2;
+              tradeG.fill({ color: 0xffffff, alpha: alpha * 0.8 });
+              tradeG.circle(fx, fy, 2);
+            }
+          }
         }
 
-        // Apply to Visual Effects (Ripples)
-        if (layersRef.current.visuals) {
-          // Visuals layer uses Graphics, we can scale or fade it
-          layersRef.current.visuals.alpha = 0.7 + pulse * 0.3;
+        // 2. Redraw Visual Effects
+        const vG = layersRef.current.visuals;
+        if (vG) {
+          vG.clear();
+          for (const effect of world.visuals || []) {
+            const { x, y } = effect.position;
+            const col = x - camera.x;
+            const row = y - camera.y;
+            if (col < -4 || row < -4 || col >= camera.viewportWidth + 4 || row >= camera.viewportHeight + 4) continue;
+
+            const screenX = col * tileDisplay + tileDisplay / 2;
+            const screenY = row * tileDisplay + tileDisplay / 2;
+            const color = effect.color ? parseInt(effect.color.replace('#', ''), 16) : 0xFFFFFF;
+
+            if (effect.type === 'ripple') {
+              const scale = 0.5 + (1 - effect.duration / 5) * 2.5;
+              const subTick = (Math.sin(animStateRef.current.time / 150) + 1) / 2;
+              const alpha = (effect.duration / 5) * (0.4 + subTick * 0.4);
+              vG.stroke({ width: 3, color, alpha });
+              vG.circle(screenX, screenY, (tileDisplay * 0.8) * scale);
+            } else if (effect.type === 'sparkle') {
+              const flicker = (Math.sin(animStateRef.current.time / 50) + 1) / 2;
+              vG.fill({ color, alpha: 0.6 + flicker * 0.4 });
+              const size = (tileDisplay / 4) * (0.8 + flicker * 0.4);
+              vG.rect(screenX - 1, screenY - size, 2, size * 2);
+              vG.rect(screenX - size, screenY - 1, size * 2, 2);
+            } else if (effect.type === 'aura') {
+              const breathe = (Math.sin(animStateRef.current.time / 800) + 1) / 2;
+              const alpha = 0.15 + breathe * 0.15;
+              vG.fill({ color, alpha });
+              vG.circle(screenX, screenY, tileDisplay * 1.2);
+              vG.stroke({ width: 1.5, color, alpha: alpha * 0.5 });
+              vG.circle(screenX, screenY, tileDisplay * (1.2 + breathe * 0.2));
+            } else if (effect.type === 'tech_spark') {
+              const flash = (Math.sin(animStateRef.current.time / 100) + 1) / 2;
+              vG.fill({ color: 0xffffff, alpha: 0.8 * flash });
+              const s = (tileDisplay / 2) * (1 + (1 - effect.duration / 4) * 2);
+              vG.rect(screenX - s/2, screenY - s/2, s, s);
+              vG.stroke({ width: 2, color: 0xffffff, alpha: 0.4 });
+              vG.rect(screenX - s, screenY - s, s * 2, s * 2);
+            }
+          }
         }
 
-        // 2. Character 2-frame animation (500ms cycle)
+        // 3. Redraw Modifiers & Religion Overlay
+        const modG = layersRef.current.modifiers;
+        if (modG) {
+          modG.clear();
+          const breathe = (Math.sin(animStateRef.current.time / 1500) + 1) / 2;
+          
+          // Tile Modifiers
+          for (let row = 0; row < camera.viewportHeight; row++) {
+            for (let col = 0; col < camera.viewportWidth; col++) {
+              const wx = camera.x + col;
+              const wy = camera.y + row;
+              if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) continue;
+              const tile = world.map.tiles[wy][wx];
+              if (!tile.modifiers || tile.modifiers.length === 0) continue;
+
+              const sx = col * tileDisplay + tileDisplay / 2;
+              const sy = row * tileDisplay + tileDisplay / 2;
+
+              for (const mod of tile.modifiers) {
+                if (mod.type === 'bloom') {
+                  modG.fill({ color: 0x4ade80, alpha: 0.15 + breathe * 0.1 });
+                  modG.circle(sx, sy, tileDisplay * (0.6 + breathe * 0.1));
+                } else if (mod.type === 'omen') {
+                  modG.stroke({ width: 2, color: 0x00ccff, alpha: 0.4 + breathe * 0.2 });
+                  modG.circle(sx, sy, tileDisplay * (0.4 - breathe * 0.1));
+                }
+              }
+            }
+          }
+
+          // Religion Heatmap
+          if (showReligionOverlay) {
+            for (const settlement of world.settlements) {
+              const col = settlement.position.x - camera.x;
+              const row = settlement.position.y - camera.y;
+              if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
+              const sx = col * tileDisplay + tileDisplay / 2;
+              const sy = row * tileDisplay + tileDisplay / 2;
+
+              for (const f of settlement.faith) {
+                const religion = world.religions.find(r => r.id === f.religionId);
+                if (religion) {
+                  const color = parseInt(religion.color.replace('#', ''), 16);
+                  const alpha = (f.pressure / 100) * (0.2 + breathe * 0.1);
+                  const radius = (tileDisplay * 2.5) * (f.pressure / 100);
+                  modG.fill({ color, alpha });
+                  modG.circle(sx, sy, radius);
+                }
+              }
+            }
+          }
+        }
+
+        // 4. Character 2-frame animation
         if (now - animStateRef.current.lastFrameToggle > 500) {
           animStateRef.current.frameIndex = (animStateRef.current.frameIndex + 1) % 2;
           animStateRef.current.lastFrameToggle = now;
-
-          // Update all character sprites in the top layer
           layersRef.current.top.children.forEach(child => {
             const sprite = child as Sprite;
             const meta = (sprite as any)._cascadeMeta;
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
-              const frameOffset = animStateRef.current.frameIndex * 16;
-              // In v8, frame is read-only. We mutate the underlying rectangle and update UVs.
               sprite.texture.frame.copyFrom(new Rectangle(
-                baseRegion.x + frameOffset,
-                baseRegion.y,
-                baseRegion.w,
-                baseRegion.h
+                baseRegion.x + animStateRef.current.frameIndex * 16,
+                baseRegion.y, baseRegion.w, baseRegion.h
               ));
               sprite.texture.updateUvs();
             }
@@ -453,30 +574,7 @@ export function PixiViewport() {
         sprite.tint = terrainTint(tile.biome, tile.elevation, tile.rainfall);
         terrain.addChild(sprite);
 
-        // Render Tile Modifiers
-        if (tile.modifiers && tile.modifiers.length > 0) {
-          for (const mod of tile.modifiers) {
-            const g = new Graphics();
-            const sx = col * tileDisplay + tileDisplay / 2;
-            const sy = row * tileDisplay + tileDisplay / 2;
-
-            if (mod.type === 'bloom') {
-              g.fill({ color: 0x4ade80, alpha: 0.2 }); // Greenish
-              g.circle(sx, sy, tileDisplay / 1.5);
-            } else if (mod.type === 'omen') {
-              const alpha = 0.3 + Math.sin(Date.now() / 400) * 0.1;
-              g.fill({ color: 0x00ccff, alpha }); // Cyan
-              g.drawStar?.(sx, sy, 4, tileDisplay / 3) || g.circle(sx, sy, tileDisplay / 3);
-            } else if (mod.type === 'plague') {
-              g.fill({ color: 0x8b5cf6, alpha: 0.25 }); // Purple
-              g.rect(col * tileDisplay, row * tileDisplay, tileDisplay, tileDisplay);
-            } else if (mod.type === 'blessing') {
-              g.fill({ color: 0xfacc15, alpha: 0.2 }); // Yellow/Gold
-              g.circle(sx, sy, tileDisplay / 2);
-            }
-            layersRef.current.modifiers.addChild(g);
-          }
-        }
+        // Tile Modifiers (Now handled by ticker)
       }
     }
 
@@ -518,47 +616,7 @@ export function PixiViewport() {
         }
       }
 
-      // Faith Bloom Overlay (when R is active)
-      if (showReligionOverlay) {
-        const bloom = new Graphics();
-        
-        // 1. Settlement Blooms
-        for (const settlement of world.settlements) {
-          if (settlement.faith.length === 0) continue;
-          const col = settlement.position.x - camera.x;
-          const row = settlement.position.y - camera.y;
-          if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
-
-          for (const f of settlement.faith) {
-            const religion = world.religions.find(r => r.id === f.religionId);
-            if (religion) {
-              const color = parseInt(religion.color.replace('#', ''), 16);
-              const alpha = (f.pressure / 100) * 0.3;
-              const radius = (tileDisplay * 2.5) * (f.pressure / 100);
-              bloom.fill({ color, alpha });
-              bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, radius);
-            }
-          }
-        }
-
-        // 2. Holy Site Blooms (High intensity)
-        for (const site of world.holySites) {
-          const col = site.position.x - camera.x;
-          const row = site.position.y - camera.y;
-          if (col < -4 || row < -4 || col >= camera.viewportWidth + 4 || row >= camera.viewportHeight + 4) continue;
-
-          const religion = world.religions.find(r => r.id === site.religionId);
-          if (religion) {
-            const color = parseInt(religion.color.replace('#', ''), 16);
-            // Holy Sites have a constant strong bloom
-            bloom.fill({ color, alpha: 0.2 });
-            bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 4);
-            bloom.fill({ color, alpha: 0.4 });
-            bloom.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay * 1.5);
-          }
-        }
-        layersRef.current.religion.addChild(bloom);
-      }
+      // Faith Bloom Overlay (Now handled by ticker)
 
       mid.addChild(makeSprite('settlement', SETTLEMENT_TILE, col, row));
     }
@@ -633,66 +691,9 @@ export function PixiViewport() {
       }
     }
 
-    // ── Layer 4.5: trade routes ─────────────────────────────────────────
-    if (world.tradeRoutes && world.tradeRoutes.length > 0) {
-      const g = new Graphics();
-      for (const route of world.tradeRoutes) {
-        if (!route.active || route.volume <= 0) continue;
-        
-        // Calculate if any part of the path is in view
-        const inView = route.path.some(p => 
-          p.x >= camera.x && p.x < camera.x + camera.viewportWidth &&
-          p.y >= camera.y && p.y < camera.y + camera.viewportHeight
-        );
-        if (!inView) continue;
+    // Trade Routes (Now handled by ticker)
 
-        const alpha = Math.max(0.15, (route.volume / 100) * 0.6);
-        const color = 0xffcc00; // Pulsing gold
-        
-        const startX = (route.path[0].x - camera.x) * tileDisplay + tileDisplay / 2;
-        const startY = (route.path[0].y - camera.y) * tileDisplay + tileDisplay / 2;
-        g.moveTo(startX, startY);
-        
-        for (let i = 1; i < route.path.length; i++) {
-          const p = route.path[i];
-          g.lineTo(
-            (p.x - camera.x) * tileDisplay + tileDisplay / 2,
-            (p.y - camera.y) * tileDisplay + tileDisplay / 2
-          );
-        }
-        
-        const width = 1 + (route.volume / 40);
-        g.stroke({ color, width, alpha });
-      }
-      trade.addChild(g);
-    }
-
-    // ── Layer 4.5: Visual Effects ─────────────────────────────────────────
-    const visualsG = layersRef.current?.visuals as Graphics;
-    if (visualsG) {
-      visualsG.clear();
-      const visuals = world.visuals || [];
-      for (const effect of visuals) {
-        const { x, y } = effect.position;
-        const col = x - camera.x;
-        const row = y - camera.y;
-        if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
-
-        const screenX = col * tileDisplay + tileDisplay / 2;
-        const screenY = row * tileDisplay + tileDisplay / 2;
-        const color = effect.color ? parseInt(effect.color.replace('#', ''), 16) : 0xFFFFFF;
-
-        if (effect.type === 'ripple') {
-          // Pulse expansion
-          const scale = 1.0 + (Math.sin(Date.now() / 200) * 0.2);
-          visualsG.stroke({ width: 2, color, alpha: 0.7 });
-          visualsG.circle(screenX, screenY, (tileDisplay * 1.5) * scale);
-        } else if (effect.type === 'sparkle') {
-          visualsG.fill({ color, alpha: 1.0 });
-          visualsG.circle(screenX, screenY, tileDisplay / 6);
-        }
-      }
-    }
+    // Visual Effects (Now handled by ticker)
 
     // ── Layer 5: NPCs ────────────────────────────────────────────────────
     for (const npc of world.npcs) {

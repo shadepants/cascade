@@ -25,6 +25,7 @@ export interface UISlice {
   notification: string | null;
   showReligionOverlay: boolean;
   showLedger: boolean;
+  showOraclesEye: boolean;
   setPhase: (phase: GamePhase) => void;
   openDialogue: (npc: NPC) => void;
   closeDialogue: () => void;
@@ -36,6 +37,7 @@ export interface UISlice {
   clearNotification: () => void;
   toggleReligionOverlay: () => void;
   toggleLedger: () => void;
+  toggleOraclesEye: () => void;
 }
 
 export interface ConfigSlice {

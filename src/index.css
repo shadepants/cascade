@@ -886,3 +886,283 @@ body {
   border-radius: 3px;
   text-transform: uppercase;
 }
+
+/* ─── Oracle's Eye Dashboard ─────────────────────────────────────────── */
+
+.oracles-eye-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1100px;
+  max-width: 95vw;
+  max-height: 90vh;
+  background: rgba(10, 10, 20, 0.85);
+  backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid rgba(173, 203, 227, 0.4);
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(173, 203, 227, 0.1);
+  padding: 40px;
+  z-index: 2200;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  animation: oracle-reveal 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  color: #fff;
+}
+
+@keyframes oracle-reveal {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); filter: blur(10px); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+}
+
+.oracle-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 0.8rem;
+  background: linear-gradient(135deg, #fff 0%, #adcbe3 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(173, 203, 227, 0.3));
+}
+
+.oracle-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  gap: 32px;
+  flex: 1;
+  overflow: hidden;
+  margin-top: 24px;
+}
+
+.oracle-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(173, 203, 227, 0.2);
+  transform: translateY(-2px);
+}
+
+.stat-card label {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.tension-gauge {
+  height: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gauge-fill {
+  height: 100%;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.gauge-value {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(173, 203, 227, 0.2);
+  border: 1px solid #adcbe3;
+  color: #adcbe3;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.mode-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.debt-meter {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.debt-fill {
+  height: 100%;
+  background: #60a5fa;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+}
+
+.oracle-main {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.oracle-main h3 {
+  font-size: 1rem;
+  letter-spacing: 4px;
+  color: #adcbe3;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+}
+
+.echo-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.echo-item {
+  border-left: 2px solid rgba(173, 203, 227, 0.3);
+  padding-left: 20px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.echo-item:hover {
+  border-left-color: #60a5fa;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.echo-item::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  background: #60a5fa;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #60a5fa;
+}
+
+.echo-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.echo-year {
+  color: #adcbe3;
+  font-weight: bold;
+}
+
+.echo-sig {
+  color: #94a3b8;
+}
+
+.echo-desc {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.echo-cause {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.cause-link {
+  color: #94a3b8;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.stat-value.large {
+  font-size: 3rem;
+  background: linear-gradient(to bottom, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.innovation-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-item {
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mini-item span {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.oracle-footer {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #475569;
+  letter-spacing: 2px;
+}
+
+kbd {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #94a3b8;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #fff;
+}

@@ -12,6 +12,7 @@ import { CascadeScore } from './CascadeScore.tsx';
 import { HUD } from './HUD.tsx';
 import { InterventionMenu } from './InterventionMenu.tsx';
 import { GlobalLedger } from './GlobalLedger.tsx';
+import { OraclesEye } from './OraclesEye.tsx';
 import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
@@ -59,19 +60,34 @@ export function App() {
   const config = useGameStore(s => s.config);
   const notification = useGameStore(s => s.notification);
   const showLedger = useGameStore(s => s.showLedger);
+  const showOraclesEye = useGameStore(s => s.showOraclesEye);
   
   const setWorld = useGameStore(s => s.setWorld);
   const setPhase = useGameStore(s => s.setPhase);
   const showNotification = useGameStore(s => s.showNotification);
   const clearNotification = useGameStore(s => s.clearNotification);
+  const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
+  const toggleLedger = useGameStore(s => s.toggleLedger);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      if (e.key.toLowerCase() === 'o') {
+        toggleOraclesEye();
+      }
+      if (e.key.toLowerCase() === 'l') {
+        toggleLedger();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleOraclesEye, toggleLedger]);
 
   // Dev-only test hook — exposes state for Playwright
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      window.__CASCADE_STATE = useGameStore.getState();
-      // __CASCADE_DISPATCH is deprecated, but we could provide a bridge if needed
-    }
-  });
 
   // Always-current world ref — avoids stale closure in WebWorker effect
   const worldRef = useRef(world);
@@ -182,6 +198,7 @@ export function App() {
           {phase === 'action' && <ActionMenu />}
           {phase === 'intervention' && <InterventionMenu />}
           {showLedger && <GlobalLedger />}
+          {showOraclesEye && <OraclesEye />}
         </div>
       )}
 

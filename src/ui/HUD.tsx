@@ -10,7 +10,6 @@ export function HUD() {
   const notification = useGameStore(s => s.notification);
   const phase = useGameStore(s => s.phase);
   const config = useGameStore(s => s.config);
-  const hasPreviousWorld = useGameStore(s => !!s.previousWorld);
   const setPhase = useGameStore(s => s.setPhase);
 
   if (!world) return null;
@@ -58,8 +57,7 @@ export function HUD() {
         {phase === 'exploring' && (
           <>
             <span className="hud-hint">
-              ↑↓←→ move | Enter: use item | J: jump | Click tile: intervene
-              | R: religion {hasPreviousWorld && ' | H: hold for history'}
+              ↑↓←→ move | Enter: item | J: jump | O: oracle | L: ledger | R: faith
             </span>
             <button
               className="hud-score-btn"

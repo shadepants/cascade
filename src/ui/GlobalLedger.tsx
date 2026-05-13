@@ -65,6 +65,38 @@ export function GlobalLedger() {
         </section>
 
         <section className="ledger-section">
+          <h3>Global Trade Networks</h3>
+          {(!world.tradeRoutes || world.tradeRoutes.length === 0) ? (
+            <p className="empty-hint">No active trade routes.</p>
+          ) : (
+            <table className="ledger-table">
+              <thead>
+                <tr>
+                  <th>Route</th>
+                  <th>Status</th>
+                  <th>Volume</th>
+                  <th>Efficiency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {world.tradeRoutes.map((route, idx) => {
+                  const start = world.settlements.find(s => s.id === route.startSettlementId);
+                  const end = world.settlements.find(s => s.id === route.endSettlementId);
+                  return (
+                    <tr key={idx}>
+                      <td>{start?.name} ↔ {end?.name}</td>
+                      <td>{route.active ? 'Active' : 'Dormant'}</td>
+                      <td>{route.volume.toFixed(1)}</td>
+                      <td>{((route.volume / 100) * 100).toFixed(0)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        <section className="ledger-section">
           <h3>Religions & Faith</h3>
           {world.religions.length === 0 ? (
             <p className="empty-hint">No religions have emerged.</p>

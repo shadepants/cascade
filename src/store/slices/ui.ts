@@ -9,6 +9,7 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
   notification: null,
   showReligionOverlay: false,
   showLedger: false,
+  showOraclesEye: false,
 
   setPhase: (phase) => set({ phase }),
 
@@ -52,5 +53,9 @@ export const createUISlice: StateCreator<GameStore, [], [], UISlice> = (set) => 
 
   toggleLedger: () => set((state) => ({
     showLedger: !state.showLedger
+  })),
+  
+  toggleOraclesEye: () => set((state) => ({
+    showOraclesEye: !state.showOraclesEye
   })),
 });
