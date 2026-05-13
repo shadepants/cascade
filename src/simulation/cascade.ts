@@ -43,10 +43,16 @@ export function formatChainAsTree(
   chain: CausalChain,
   events: GameEvent[],
 ): string {
+  const eventMap = new Map<string, GameEvent>();
+  for (const e of events) {
+    eventMap.set(e.id, e);
+  }
+
+  const nodeMap = new Map(chain.nodes.map(n => [n.eventId, n]));
   const lines: string[] = [];
 
   function walk(eventId: string, depth: number): void {
-    const event = events.find(e => e.id === eventId);
+    const event = eventMap.get(eventId);
     if (!event) return;
 
     const indent = '  '.repeat(depth);
@@ -54,7 +60,7 @@ export function formatChainAsTree(
     const depthLabel = depth > 0 ? ` (${depth} link${depth > 1 ? 's' : ''})` : '';
     lines.push(`${indent}${arrow}${event.description}${depthLabel}`);
 
-    const node = chain.nodes.find(n => n.eventId === eventId);
+    const node = nodeMap.get(eventId);
     if (node) {
       for (const childId of node.children) {
         walk(childId, depth + 1);

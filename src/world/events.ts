@@ -50,7 +50,10 @@ export function createEvent(params: {
 
 /** Build causal chains starting from all player-caused root events. */
 export function buildCausalChains(events: GameEvent[]): CausalChain[] {
-  const eventMap = new Map(events.map(e => [e.id, e]));
+  const eventMap = new Map<string, GameEvent>();
+  for (const e of events) {
+    eventMap.set(e.id, e);
+  }
   const childMap = new Map<string, string[]>();
 
   for (const e of events) {
