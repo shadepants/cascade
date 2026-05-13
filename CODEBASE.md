@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-13T23:29:50.499Z | Commit: ee2a83cba8404c3fc1dcc44d8ae8b3dc4a3195bd | Run: `npm run scout`
+> Generated: 2026-05-13T23:36:15.109Z | Commit: a8ed8245d2907a4925997fde7ebbe9cdfd39989d | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |

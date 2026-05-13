@@ -6,8 +6,9 @@ Cascade is a browser-based historical simulation roguelike where player actions 
 - React 19 + TypeScript + Vite
 - Pure TypeScript simulation engine (`src/simulation`)
 - WebWorker execution for time jumps (`src/simulation/worker.ts`)
-- Canvas renderer (`src/engine/renderer.ts`)
+- PixiJS v8 WebGL renderer (`src/ui/PixiViewport.tsx`)
 - IndexedDB persistence via Dexie
+- Zustand state management (`src/store`)
 
 ## Quick Start
 ```bash
@@ -16,12 +17,11 @@ npm run dev
 ```
 
 ## Core Architecture
-- `src/simulation/tick.ts`: yearly orchestrator and storyteller lifecycle
-- `src/simulation/phases/cascade.ts`: cascade consequence derivation
-- `src/simulation/phases/knowledge.ts`: cascade knowledge seeding and gossip spread
-- `src/world/worldgen.ts`: terrain/factions/entities + deep history pre-sim
-- `src/ui/App.tsx`: app phase routing and jump worker integration
-- `src/store.ts`: reducer-backed app state and immutable state transitions
+- `src/simulation/tick.ts`: Decomposed orchestrator managing 10+ modular phases.
+- `src/simulation/phases/`: Specialized simulation logic (Religion, Tech, Trade, Conflict).
+- `src/world/worldgen.ts`: Terrain/factions/entities + deep history pre-simulation.
+- `src/ui/App.tsx`: App phase routing and jump worker integration.
+- `src/store/index.ts`: Zustand-backed global state with slice architecture.
 
 ## Engine Invariants
 See: `docs/ENGINE_INVARIANTS.md`
