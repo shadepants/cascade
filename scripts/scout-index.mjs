@@ -5,6 +5,14 @@ import { execFileSync } from 'child_process';
 const SRC_DIR = './src';
 const OUTPUT_FILE = './CODEBASE.md';
 const WATERMARK_FILE = './.scout-watermark';
+const scoutWarnings = new Set();
+
+function addScoutWarning(message) {
+  if (!scoutWarnings.has(message)) {
+    scoutWarnings.add(message);
+    console.warn(`⚠️ Scout: ${message}`);
+  }
+}
 
 async function walk(dir) {
   let files = [];
@@ -21,22 +29,34 @@ async function walk(dir) {
   return files;
 }
 
-function getCommitInfo(filePath) {
+function isShallowRepository() {
   try {
-    // Use git rev-list --count for cross-platform commit counting
-function getCommitInfo(filePath) {
-  try {
-    const gitPath = filePath.replace(/\\/g, '/');
-    // Use git rev-list --count for cross-platform commit counting
-    const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', gitPath], { encoding: 'utf-8' }).trim();
-    return parseInt(churn) || 1;
+    return execFileSync('git', ['rev-parse', '--is-shallow-repository'], { encoding: 'utf-8' }).trim() === 'true';
   } catch (e) {
-    return 1;
+    addScoutWarning('Unable to determine git repository depth. Hotspot churn data may be incomplete.');
+    return false;
   }
 }
-    return parseInt(churn) || 1;
+
+function getCommitInfo(filePath, shallowRepo) {
+  if (shallowRepo) {
+    return null;
+  }
+
+  try {
+    const gitPath = filePath.replace(/\\/g, '/');
+    const churn = execFileSync('git', ['rev-list', '--count', 'HEAD', '--', gitPath], { encoding: 'utf-8' }).trim();
+    const parsed = Number.parseInt(churn, 10);
+
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+
+    addScoutWarning(`Unable to parse churn count for ${gitPath}.`);
+    return null;
   } catch (e) {
-    return 1;
+    addScoutWarning('Unable to read git churn history. Hotspot analysis will use N/A for commit counts.');
+    return null;
   }
 }
 
@@ -48,7 +68,7 @@ function getRecentCommits() {
   }
 }
 
-async function analyzeFile(filePath) {
+async function analyzeFile(filePath, shallowRepo) {
   const content = await fs.readFile(filePath, 'utf-8');
   const lines = content.split('\n');
   const lineCount = lines.length;
@@ -82,14 +102,18 @@ async function analyzeFile(filePath) {
     lineCount,
     imports,
     hasTest,
-    churn: getCommitInfo(filePath)
+    churn: getCommitInfo(filePath, shallowRepo)
   };
 }
 
 async function run() {
   console.log('🚀 Cascade Scout: Indexing codebase...');
   const files = await walk(SRC_DIR);
-  const fileData = await Promise.all(files.map(analyzeFile));
+  const shallowRepo = isShallowRepository();
+  if (shallowRepo) {
+    addScoutWarning('Repository has shallow git history. Hotspot churn and recent change data may be incomplete.');
+  }
+  const fileData = await Promise.all(files.map(file => analyzeFile(file, shallowRepo)));
 
   // Build dependency graph (directory level)
   const dirDeps = {};
@@ -122,8 +146,13 @@ async function run() {
 
   // Hotspots
   const hotspots = fileData
-    .map(f => ({ ...f, score: f.lineCount * f.churn }))
-    .sort((a, b) => b.score - a.score)
+    .map(f => ({ ...f, score: typeof f.churn === 'number' ? f.lineCount * f.churn : null }))
+    .sort((a, b) => {
+      if (a.score === null && b.score === null) {
+        return b.lineCount - a.lineCount;
+      }
+      return (b.score ?? -1) - (a.score ?? -1);
+    })
     .slice(0, 10);
 
   const timestamp = new Date().toISOString();
@@ -153,12 +182,20 @@ async function run() {
     markdown += `- ${path} (${count} imports)\n`;
   });
 
+  if (scoutWarnings.size > 0) {
+    markdown += `\n## Analysis Warnings\n`;
+    for (const warning of scoutWarnings) {
+      markdown += `- ${warning}\n`;
+    }
+  }
+
   markdown += `\n## Hotspots (Size × Churn)\n`;
   markdown += `| File | Lines | Commits | Risk |\n`;
   markdown += `|------|-------|---------|------|\n`;
   hotspots.forEach(f => {
-    const risk = f.score > 5000 ? '🔴' : f.score > 2000 ? '🟡' : '🟢';
-    markdown += `| ${f.path} | ${f.lineCount} | ${f.churn} | ${risk} |\n`;
+    const risk = f.score === null ? '⚪' : f.score > 5000 ? '🔴' : f.score > 2000 ? '🟡' : '🟢';
+    const churnDisplay = f.churn === null ? 'N/A' : f.churn;
+    markdown += `| ${f.path} | ${f.lineCount} | ${churnDisplay} | ${risk} |\n`;
   });
 
   markdown += `\n## Recent Changes (Last 10 Merges/Commits)\n`;

@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-12T08:09:33.601Z | Commit: f827fb885817a7d991b85bfe886022ff8570a113 | Run: `npm run scout`
+> Generated: 2026-05-13T04:02:44.952Z | Commit: 70fa6ffe6942dabd709e1aa03f79dde423285b19 | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -134,19 +134,22 @@ graph LR
 - src/utils/rng.ts (12 imports)
 - src/simulation/helpers/spatial.ts (11 imports)
 
+## Analysis Warnings
+- Repository has shallow git history. Hotspot churn and recent change data may be incomplete.
+
 ## Hotspots (Size × Churn)
 | File | Lines | Commits | Risk |
 |------|-------|---------|------|
-| src/ui/PixiViewport.tsx | 772 | 1 | 🟢 |
-| src/data/templates.ts | 504 | 1 | 🟢 |
-| src/simulation/storyteller.test.ts | 402 | 1 | 🟢 |
-| src/simulation/storyteller.ts | 349 | 1 | 🟢 |
-| src/engine/renderer.ts | 344 | 1 | 🟢 |
-| src/ui/DialoguePanel.tsx | 284 | 1 | 🟢 |
-| src/types/world.ts | 279 | 1 | 🟢 |
-| src/world/worldgen.ts | 274 | 1 | 🟢 |
-| src/simulation/tick.test.ts | 261 | 1 | 🟢 |
-| src/world/factions.ts | 251 | 1 | 🟢 |
+| src/ui/PixiViewport.tsx | 772 | N/A | ⚪ |
+| src/data/templates.ts | 504 | N/A | ⚪ |
+| src/simulation/storyteller.test.ts | 402 | N/A | ⚪ |
+| src/simulation/storyteller.ts | 349 | N/A | ⚪ |
+| src/engine/renderer.ts | 344 | N/A | ⚪ |
+| src/ui/DialoguePanel.tsx | 284 | N/A | ⚪ |
+| src/types/world.ts | 279 | N/A | ⚪ |
+| src/world/worldgen.ts | 274 | N/A | ⚪ |
+| src/simulation/tick.test.ts | 261 | N/A | ⚪ |
+| src/world/factions.ts | 251 | N/A | ⚪ |
 
 ## Recent Changes (Last 10 Merges/Commits)
 ```
