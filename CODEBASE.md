@@ -1,5 +1,5 @@
 # CODEBASE — Auto-Generated Index
-> Generated: 2026-05-13T04:06:54.585Z | Commit: 5fb0585afb42357f569f84d46d57bfb2f9de8473 | Run: `npm run scout`
+> Generated: 2026-05-10T19:45:55.875Z | Commit: 80eb097c47da6ddb831cdc858134267c965326ad | Run: `npm run scout`
 
 ## Module Map
 | Path | Exports | Lines | Test? |
@@ -93,38 +93,47 @@
 graph LR
   data --> src
   engine --> src
-  engine --> types
-  engine --> data
-  src --> ui
+  engine --> src\types
+  engine --> src\engine
+  engine --> src\data
+  src --> src\ui
   simulation --> src
-  simulation --> world
-  simulation --> utils
-  simulation --> data
-  simulation --> simulation_helpers
-  simulation --> simulation_phases
+  simulation --> src\world
+  simulation --> src\utils
+  simulation --> src\simulation
+  simulation --> src\data
+  simulation --> src\simulation\helpers
+  simulation --> src\simulation\phases
+  simulation_helpers --> src\simulation\helpers
   simulation_helpers --> src
   simulation_phases --> src
-  simulation_phases --> world
-  simulation_phases --> utils
-  simulation_phases --> simulation
-  simulation_phases --> simulation_helpers
-  simulation_phases --> data
-  simulation_phases --> types
-  store --> store_slices
+  simulation_phases --> src\world
+  simulation_phases --> src\utils
+  simulation_phases --> src\simulation
+  simulation_phases --> src\simulation\helpers
+  simulation_phases --> src\data
+  simulation_phases --> src\simulation\phases
+  simulation_phases --> src\types
+  store --> src\store
+  store --> src\store\slices
   store --> src
-  store_slices --> store
+  store_slices --> src\store
   store_slices --> src
-  ui --> store
+  types --> src\types
+  ui --> src\store
   ui --> src
-  ui --> world
-  ui --> simulation
-  ui --> data
-  ui --> utils
-  ui --> engine
+  ui --> src\world
+  ui --> src\simulation
+  ui --> src\ui
+  ui --> src\data
+  ui --> src\utils
+  ui --> src\engine
+  utils --> src\utils
   world --> src
-  world --> data
-  world --> utils
-  world --> simulation
+  world --> src\data
+  world --> src\utils
+  world --> src\world
+  world --> src\simulation
 ```
 
 ## Hub Files (Most Imported)
