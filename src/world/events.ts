@@ -50,12 +50,27 @@ export function createEvent(params: {
 
 /** Build causal chains starting from all player-caused root events. */
 export function buildCausalChains(events: GameEvent[]): CausalChain[] {
+  const eventMap = new Map(events.map(e => [e.id, e]));
+  const childMap = new Map<string, string[]>();
+
+  for (const e of events) {
+    if (e.causedBy) {
+      const children = childMap.get(e.causedBy) || [];
+      children.push(e.id);
+      childMap.set(e.causedBy, children);
+    }
+  }
+
   const playerRoots = events.filter(e => e.playerCaused && e.causedBy === null);
-  return playerRoots.map(root => buildChainFromRoot(root.id, events));
+  return playerRoots.map(root => buildChainFromRoot(root.id, eventMap, childMap));
 }
 
 /** Build a single causal chain from a root event. */
-function buildChainFromRoot(rootId: string, events: GameEvent[]): CausalChain {
+function buildChainFromRoot(
+  rootId: string,
+  eventMap: Map<string, GameEvent>,
+  childMap: Map<string, string[]>
+): CausalChain {
   const nodes: CausalNode[] = [];
   const visited = new Set<string>();
 
@@ -63,9 +78,7 @@ function buildChainFromRoot(rootId: string, events: GameEvent[]): CausalChain {
     if (visited.has(eventId)) return;
     visited.add(eventId);
 
-    const children = events
-      .filter(e => e.causedBy === eventId)
-      .map(e => e.id);
+    const children = childMap.get(eventId) || [];
 
     nodes.push({ eventId, depth, children });
 
@@ -76,9 +89,10 @@ function buildChainFromRoot(rootId: string, events: GameEvent[]): CausalChain {
 
   walk(rootId, 0);
 
-  const totalDepth = Math.max(0, ...nodes.map(n => n.depth));
+  let totalDepth = 0;
   const score = nodes.reduce((sum, n) => {
-    const event = events.find(e => e.id === n.eventId);
+    if (n.depth > totalDepth) totalDepth = n.depth;
+    const event = eventMap.get(n.eventId);
     return sum + n.depth * (event?.significance ?? 1);
   }, 0);
 
