@@ -72,7 +72,7 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
     const rel  = phaseReligion(world, year, rng);
     const tch  = phaseTech(world, year, rng);
     const ig   = phaseInterestGroups(world, year, rng);
-    const pol  = phasePolitics(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...tch, ...ig]);
+    const pol  = phasePolitics(world, year, rng);
     const con  = phaseConflict(world, year, rng, [...eco, ...econ, ...trd, ...rel, ...tch, ...pol]);
     const stab = phaseStability(world, year, rng, mapSummary);
     const succ = phaseSuccession(world, year, rng);
