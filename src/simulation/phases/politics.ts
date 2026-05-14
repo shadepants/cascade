@@ -13,7 +13,6 @@ export function phasePolitics(
   world: WorldState,
   year: number,
   rng: GameRNG,
-  _priorEvents: GameEvent[],
 ): GameEvent[] {
   const events: GameEvent[] = [];
 

@@ -38,7 +38,7 @@ describe('phasePolitics', () => {
     const fB = makeFaction('B', { ethics: { violence: 'shunned', expansion: 'shunned', trade: 'neutral', tradition: 'neutral', mercy: 'neutral' } });
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: 0, animosity: 10, state: 'peace' };
     const world = makeWorld([fA, fB], [rel]);
-    phasePolitics(world, 2, new SeededRNG(1), []);
+    phasePolitics(world, 2, new SeededRNG(1));
     expect(rel.animosity).toBeGreaterThan(10);
   });
 
@@ -50,7 +50,7 @@ describe('phasePolitics', () => {
 
     // Force RNG to return < 0.05 for alliance check
     const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
-    const events = phasePolitics(world, 2, rng, []);
+    const events = phasePolitics(world, 2, rng);
     expect(rel.state).toBe('alliance');
     expect(events.some(e => e.action === 'alliance_formed')).toBe(true);
   });
@@ -61,7 +61,7 @@ describe('phasePolitics', () => {
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: 30, animosity: 5, state: 'peace' };
     const world = makeWorld([fA, fB], [rel]);
     const rng: GameRNG = { nextFloat: () => 0.01, nextInt: () => 0, next: () => 0, shuffle: (a) => a, reseed: () => {} };
-    phasePolitics(world, 2, rng, []);
+    phasePolitics(world, 2, rng);
     expect(rel.state).toBe('peace');
   });
 
@@ -69,7 +69,7 @@ describe('phasePolitics', () => {
     const faction = makeFaction('A', { aggression: 50 });
     // No leader → hasTrait returns false, no trait adjustment
     const world = makeWorld([faction], []);
-    phasePolitics(world, 2, new SeededRNG(1), []);
+    phasePolitics(world, 2, new SeededRNG(1));
     // No ruler → no aggression change expected
     expect(faction.aggression).toBe(50);
   });
