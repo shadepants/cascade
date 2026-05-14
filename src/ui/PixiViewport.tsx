@@ -459,11 +459,12 @@ export function PixiViewport() {
             const meta = (sprite as any)._cascadeMeta;
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
-              sprite.texture.frame.copyFrom(new Rectangle(
-                baseRegion.x + animStateRef.current.frameIndex * 16,
-                baseRegion.y, baseRegion.w, baseRegion.h
-              ));
-              sprite.texture.updateUvs();
+              const frameOffset = animStateRef.current.frameIndex * 16;
+              const poolKey = `${meta.sheetKey}:${baseRegion.x + frameOffset}:${baseRegion.y}`;
+              const tex = texPoolRef.current.get(poolKey);
+              if (tex) {
+                sprite.texture = tex;
+              }
             }
           });
         }
@@ -499,36 +500,43 @@ export function PixiViewport() {
   useEffect(() => {
     if (!ready || !world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
 
-    const { terrain, mid, resources, items, trade, top, ghost } = layersRef.current;
+    const { 
+      terrain, mid, resources, items, religion, innovations, top, ghost 
+    } = layersRef.current;
     const sheets  = sheetsRef.current;
     const texPool = texPoolRef.current;
     const tileDisplay = TILE_SIZE * zoom;
 
-    // Create a Sprite from a pooled sub-texture.
-    // Pool key: `sheetKey:region.x:region.y` — same frame always returns the same Texture,
-    // so PixiJS can batch draw calls for repeated tiles (e.g. grassland) automatically.
-    function makeSprite(sheetKey: SheetKey, region: TileRegion, col: number, row: number): Sprite {
-      const poolKey = `${sheetKey}:${region.x}:${region.y}`;
+    /**
+     * Index-based Sprite Pooling: instead of clearing and destroying all sprites,
+     * we recycle existing ones. This eliminates GC pressure during high-speed jumps.
+     */
+    function getOrCreateSprite(layer: Container, index: number, sheetKey: SheetKey, region: TileRegion, col: number, row: number): Sprite {
+      const isAnimated = sheetKey === 'character' || sheetKey === 'player';
+      
+      // Pool key for the base texture (for non-animated) or the specific frame (for animated)
+      const frameOffset = isAnimated ? animStateRef.current.frameIndex * 16 : 0;
+      const poolKey = `${sheetKey}:${region.x + frameOffset}:${region.y}`;
+      
       let tex = texPool.get(poolKey);
       if (!tex) {
         tex = new Texture({
           source: (sheets[sheetKey] as any).source,
-          frame:  new Rectangle(region.x, region.y, region.w, region.h),
+          frame:  new Rectangle(region.x + frameOffset, region.y, region.w, region.h),
         });
         texPool.set(poolKey, tex);
       }
 
-      // Characters/Players need unique texture instances so we can animate their frames
-      // without affecting other sprites (like common terrain) or each other.
-      const isAnimated = sheetKey === 'character' || sheetKey === 'player';
-      const spriteTex = isAnimated 
-        ? new Texture({ 
-            source: (sheets[sheetKey] as any).source, 
-            frame: new Rectangle(region.x + (animStateRef.current.frameIndex * 16), region.y, region.w, region.h) 
-          })
-        : tex;
+      let sprite: Sprite;
+      if (index < layer.children.length) {
+        sprite = layer.children[index] as Sprite;
+        sprite.visible = true;
+        sprite.texture = tex;
+      } else {
+        sprite = new Sprite(tex);
+        layer.addChild(sprite);
+      }
 
-      const sprite = new Sprite(spriteTex);
       sprite.x      = col * tileDisplay;
       sprite.y      = row * tileDisplay;
       sprite.width  = tileDisplay;
@@ -536,31 +544,29 @@ export function PixiViewport() {
 
       if (isAnimated) {
         (sprite as any)._cascadeMeta = { sheetKey, baseRegion: region };
+      } else {
+        (sprite as any)._cascadeMeta = undefined;
       }
 
       return sprite;
     }
 
-    // Clear all layers and destroy children to prevent memory leaks
-    const clearLayer = (layer: Container) => {
-      while (layer.children[0]) {
-        const child = layer.children[0];
-        // For characters, we want to destroy the unique texture instance too
-        const destroyTexture = (child as any)._cascadeMeta !== undefined;
-        child.destroy({ children: true, texture: destroyTexture });
+    /** Hides sprites from the pool that weren't used in this render pass. */
+    const hideUnusedSprites = (layer: Container, startIndex: number) => {
+      for (let i = startIndex; i < layer.children.length; i++) {
+        layer.children[i].visible = false;
       }
     };
 
-    clearLayer(terrain);
-    clearLayer(mid);
-    clearLayer(resources);
-    clearLayer(items);
-    clearLayer(layersRef.current.religion);
-    clearLayer(layersRef.current.innovations);
-    clearLayer(layersRef.current.modifiers);
-    clearLayer(trade);
-    clearLayer(top);
-    clearLayer(ghost);
+    // Initialize indices for each layer
+    let terrainIdx    = 0;
+    let midIdx        = 0;
+    let resourceIdx   = 0;
+    let itemIdx       = 0;
+    let religionIdx   = 0;
+    let innovationIdx = 0;
+    let topIdx        = 0;
+    let ghostIdx      = 0;
 
     // ── Layer 1: terrain ────────────────────────────────────────────────
     for (let row = 0; row < camera.viewportHeight; row++) {
@@ -569,14 +575,12 @@ export function PixiViewport() {
         const wy = camera.y + row;
         if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) continue;
         const tile = world.map.tiles[wy][wx];
-        const sprite = makeSprite('terrain', BIOME_TILES[tile.biome], col, row);
+        const sprite = getOrCreateSprite(terrain, terrainIdx++, 'terrain', BIOME_TILES[tile.biome], col, row);
         // Apply subtle elevation/rainfall tint for visual variety
         sprite.tint = terrainTint(tile.biome, tile.elevation, tile.rainfall);
-        terrain.addChild(sprite);
-
-        // Tile Modifiers (Now handled by ticker)
       }
     }
+    hideUnusedSprites(terrain, terrainIdx);
 
     // ── Layer 2: tree canopy (forest/rainforest biomes) ──────────────────
     for (let row = 0; row < camera.viewportHeight; row++) {
@@ -587,13 +591,12 @@ export function PixiViewport() {
         const tile = world.map.tiles[wy][wx];
         const treeRegion = TREE_TILES[tile.biome];
         if (treeRegion) {
-          const sprite = makeSprite('tree', treeRegion, col, row);
+          const sprite = getOrCreateSprite(mid, midIdx++, 'tree', treeRegion, col, row);
           // Vary tree tint slightly by position for visual diversity
           const hash = (wx * 7 + wy * 13) & 0xff; // 0–255
           const tintShift = Math.floor(hash * 0.06); // 0–15
           const r = Math.max(200, 240 - tintShift);
           sprite.tint = (r << 16) | (0xff << 8) | (r & 0xaa);
-          mid.addChild(sprite);
         }
       }
     }
@@ -608,25 +611,33 @@ export function PixiViewport() {
       if (settlement.dominantReligionId) {
         const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
         if (religion) {
-          const glow = new Graphics();
+          // Glow is a Graphics object — we'll reuse it if it already exists as a child at this index
+          let glow: Graphics;
+          if (midIdx < mid.children.length && mid.children[midIdx] instanceof Graphics) {
+            glow = mid.children[midIdx] as Graphics;
+            glow.visible = true;
+          } else {
+            glow = new Graphics();
+            mid.addChildAt(glow, midIdx);
+          }
+          glow.clear();
           const color = parseInt(religion.color.replace('#', ''), 16);
           glow.fill({ color, alpha: 0.25 });
           glow.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
-          mid.addChild(glow);
+          midIdx++;
         }
       }
 
-      // Faith Bloom Overlay (Now handled by ticker)
-
-      mid.addChild(makeSprite('settlement', SETTLEMENT_TILE, col, row));
+      getOrCreateSprite(mid, midIdx++, 'settlement', SETTLEMENT_TILE, col, row);
     }
 
     for (const ruin of world.ruins) {
       const col = ruin.position.x - camera.x;
       const row = ruin.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      mid.addChild(makeSprite('settlement', RUIN_TILE, col, row));
+      getOrCreateSprite(mid, midIdx++, 'settlement', RUIN_TILE, col, row);
     }
+    hideUnusedSprites(mid, midIdx);
 
     // ── Layer 3: resource nodes (ore deposits + relic sites) ─────────────
     for (const node of world.resourceNodes) {
@@ -634,8 +645,9 @@ export function PixiViewport() {
       const row = node.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
       const { sheetKey, region } = RESOURCE_SPRITE[node.type];
-      resources.addChild(makeSprite(sheetKey, region, col, row));
+      getOrCreateSprite(resources, resourceIdx++, sheetKey as any, region, col, row);
     }
+    hideUnusedSprites(resources, resourceIdx);
 
     // ── Layer 4: items on the ground ─────────────────────────────────────
     for (const item of world.items) {
@@ -643,8 +655,9 @@ export function PixiViewport() {
       const row = item.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
       const { sheetKey, region } = ITEM_SPRITE[item.type];
-      items.addChild(makeSprite(sheetKey, region, col, row));
+      getOrCreateSprite(items, itemIdx++, sheetKey as any, region, col, row);
     }
+    hideUnusedSprites(items, itemIdx);
 
     // ── Layer 4.2: Holy Sites ────────────────────────────────────────────
     for (const site of world.holySites) {
@@ -652,24 +665,36 @@ export function PixiViewport() {
       const row = site.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
       
-      const religion = world.religions.find(r => r.id === site.religionId);
+      const rel = world.religions.find(r => r.id === site.religionId);
       
       // Use deity-specific altar if possible, fallback to generic shrine
       let sprite: Sprite;
-      if (religion && sheets.altars[religion.tenets[0]]) {
-        sprite = new Sprite(sheets.altars[religion.tenets[0]]);
+      if (rel && sheets.altars[rel.tenets[0]]) {
+        const tex = sheets.altars[rel.tenets[0]];
+        if (religionIdx < religion.children.length) {
+          sprite = religion.children[religionIdx] as Sprite;
+          sprite.visible = true;
+          sprite.texture = tex;
+        } else {
+          sprite = new Sprite(tex);
+          religion.addChild(sprite);
+        }
         sprite.x      = col * tileDisplay;
         sprite.y      = row * tileDisplay;
         sprite.width  = tileDisplay;
         sprite.height = tileDisplay;
+        sprite.tint   = 0xffffff;
+        religionIdx++;
       } else {
-        sprite = makeSprite('religion', HOLYSITE_TILE, col, row);
-        if (religion) {
-          sprite.tint = parseInt(religion.color.replace('#', ''), 16);
+        sprite = getOrCreateSprite(religion, religionIdx++, 'religion', HOLYSITE_TILE, col, row);
+        if (rel) {
+          sprite.tint = parseInt(rel.color.replace('#', ''), 16);
+        } else {
+          sprite.tint = 0xffffff;
         }
       }
-      layersRef.current.religion.addChild(sprite);
     }
+    hideUnusedSprites(religion, religionIdx);
 
     // ── Layer 4.3: Innovations ──────────────────────────────────────────
     for (const settlement of world.settlements) {
@@ -682,18 +707,14 @@ export function PixiViewport() {
       const latestId = settlement.innovations[settlement.innovations.length - 1];
       const tech = world.innovations.find(i => i.id === latestId);
       if (tech) {
-        const { sheetKey, region } = INNOVATION_SPRITE[tech.type];
-        const sprite = makeSprite(sheetKey as any, region, col, row);
+        const { sheetKey, region: innovRegion } = INNOVATION_SPRITE[tech.type];
+        const sprite = getOrCreateSprite(innovations, innovationIdx++, sheetKey as any, innovRegion, col, row);
         sprite.width = tileDisplay / 2;
         sprite.height = tileDisplay / 2;
         sprite.x += tileDisplay / 2; // Offset to top-right of tile
-        layersRef.current.innovations.addChild(sprite);
       }
     }
-
-    // Trade Routes (Now handled by ticker)
-
-    // Visual Effects (Now handled by ticker)
+    hideUnusedSprites(innovations, innovationIdx);
 
     // ── Layer 5: NPCs ────────────────────────────────────────────────────
     for (const npc of world.npcs) {
@@ -701,20 +722,18 @@ export function PixiViewport() {
       const col = npc.position.x - camera.x;
       const row = npc.position.y - camera.y;
       if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      top.addChild(makeSprite('character', NPC_TILE, col, row));
+      getOrCreateSprite(top, topIdx++, 'character', NPC_TILE, col, row);
     }
 
     // ── Layer 5: player ──────────────────────────────────────────────────
     const px = world.player.position.x - camera.x;
     const py = world.player.position.y - camera.y;
     if (px >= 0 && py >= 0 && px < camera.viewportWidth && py < camera.viewportHeight) {
-      top.addChild(makeSprite('player', PLAYER_TILE, px, py));
+      getOrCreateSprite(top, topIdx++, 'player', PLAYER_TILE, px, py);
     }
+    hideUnusedSprites(top, topIdx);
 
     // ── Layer 6: Ghost of History ─────────────────────────────────────────
-    // Renders dashed faction-border lines from previousWorld at 0.4 alpha when
-    // the player holds H. Matches Canvas renderer's setLineDash([4, 4]) effect.
-    // Edges are batched per faction color so each color costs one g.stroke() call.
     if (showHistory && previousWorld) {
       const prevWorld = previousWorld;
 
@@ -763,17 +782,25 @@ export function PixiViewport() {
 
       // Draw all edges — one Graphics object, batched per faction color
       if (segsByColor.size > 0) {
-        const g = new Graphics();
+        let g: Graphics;
+        if (ghostIdx < ghost.children.length && ghost.children[ghostIdx] instanceof Graphics) {
+          g = ghost.children[ghostIdx] as Graphics;
+          g.visible = true;
+        } else {
+          g = new Graphics();
+          ghost.addChild(g);
+        }
+        g.clear();
         for (const [color, segs] of segsByColor) {
           for (const [x1, y1, x2, y2] of segs) {
             strokeDashedEdge(g, x1, y1, x2, y2);
           }
-          // stroke() in PixiJS v8 commits all accumulated moveTo/lineTo as a single draw command
           g.stroke({ color, width: 2, alpha: 0.4 });
         }
-        ghost.addChild(g);
+        ghostIdx++;
       }
     }
+    hideUnusedSprites(ghost, ghostIdx);
 
   }, [world, camera, previousWorld, ready, showHistory, zoom]);
 

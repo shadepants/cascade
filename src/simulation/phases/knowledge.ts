@@ -1,4 +1,4 @@
-import type { GameEvent, WorldState } from '../../types';
+import type { GameEvent, WorldState, NPC } from '../../types';
 import { getGossipBoost } from '../storyteller.ts';
 import type { GameRNG } from '../../utils/rng.ts';
 
@@ -8,11 +8,18 @@ export function seedEventKnowledge(
   year: number,
   rng: GameRNG,
 ): void {
+  // Group alive NPCs by factionId once: O(N)
+  const npcsByFaction = new Map<string, NPC[]>();
+  for (const npc of world.npcs) {
+    if (!npc.alive) continue;
+    const list = npcsByFaction.get(npc.factionId) || [];
+    list.push(npc);
+    npcsByFaction.set(npc.factionId, list);
+  }
+
+  // Process events: O(E * NPCs_in_faction)
   for (const event of events) {
-    const affectedFactionId = event.subject;
-    const witnessNpcs = world.npcs.filter(
-      n => n.alive && n.factionId === affectedFactionId,
-    );
+    const witnessNpcs = npcsByFaction.get(event.subject) || [];
     for (const npc of witnessNpcs) {
       if (npc.knowledge.some(k => k.eventId === event.id)) continue;
       const accuracy = 0.75 + rng.nextFloat() * 0.25;
@@ -28,9 +35,14 @@ export function seedEventKnowledge(
 
 export function phaseGossip(world: WorldState, year: number, rng: GameRNG): GameEvent[] {
   const events: GameEvent[] = [];
+  const npcMap = new Map(world.npcs.map(n => [n.id, n]));
 
   for (const settlement of world.settlements) {
-    const settlementNpcs = world.npcs.filter(n => settlement.npcs.includes(n.id) && n.alive);
+    // Efficiently get alive NPCs in this settlement: O(NPCs_in_settlement)
+    const settlementNpcs = settlement.npcs
+      .map(id => npcMap.get(id))
+      .filter((n): n is NPC => !!n && n.alive);
+      
     if (settlementNpcs.length < 2) continue;
 
     for (let i = 0; i < settlementNpcs.length; i++) {
@@ -57,16 +69,25 @@ export function phaseGossip(world: WorldState, year: number, rng: GameRNG): Game
 }
 
 export function phaseDiffusion(world: WorldState, year: number, rng: GameRNG): void {
+  const npcMap = new Map(world.npcs.map(n => [n.id, n]));
+  // Pre-filter alive NPCs with knowledge once: O(N)
+  const potentialSourceNpcs = world.npcs.filter(n => n.alive && n.knowledge.length > 0);
+
   // 5% chance per settlement to receive a piece of news from a distant land
   for (const settlement of world.settlements) {
     if (rng.nextFloat() < 0.05) {
       // Pick a random NPC in this settlement to receive the news
-      const localNpcs = world.npcs.filter(n => settlement.npcs.includes(n.id) && n.alive);
+      const localNpcs = settlement.npcs
+        .map(id => npcMap.get(id))
+        .filter((n): n is NPC => !!n && n.alive);
+        
       if (localNpcs.length === 0) continue;
       const targetNpc = localNpcs[rng.nextInt(localNpcs.length)];
 
-      // Pick a random other NPC in the world who knows something
-      const sourceNpcs = world.npcs.filter(n => n.knowledge.length > 0 && !settlement.npcs.includes(n.id) && n.alive);
+      // Pick a random other NPC in the world who knows something (and isn't in this settlement)
+      const settlementNpcIds = new Set(settlement.npcs);
+      const sourceNpcs = potentialSourceNpcs.filter(n => !settlementNpcIds.has(n.id));
+      
       if (sourceNpcs.length === 0) continue;
       const sourceNpc = sourceNpcs[rng.nextInt(sourceNpcs.length)];
       
@@ -97,3 +118,4 @@ export function runKnowledgePipeline(
   phaseDiffusion(world, year, rng);
   return []; // phases now mutate world state directly via npcs array
 }
+
