@@ -192,6 +192,23 @@ describe('echoSystem', () => {
       causedBy: null
     });
 
+    // Eligible event (significant + past + unknown)
+    world.events.push({
+      id: 'e5',
+      tick: 0,
+      year: 320,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'allied',
+      object: 'f2',
+      description: 'A major alliance.',
+      motivation: 'survival',
+      statDeltas: [],
+      significance: 7,
+      playerCaused: false,
+      causedBy: null
+    });
+
     world.player.knowledgeLog.push({
       eventId: 'e2',
       source: 'Rumor',
@@ -214,7 +231,7 @@ describe('echoSystem', () => {
     // Existing known entry + one new eligible discovery
     expect(nextWorld.player.knowledgeLog.length).toBe(2);
     const granted = nextWorld.player.knowledgeLog.find(k => k.source === 'Ancient Chronicles');
-    expect(granted?.eventId).toBe('e1');
+    expect(['e1', 'e5']).toContain(granted?.eventId);
     expect(granted?.eventId).not.toBe('e2');
     expect(granted?.eventId).not.toBe('e3');
     expect(granted?.eventId).not.toBe('e4');
