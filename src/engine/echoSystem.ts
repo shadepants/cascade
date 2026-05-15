@@ -1,4 +1,5 @@
 import type { WorldState, TemporalEcho, TileModifier } from '../types/world';
+import { createEvent } from '../world/events.ts';
 
 /**
  * Validates and executes a Temporal Echo action.
@@ -53,7 +54,7 @@ function applyReinforce(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `reinforce-${Date.now()}`,
+        id: `reinforce-${crypto.randomUUID()}`,
         type: 'aura',
         position: settlement.position,
         startTime: 0,
@@ -88,7 +89,7 @@ function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `fortify-${Date.now()}`,
+        id: `fortify-${crypto.randomUUID()}`,
         type: 'aura',
         position: settlement.position,
         startTime: 0,
@@ -113,7 +114,7 @@ function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `chronicle-${Date.now()}`,
+        id: `chronicle-${crypto.randomUUID()}`,
         type: 'tech_spark',
         position: world.player.position,
         startTime: 0,
@@ -128,44 +129,19 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   if (!echo.targetId || !echo.topic) return world;
 
   const npc = world.npcs.find(n => n.id === echo.targetId);
-  const eventIdPrefix = `whisper-${echo.topic}-${world.currentYear}-`;
-  let maxExistingIndex = -1;
 
-  const registerEventId = (id: string): void => {
-    if (!id.startsWith(eventIdPrefix)) return;
-    const index = Number.parseInt(id.slice(eventIdPrefix.length), 10);
-    if (Number.isInteger(index) && index > maxExistingIndex) {
-      maxExistingIndex = index;
-    }
-  };
-
-  for (const event of world.events) {
-    registerEventId(event.id);
-  }
-  for (const existingNpc of world.npcs) {
-    for (const knowledge of existingNpc.knowledge) {
-      registerEventId(knowledge.eventId);
-    }
-  }
-
-  const nextEventIndex = maxExistingIndex + 1;
-  const eventId = `${eventIdPrefix}${nextEventIndex}`;
-
-  const whisperEvent = {
-    id: eventId,
+  const whisperEvent = createEvent({
     tick: 0,
     year: world.currentYear,
-    secondsOffset: 0,
     subject: echo.targetId,
     action: 'whisper',
     object: echo.topic,
     description: `A mysterious whisper of ${echo.topic} reached ${npc?.name || 'the ears of many'}.`,
     motivation: 'as if spoken by the ghost of history itself',
-    statDeltas: [],
     significance: 5,
     playerCaused: true,
     causedBy: null,
-  };
+  });
 
   return {
     ...world,
@@ -177,7 +153,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
           knowledge: [
             ...npc.knowledge,
             {
-              eventId: eventId,
+              eventId: whisperEvent.id,
               discoveredYear: world.currentYear,
               accuracy: 1.0,
               sourceId: 'player-echo'
@@ -190,7 +166,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `ripple-${echo.targetId}-${Date.now()}`,
+        id: `ripple-${echo.targetId}-${crypto.randomUUID()}`,
         type: 'ripple',
         position: npc?.position || echo.position || { x: 0, y: 0 },
         startTime: 0,
@@ -235,7 +211,7 @@ function applyBloom(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `bloom-${echo.targetId || `${x},${y}`}-${Date.now()}`,
+        id: `bloom-${echo.targetId || `${x},${y}`}-${crypto.randomUUID()}`,
         type: 'sparkle',
         position: { x: x!, y: y! },
         startTime: 0,
@@ -282,7 +258,7 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
     visuals: [
       ...(world.visuals || []),
       {
-        id: `sparkle-${echo.targetId || `${x},${y}`}-${Date.now()}`,
+        id: `sparkle-${echo.targetId || `${x},${y}`}-${crypto.randomUUID()}`,
         type: 'sparkle',
         position: { x: x!, y: y! },
         startTime: 0,

@@ -34,7 +34,7 @@ export function InterventionMenu() {
       
       // Add a visual effect
       newWorld.visuals.push({
-        id: `fx-${Date.now()}`,
+        id: `fx-${crypto.randomUUID()}`,
         type: 'sparkle',
         position: activeTile!,
         startTime: world!.currentYear,
