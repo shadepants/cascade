@@ -209,7 +209,7 @@ describe('fractureFaction', () => {
     expect(faction.settlements).toEqual(expect.arrayContaining(['s2', 's3']));
 
     const event = fractureFaction(world, faction, 100, new SeededRNG(1));
-    const rebelId = `faction_rebel_A_100`;
+    const rebelId = event?.object;
     const rebelFaction = world.factions.find(f => f.id === rebelId);
     const rebelSettlements = rebelFaction?.settlements ?? [];
 
@@ -220,5 +220,47 @@ describe('fractureFaction', () => {
     expect(rebelSettlements).toEqual(expect.arrayContaining(['s2', 's3']));
     expect(new Set(rebelSettlements).size).toBe(rebelSettlements.length);
     expect(faction.settlements).toEqual(['s1']);
+  });
+
+  it('transfers ALL tiles of a settlement when it is captured', () => {
+    const winner = makeFaction('A', { settlements: ['sA'] });
+    const loser = makeFaction('B', { settlements: ['sB'] });
+    const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -80, animosity: 100, state: 'war' };
+
+    // sB is at (1,0) and (1,1). Only (1,0) borders A at (0,0).
+    const world = makeWorld([winner, loser], [rel], [
+      ['A', 'B'],
+      [null, 'B']
+    ]);
+    world.settlements = [
+      {
+        id: 'sA', name: 'Alpha', position: { x: 0, y: 0 },
+        factionId: 'A', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
+      },
+      {
+        id: 'sB', name: 'Borderhold', position: { x: 1, y: 0 },
+        factionId: 'B', npcs: [], items: [], faith: [], dominantReligionId: null,
+        innovations: [],
+      },
+    ];
+    world.map.tiles[0][1].settlementId = 'sB';
+    world.map.tiles[1][1].settlementId = 'sB';
+
+    // Force resolveWar
+    const rng: GameRNG = {
+      nextFloat: () => 0, // resolveWar path, fA wins
+      nextInt: () => 0,
+      next: () => 0,
+      shuffle: (a) => a,
+      reseed: () => {},
+    };
+
+    phaseConflict(world, 2, rng, []);
+
+    // BUG: Currently, only (1,0) is transferred because it's the only border tile.
+    // (1,1) remains owned by B, even though the settlement sB now belongs to A.
+    expect(world.map.tiles[0][1].factionId).toBe('A');
+    expect(world.map.tiles[1][1].factionId).toBe('A'); // This will fail if the bug exists
   });
 });

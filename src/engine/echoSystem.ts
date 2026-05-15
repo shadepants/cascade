@@ -1,4 +1,5 @@
-import type { WorldState, TemporalEcho, TileModifier } from '../types/world';
+import type { WorldState, TemporalEcho, TileModifier, KnowledgeEntry } from '../types/world';
+import { SeededRNG } from '../utils/rng.ts';
 
 /**
  * Validates and executes a Temporal Echo action.
@@ -31,7 +32,7 @@ export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
     case 'fortify':
       return applyFortify(newWorld, echo);
     case 'chronicle':
-      return applyChronicle(newWorld, echo);
+      return applyChronicle(newWorld);
     case 'reinforce':
       return applyReinforce(newWorld, echo);
     default:
@@ -99,16 +100,36 @@ function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
   };
 }
 
-function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
-  // Chronicle grants a large boost to insight and seeds knowledge of a significant past event
+function applyChronicle(world: WorldState): WorldState {
+  const knownEventIds = new Set(world.player.knowledgeLog.map(k => k.eventId));
+  const significantEvents = world.events.filter(e =>
+    e.significance >= 6 &&
+    e.year < world.currentYear &&
+    !knownEventIds.has(e.id)
+  );
+
+  const newKnowledgeLog = [...world.player.knowledgeLog];
+
+  if (significantEvents.length > 0) {
+    const rng = new SeededRNG(world.seed + world.currentYear);
+    const randomEvent = significantEvents[rng.nextInt(significantEvents.length)];
+
+    const entry: KnowledgeEntry = {
+      eventId: randomEvent.id,
+      source: 'Ancient Chronicles',
+      factionPerspective: 'Historical Record',
+      text: randomEvent.description,
+      discoveredYear: world.currentYear
+    };
+    newKnowledgeLog.push(entry);
+  }
 
   return {
     ...world,
     player: {
       ...world.player,
-      insight: world.player.insight + 50, // Paradox: spending insight to gain more? 
-      // Maybe Chronicle should be free but requires Scholarship?
-      // No, let's make it a 'Discovery' action that costs 0 but can only be used once per era.
+      insight: world.player.insight + 50,
+      knowledgeLog: newKnowledgeLog
     },
     visuals: [
       ...(world.visuals || []),
@@ -128,28 +149,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   if (!echo.targetId || !echo.topic) return world;
 
   const npc = world.npcs.find(n => n.id === echo.targetId);
-  const eventIdPrefix = `whisper-${echo.topic}-${world.currentYear}-`;
-  let maxExistingIndex = -1;
-
-  const registerEventId = (id: string): void => {
-    if (!id.startsWith(eventIdPrefix)) return;
-    const index = Number.parseInt(id.slice(eventIdPrefix.length), 10);
-    if (Number.isInteger(index) && index > maxExistingIndex) {
-      maxExistingIndex = index;
-    }
-  };
-
-  for (const event of world.events) {
-    registerEventId(event.id);
-  }
-  for (const existingNpc of world.npcs) {
-    for (const knowledge of existingNpc.knowledge) {
-      registerEventId(knowledge.eventId);
-    }
-  }
-
-  const nextEventIndex = maxExistingIndex + 1;
-  const eventId = `${eventIdPrefix}${nextEventIndex}`;
+  const eventId = `whisper-${echo.topic}-${world.currentYear}-${Math.floor(Math.random() * 1000)}`;
 
   const whisperEvent = {
     id: eventId,

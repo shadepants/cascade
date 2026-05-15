@@ -11,6 +11,7 @@ import {
   WAR_ANIMOSITY_THRESHOLD,
   pickMotivation,
 } from '../constants.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 import {
   getTilesWithPosForFaction,
   getBorderTilesOf,
@@ -21,7 +22,6 @@ export function phaseConflict(
   world: WorldState,
   year: number,
   rng: GameRNG,
-  _priorEvents: GameEvent[],
 ): GameEvent[] {
   const events: GameEvent[] = [];
 
@@ -29,22 +29,25 @@ export function phaseConflict(
     if (rel.state === 'war') {
       const winner = resolveWar(world, rel, year, rng, events);
       if (winner) {
-        const deltas: StatDelta[] = [
-          { factionId: rel.factionA, stat: 'stability', delta: -10 },
-          { factionId: rel.factionB, stat: 'stability', delta: -10 },
-        ];
         const peaceType = rng.nextFloat() < 0.4 ? 'peace_tribute' : 'peace_treaty';
-        rel.state = 'peace';
-        rel.animosity = Math.max(0, rel.animosity - 30);
-        emitEvent(world, events, createEvent({
+        const peaceEvent = createEvent({
           tick: 0, year,
           subject: winner, action: peaceType,
           object: rel.factionA === winner ? rel.factionB : rel.factionA,
           causedBy: null, significance: 5, playerCaused: false,
           description: `The war between ${world.factions.find(f => f.id === rel.factionA)?.name} and ${world.factions.find(f => f.id === rel.factionB)?.name} ended`,
           motivation: pickMotivation(peaceType, rng),
-          statDeltas: deltas,
-        }), year);
+          statDeltas: [
+            { factionId: rel.factionA, stat: 'stability', delta: -10 },
+            { factionId: rel.factionB, stat: 'stability', delta: -10 },
+          ],
+        });
+
+        if (!shouldSuppressEvent(world.storyteller, year, peaceEvent.significance)) {
+          rel.state = 'peace';
+          rel.animosity = Math.max(0, rel.animosity - 30);
+          emitEvent(world, events, peaceEvent, year);
+        }
       }
       continue;
     }
@@ -57,21 +60,30 @@ export function phaseConflict(
       const borderTiles = countSharedBorderTiles(world.map, fA.id, fB.id);
       if (borderTiles === 0) continue;
 
-      const warProb = Math.min(0.8, (rel.animosity / 200) * 0.6 + (fA.aggression / 100) * 0.2);
+      const maxAggression = Math.max(fA.aggression, fB.aggression);
+      const warProb = Math.min(0.8, (rel.animosity / 200) * 0.6 + (maxAggression / 100) * 0.2);
+
       if (rng.nextFloat() < warProb) {
-        rel.state = 'war';
-        const deltas: StatDelta[] = [
-          { factionId: fA.id, stat: 'stability', delta: -8 },
-          { factionId: fB.id, stat: 'stability', delta: -8 },
-        ];
-        emitEvent(world, events, createEvent({
+        const warEvent = createEvent({
           tick: 0, year,
           subject: fA.id, action: 'war_declared', object: fB.id,
           causedBy: null, significance: 6, playerCaused: false,
           description: `${fA.name} declared war on ${fB.name}`,
           motivation: pickMotivation('war_declared', rng),
-          statDeltas: deltas,
-        }), year);
+          statDeltas: [
+            { factionId: fA.id, stat: 'stability', delta: -8 },
+            { factionId: fB.id, stat: 'stability', delta: -8 },
+          ],
+        });
+
+        const suppressed = world.storyteller.cooldowns.some(
+          cd => cd.triggerSignificance >= warEvent.significance && year < cd.startYear + cd.durationYears
+        );
+
+        if (!suppressed) {
+          rel.state = 'war';
+          emitEvent(world, events, warEvent, year);
+        }
       }
     }
   }
@@ -111,15 +123,26 @@ function resolveWar(
   for (let i = 0; i < tilesToTransfer; i++) {
     const pos = borderTiles[i];
     const tile = world.map.tiles[pos.y][pos.x];
+
     if (tile.settlementId) {
       const s = world.settlements.find(set => set.id === tile.settlementId);
-      if (s) {
+      if (s && s.factionId !== winner.id) {
         s.factionId = winner.id;
         loserSettlementsSet.delete(s.id);
         winnerSettlementsSet.add(s.id);
+
+        // Ensure all tiles belonging to this settlement are transferred
+        for (let ty = 0; ty < world.map.height; ty++) {
+          for (let tx = 0; tx < world.map.width; tx++) {
+            if (world.map.tiles[ty][tx].settlementId === s.id) {
+              world.map.tiles[ty][tx].factionId = winner.id;
+            }
+          }
+        }
       }
+    } else {
+      tile.factionId = winner.id;
     }
-    tile.factionId = winner.id;
   }
 
   loser.settlements = Array.from(loserSettlementsSet);
@@ -173,7 +196,7 @@ export function fractureFaction(
     if (d > maxDist) { maxDist = d; furthest = t; }
   }
 
-  const newFactionId = `faction_rebel_${original.id}_${year}`;
+  const newFactionId = `faction_rebel_${original.id}_${year}_${Math.floor(rng.nextFloat() * 1000)}`;
   const targetCount = Math.floor(tiles.length * 0.3);
   const queue: Position[] = [furthest];
   const claimed = new Set<string>();
@@ -214,14 +237,27 @@ export function fractureFaction(
 
   for (const pos of newTiles) {
     const tile = world.map.tiles[pos.y][pos.x];
-    tile.factionId = newFactionId;
+
     if (tile.settlementId) {
       const s = world.settlements.find(set => set.id === tile.settlementId);
-      if (s) {
+      if (s && s.factionId !== newFactionId) {
         s.factionId = newFactionId;
-        newFaction.settlements.push(s.id);
+        if (!newFaction.settlements.includes(s.id)) {
+          newFaction.settlements.push(s.id);
+        }
         originalSettlementsSet.delete(s.id);
+
+        // Ensure all tiles belonging to this settlement are transferred
+        for (let ty = 0; ty < world.map.height; ty++) {
+          for (let tx = 0; tx < world.map.width; tx++) {
+            if (world.map.tiles[ty][tx].settlementId === s.id) {
+              world.map.tiles[ty][tx].factionId = newFactionId;
+            }
+          }
+        }
       }
+    } else {
+      tile.factionId = newFactionId;
     }
   }
 

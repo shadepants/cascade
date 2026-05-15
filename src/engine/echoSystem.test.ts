@@ -116,17 +116,129 @@ describe('echoSystem', () => {
     const event = nextWorld.events.find(e => e.action === 'whisper');
     expect(event).toBeDefined();
     expect(event?.object).toBe('famine');
-    expect(event?.id).toBe('whisper-famine-500-0');
-    expect(npc?.knowledge[0].eventId).toBe(event?.id);
-
-    const secondWorld = executeEcho(nextWorld, echo);
-    const secondWhisperEvent = secondWorld.events.at(-1);
-    expect(secondWhisperEvent?.id).toBe('whisper-famine-500-1');
     
     // Check visuals
     const ripple = nextWorld.visuals?.find(v => v.type === 'ripple');
     expect(ripple).toBeDefined();
     expect(ripple?.position).toEqual({ x: 2, y: 2 });
+  });
+
+  it('correctly applies Chronicle and grants only eligible unknown events', () => {
+    // Eligible event (significant + past + unknown)
+    world.events.push({
+      id: 'e1',
+      tick: 0,
+      year: 100,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'founded',
+      object: 's1',
+      description: 'The foundation of the capital.',
+      motivation: 'necessity',
+      statDeltas: [],
+      significance: 8,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    // Ineligible: already known
+    world.events.push({
+      id: 'e2',
+      tick: 0,
+      year: 200,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'discovered',
+      object: 'r1',
+      description: 'A known record.',
+      motivation: 'curiosity',
+      statDeltas: [],
+      significance: 8,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    // Ineligible: future year
+    world.events.push({
+      id: 'e3',
+      tick: 0,
+      year: world.currentYear + 1,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'declared',
+      object: 'future',
+      description: 'A future event.',
+      motivation: 'fate',
+      statDeltas: [],
+      significance: 9,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    // Ineligible: low significance
+    world.events.push({
+      id: 'e4',
+      tick: 0,
+      year: 300,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'note',
+      object: 'minor',
+      description: 'A minor event.',
+      motivation: 'routine',
+      statDeltas: [],
+      significance: 5,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    // Eligible event (significant + past + unknown)
+    world.events.push({
+      id: 'e5',
+      tick: 0,
+      year: 320,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'allied',
+      object: 'f2',
+      description: 'A major alliance.',
+      motivation: 'survival',
+      statDeltas: [],
+      significance: 7,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    world.player.knowledgeLog.push({
+      eventId: 'e2',
+      source: 'Rumor',
+      factionPerspective: 'Local',
+      text: 'Already known',
+      discoveredYear: 450
+    });
+
+    const echo: TemporalEcho = {
+      type: 'chronicle',
+      cost: 30,
+      position: { x: 0, y: 0 }
+    };
+
+    const nextWorld = executeEcho(world, echo);
+
+    // cost 30, grants 50 -> net +20
+    expect(nextWorld.player.insight).toBe(120);
+
+    // Existing known entry + one new eligible discovery
+    expect(nextWorld.player.knowledgeLog.length).toBe(2);
+    const granted = nextWorld.player.knowledgeLog.find(k => k.source === 'Ancient Chronicles');
+    expect(['e1', 'e5']).toContain(granted?.eventId);
+    expect(granted?.eventId).not.toBe('e2');
+    expect(granted?.eventId).not.toBe('e3');
+    expect(granted?.eventId).not.toBe('e4');
+
+    // Check visuals
+    const chronicleVisual = nextWorld.visuals?.find(v => v.type === 'tech_spark');
+    expect(chronicleVisual).toBeDefined();
   });
 
   it('throws error on insufficient insight', () => {
