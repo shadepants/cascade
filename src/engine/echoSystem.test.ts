@@ -116,6 +116,8 @@ describe('echoSystem', () => {
     const event = nextWorld.events.find(e => e.action === 'whisper');
     expect(event).toBeDefined();
     expect(event?.object).toBe('famine');
+    expect(event?.id).toBe('whisper-famine-500-0');
+    expect(npc?.knowledge[0].eventId).toBe(event?.id);
     
     // Check visuals
     const ripple = nextWorld.visuals?.find(v => v.type === 'ripple');

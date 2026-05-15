@@ -128,7 +128,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   if (!echo.targetId || !echo.topic) return world;
 
   const npc = world.npcs.find(n => n.id === echo.targetId);
-  const eventId = `whisper-${echo.topic}-${world.currentYear}-${crypto.randomUUID()}`;
+  const eventId = `whisper-${echo.topic}-${world.currentYear}-${world.events.length}`;
 
   const whisperEvent = {
     id: eventId,
@@ -271,4 +271,3 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
     ]
   };
 }
-
