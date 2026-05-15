@@ -24,10 +24,16 @@ const MODE_TENSION_MULTIPLIER: Record<StorytellerMode, number> = {
  * Three components: player action recency, cascade depth, faction instability.
  */
 export function computeTension(state: StorytellerState, world: WorldState): number {
-  // Player actions in the last 20 simulated years
-  const recentActionCount = world.events.filter(
-    e => e.playerCaused && e.causedBy === null && e.year > world.currentYear - 20,
-  ).length;
+  const eventMap = new Map<string, GameEvent>();
+  let recentActionCount = 0;
+  const thresholdYear = world.currentYear - 20;
+
+  for (const e of world.events) {
+    eventMap.set(e.id, e);
+    if (e.playerCaused && e.causedBy === null && e.year > thresholdYear) {
+      recentActionCount++;
+    }
+  }
   const actionPressure = Math.min(45, recentActionCount * 15);
 
   // Longest active causedBy chain
@@ -35,7 +41,7 @@ export function computeTension(state: StorytellerState, world: WorldState): numb
   const depthCache = new Map<string, number>();
   function chainDepth(eventId: string): number {
     if (depthCache.has(eventId)) return depthCache.get(eventId)!;
-    const event = world.events.find(e => e.id === eventId);
+    const event = eventMap.get(eventId);
     if (!event?.causedBy) { depthCache.set(eventId, 0); return 0; }
     const d = 1 + chainDepth(event.causedBy);
     depthCache.set(eventId, d);
@@ -192,10 +198,18 @@ export function accumulateDebt(
 
   state.yearsSincePlayerDiscovery++;
 
-  const discoveredThisYear = world.player.knowledgeLog.some(entry => {
-    const event = world.events.find(e => e.id === entry.eventId);
-    return event?.playerCaused === true && entry.discoveredYear === currentYear;
-  });
+  let discoveredThisYear = false;
+  // Optimization: only build the map if we have entries to check this year
+  const entriesThisYear = world.player.knowledgeLog.filter(k => k.discoveredYear === currentYear);
+  if (entriesThisYear.length > 0) {
+    const eventMap = new Map<string, GameEvent>();
+    for (const e of world.events) eventMap.set(e.id, e);
+
+    discoveredThisYear = entriesThisYear.some(entry => {
+      const event = eventMap.get(entry.eventId);
+      return event?.playerCaused === true;
+    });
+  }
 
   if (discoveredThisYear) {
     state.yearsSincePlayerDiscovery = 0;
@@ -264,7 +278,10 @@ export function applyIntervention(
   rng: GameRNG,
   currentYear: number,
 ): void {
-  const event = world.events.find(e => e.id === intervention.eventId);
+  const eventMap = new Map<string, GameEvent>();
+  for (const e of world.events) eventMap.set(e.id, e);
+
+  const event = eventMap.get(intervention.eventId);
   if (!event) return;
 
   switch (intervention.type) {
@@ -319,7 +336,7 @@ export function applyIntervention(
         ...intervention.secondaryEventIds,
       ];
       for (const eid of eventIds) {
-        const e = world.events.find(ev => ev.id === eid);
+        const e = eventMap.get(eid);
         if (e) {
           witness.knowledge.push({
             eventId:        e.id,
