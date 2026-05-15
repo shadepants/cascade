@@ -1,5 +1,5 @@
 import type { WorldState, TemporalEcho, TileModifier, KnowledgeEntry } from '../types/world';
-import { SeededRNG } from '../utils/rng.ts';
+import { SeededRNG } from '../utils/rng';
 
 /**
  * Validates and executes a Temporal Echo action.
@@ -149,28 +149,7 @@ function applyWhisper(world: WorldState, echo: TemporalEcho): WorldState {
   if (!echo.targetId || !echo.topic) return world;
 
   const npc = world.npcs.find(n => n.id === echo.targetId);
-  const eventIdPrefix = `whisper-${echo.topic}-${world.currentYear}-`;
-  let maxExistingIndex = -1;
-
-  const registerEventId = (id: string): void => {
-    if (!id.startsWith(eventIdPrefix)) return;
-    const index = Number.parseInt(id.slice(eventIdPrefix.length), 10);
-    if (Number.isInteger(index) && index > maxExistingIndex) {
-      maxExistingIndex = index;
-    }
-  };
-
-  for (const event of world.events) {
-    registerEventId(event.id);
-  }
-  for (const existingNpc of world.npcs) {
-    for (const knowledge of existingNpc.knowledge) {
-      registerEventId(knowledge.eventId);
-    }
-  }
-
-  const nextEventIndex = maxExistingIndex + 1;
-  const eventId = `${eventIdPrefix}${nextEventIndex}`;
+  const eventId = `whisper-${echo.topic}-${world.currentYear}-${Math.floor(Math.random() * 1000)}`;
 
   const whisperEvent = {
     id: eventId,

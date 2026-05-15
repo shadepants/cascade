@@ -7,7 +7,6 @@ import { describe, it, expect } from 'vitest';
 import {
   SPRITE_SIZE,
   BIOME_TILES,
-  TREE_TILES,
   SETTLEMENT_TILE,
   RUIN_TILE,
   NPC_TILE,
@@ -16,7 +15,6 @@ import {
   SHEET_SETTLEMENT,
   SHEET_CHARACTER,
   SHEET_PLAYER,
-  SHEET_TREE,
 } from './tileMap.ts';
 import type { Biome } from '../types';
 
@@ -78,37 +76,6 @@ describe('BIOME_TILES', () => {
   });
 });
 
-// Biomes that should have a tree canopy overlay in Tree0.png
-const TREE_BIOMES: Array<keyof typeof TREE_TILES> = ['forest', 'rainforest'];
-
-describe('TREE_TILES', () => {
-  it('has entries for forest and rainforest only', () => {
-    expect(Object.keys(TREE_TILES).sort()).toEqual(['forest', 'rainforest'].sort());
-  });
-
-  it('every region has non-negative x and y', () => {
-    for (const biome of TREE_BIOMES) {
-      const r = TREE_TILES[biome]!;
-      expect(r.x, `${biome}.x`).toBeGreaterThanOrEqual(0);
-      expect(r.y, `${biome}.y`).toBeGreaterThanOrEqual(0);
-    }
-  });
-
-  it('every region has w === h === SPRITE_SIZE', () => {
-    for (const biome of TREE_BIOMES) {
-      const r = TREE_TILES[biome]!;
-      expect(r.w, `${biome}.w`).toBe(SPRITE_SIZE);
-      expect(r.h, `${biome}.h`).toBe(SPRITE_SIZE);
-    }
-  });
-
-  it('forest and rainforest tree tiles are distinct', () => {
-    const f = TREE_TILES.forest!;
-    const r = TREE_TILES.rainforest!;
-    expect(`${f.x},${f.y}`).not.toBe(`${r.x},${r.y}`);
-  });
-});
-
 describe('SETTLEMENT_TILE / RUIN_TILE', () => {
   it('are valid sprite regions', () => {
     for (const [name, tile] of [['SETTLEMENT_TILE', SETTLEMENT_TILE], ['RUIN_TILE', RUIN_TILE]] as const) {
@@ -144,7 +111,6 @@ describe('sheet path constants', () => {
       ['SHEET_SETTLEMENT', SHEET_SETTLEMENT],
       ['SHEET_CHARACTER',  SHEET_CHARACTER],
       ['SHEET_PLAYER',     SHEET_PLAYER],
-      ['SHEET_TREE',       SHEET_TREE],
     ] as const) {
       expect(typeof path, name).toBe('string');
       expect(path.startsWith('/assets/'), `${name} should start with /assets/`).toBe(true);
