@@ -71,11 +71,10 @@ export const BIOME_TILES: Record<Biome, TileRegion> = {
 
 // ─── Tree canopy — DawnLike/Objects/Tree0.png ────────────────────────────
 // Only forest and rainforest biomes get a tree overlay on top of the ground tile.
-// TODO CALIBRATE: open Tree0.png and verify column positions for each tree type.
 
 export const TREE_TILES: Partial<Record<Biome, TileRegion>> = {
-  forest:     { x:  0, y: 0, w: 16, h: 16 }, // deciduous tree (col 0)
-  rainforest: { x: 32, y: 0, w: 16, h: 16 }, // dense canopy (col 2)
+  forest:     { x:  0, y: 48, w: 16, h: 16 }, // deciduous tree (col 0, row 3)
+  rainforest: { x: 32, y: 48, w: 16, h: 16 }, // dense canopy (col 2, row 3)
 };
 
 // ─── Settlements / Ruins — Toen's Medieval Strategy sheet ────────────────
