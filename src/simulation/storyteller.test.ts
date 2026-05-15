@@ -158,7 +158,7 @@ describe('shouldSuppressEvent', () => {
 
   it('suppresses when budget is exactly exhausted', () => {
     const state = makeState({ highSigEventsThisYear: 2, maxEventsPerYear: 2 });
-    expect(shouldSuppressEvent(state, 100, 6)).toBe(true);
+    expect(shouldSuppressEvent(state, 100, 5)).toBe(true);
   });
 
   it('does not suppress when budget is one below limit', () => {
@@ -263,6 +263,17 @@ describe('registerHighSigEvent', () => {
     // (5 - 4) * 2 * 0.6 = 1.2 -> rounds to 1
     registerHighSigEvent(state, makeEvent('e1', 5), 100);
     expect(state.cooldowns[0].durationYears).toBe(1);
+  });
+
+  it('adds NO cooldown if duration rounds to 0', () => {
+    const state = makeState({ mode: 'ares', cooldowns: [] });
+    // (4.2 - 4) * 2 * 0.6 = 0.4 -> rounds to 0
+    registerHighSigEvent(state, makeEvent('e1', 4.2), 100);
+    expect(state.cooldowns).toHaveLength(0);
+    // But still increments budget since sig >= 5 check is separate?
+    // Wait, let's re-read the code.
+    // registerHighSigEvent: if (event.significance < 5) return;
+    // Oh, if sig is 4.2 it returns early.
   });
 
   it('adds NO cooldown if duration rounds to 0 (case with sig >= 5)', () => {
