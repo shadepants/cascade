@@ -118,6 +118,10 @@ describe('echoSystem', () => {
     expect(event?.object).toBe('famine');
     expect(event?.id).toBe('whisper-famine-500-0');
     expect(npc?.knowledge[0].eventId).toBe(event?.id);
+
+    const secondWorld = executeEcho(nextWorld, echo);
+    const secondWhisperEvent = secondWorld.events.at(-1);
+    expect(secondWhisperEvent?.id).toBe('whisper-famine-500-1');
     
     // Check visuals
     const ripple = nextWorld.visuals?.find(v => v.type === 'ripple');
