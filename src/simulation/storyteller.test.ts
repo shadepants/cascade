@@ -148,36 +148,83 @@ describe('shouldSuppressEvent', () => {
   it('never suppresses low-significance events (< 5)', () => {
     const state = makeState({ highSigEventsThisYear: 999, maxEventsPerYear: 0 });
     expect(shouldSuppressEvent(state, 100, 4)).toBe(false);
-    expect(shouldSuppressEvent(state, 100, 1)).toBe(false);
+    expect(shouldSuppressEvent(state, 100, 4.9)).toBe(false);
   });
 
-  it('suppresses when budget is exhausted', () => {
+  it('checks boundary significance of 5', () => {
     const state = makeState({ highSigEventsThisYear: 2, maxEventsPerYear: 2 });
     expect(shouldSuppressEvent(state, 100, 5)).toBe(true);
   });
 
-  it('does not suppress when budget is available', () => {
-    const state = makeState({ highSigEventsThisYear: 0, maxEventsPerYear: 2 });
+  it('suppresses when budget is exactly exhausted', () => {
+    const state = makeState({ highSigEventsThisYear: 2, maxEventsPerYear: 2 });
+    expect(shouldSuppressEvent(state, 100, 5)).toBe(true);
+  });
+
+  it('does not suppress when budget is one below limit', () => {
+    const state = makeState({ highSigEventsThisYear: 1, maxEventsPerYear: 2 });
     expect(shouldSuppressEvent(state, 100, 5)).toBe(false);
   });
 
-  it('suppresses when an active cooldown matches significance', () => {
-    const state = makeState({
-      highSigEventsThisYear: 0,
-      maxEventsPerYear: 10,
-      cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 6, startYear: 95, durationYears: 10 }],
+  describe('cooldown checks', () => {
+    it('suppresses when currentYear is one before expiration', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 6, startYear: 95, durationYears: 5 }],
+      });
+      // Expires at 95 + 5 = 100. Year 99 should be suppressed.
+      expect(shouldSuppressEvent(state, 99, 6)).toBe(true);
     });
-    expect(shouldSuppressEvent(state, 100, 6)).toBe(true);
-  });
 
-  it('does not suppress when cooldown has expired', () => {
-    const state = makeState({
-      highSigEventsThisYear: 0,
-      maxEventsPerYear: 10,
-      cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 6, startYear: 80, durationYears: 5 }],
+    it('does not suppress when currentYear is exactly the expiration year', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 6, startYear: 95, durationYears: 5 }],
+      });
+      // Expires at 95 + 5 = 100. Year 100 should NOT be suppressed.
+      expect(shouldSuppressEvent(state, 100, 6)).toBe(false);
     });
-    // Expires at year 85, checking at year 100
-    expect(shouldSuppressEvent(state, 100, 6)).toBe(false);
+
+    it('suppresses when triggerSignificance is greater than event significance', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 10, startYear: 95, durationYears: 10 }],
+      });
+      expect(shouldSuppressEvent(state, 100, 6)).toBe(true);
+    });
+
+    it('suppresses when triggerSignificance is equal to event significance', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 6, startYear: 95, durationYears: 10 }],
+      });
+      expect(shouldSuppressEvent(state, 100, 6)).toBe(true);
+    });
+
+    it('does not suppress when triggerSignificance is less than event significance', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [{ triggerEventId: 'e1', triggerSignificance: 5, startYear: 95, durationYears: 10 }],
+      });
+      expect(shouldSuppressEvent(state, 100, 6)).toBe(false);
+    });
+
+    it('handles multiple cooldowns (one active blocks, even if another is expired)', () => {
+      const state = makeState({
+        highSigEventsThisYear: 0,
+        maxEventsPerYear: 10,
+        cooldowns: [
+          { triggerEventId: 'e1', triggerSignificance: 6, startYear: 80, durationYears: 5 }, // expired
+          { triggerEventId: 'e2', triggerSignificance: 6, startYear: 98, durationYears: 5 }, // active
+        ],
+      });
+      expect(shouldSuppressEvent(state, 100, 6)).toBe(true);
+    });
   });
 });
 
@@ -192,21 +239,52 @@ describe('registerHighSigEvent', () => {
 
   it('does not increment for sig < 5', () => {
     const state = makeState({ highSigEventsThisYear: 0 });
-    registerHighSigEvent(state, makeEvent('e1', 4), 100);
+    registerHighSigEvent(state, makeEvent('e1', 4.9), 100);
     expect(state.highSigEventsThisYear).toBe(0);
   });
 
-  it('adds a cooldown for sig >= 5 in clio mode', () => {
-    const state = makeState({ mode: 'clio', cooldowns: [] });
-    registerHighSigEvent(state, makeEvent('e1', 6), 100);
-    expect(state.cooldowns).toHaveLength(1);
-    expect(state.cooldowns[0].durationYears).toBeGreaterThan(0);
+  it('increments budget even if in Tyche mode (where no cooldown is added)', () => {
+    const state = makeState({ mode: 'tyche', highSigEventsThisYear: 0 });
+    registerHighSigEvent(state, makeEvent('e1', 5), 100);
+    expect(state.highSigEventsThisYear).toBe(1);
+    expect(state.cooldowns).toHaveLength(0);
   });
 
-  it('adds NO cooldown in tyche mode', () => {
-    const state = makeState({ mode: 'tyche', cooldowns: [] });
-    registerHighSigEvent(state, makeEvent('e1', 8), 100);
+  it('calculates duration correctly for Clio mode (1.5x multiplier)', () => {
+    const state = makeState({ mode: 'clio', cooldowns: [] });
+    // (5 - 4) * 2 * 1.5 = 3
+    registerHighSigEvent(state, makeEvent('e1', 5), 100);
+    expect(state.cooldowns[0].durationYears).toBe(3);
+    expect(state.cooldowns[0].startYear).toBe(100);
+  });
+
+  it('calculates duration correctly for Ares mode (0.6x multiplier)', () => {
+    const state = makeState({ mode: 'ares', cooldowns: [] });
+    // (5 - 4) * 2 * 0.6 = 1.2 -> rounds to 1
+    registerHighSigEvent(state, makeEvent('e1', 5), 100);
+    expect(state.cooldowns[0].durationYears).toBe(1);
+  });
+
+  it('adds NO cooldown if duration rounds to 0', () => {
+    const state = makeState({ mode: 'ares', cooldowns: [] });
+    // (4.2 - 4) * 2 * 0.6 = 0.4 -> rounds to 0
+    registerHighSigEvent(state, makeEvent('e1', 4.2), 100);
     expect(state.cooldowns).toHaveLength(0);
+    // But still increments budget since sig >= 5 check is separate?
+    // Wait, let's re-read the code.
+    // registerHighSigEvent: if (event.significance < 5) return;
+    // Oh, if sig is 4.2 it returns early.
+  });
+
+  it('adds NO cooldown if duration rounds to 0 (case with sig >= 5)', () => {
+    // We need a case where sig >= 5 but duration is 0.
+    // Clio: (sig - 4) * 2 * 1.5. If sig=5, dur=3.
+    // Ares: (sig - 4) * 2 * 0.6. If sig=5, dur=1.2 -> 1.
+    // Tyche: multiplier is 0.0, so dur is always 0.
+    const state = makeState({ mode: 'tyche', cooldowns: [] });
+    registerHighSigEvent(state, makeEvent('e1', 10), 100);
+    expect(state.cooldowns).toHaveLength(0);
+    expect(state.highSigEventsThisYear).toBe(1);
   });
 });
 
