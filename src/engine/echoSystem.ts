@@ -1,5 +1,5 @@
 import type { WorldState, TemporalEcho, TileModifier, KnowledgeEntry } from '../types/world';
-import { SeededRNG } from '../utils/rng';
+import { SeededRNG } from '../utils/rng.ts';
 
 /**
  * Validates and executes a Temporal Echo action.
@@ -32,7 +32,7 @@ export function executeEcho(world: WorldState, echo: TemporalEcho): WorldState {
     case 'fortify':
       return applyFortify(newWorld, echo);
     case 'chronicle':
-      return applyChronicle(newWorld, echo);
+      return applyChronicle(newWorld);
     case 'reinforce':
       return applyReinforce(newWorld, echo);
     default:
@@ -100,7 +100,7 @@ function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
   };
 }
 
-function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
+function applyChronicle(world: WorldState): WorldState {
   const knownEventIds = new Set(world.player.knowledgeLog.map(k => k.eventId));
   const significantEvents = world.events.filter(e =>
     e.significance >= 6 &&
@@ -108,7 +108,7 @@ function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
     !knownEventIds.has(e.id)
   );
 
-  let newKnowledgeLog = [...world.player.knowledgeLog];
+  const newKnowledgeLog = [...world.player.knowledgeLog];
 
   if (significantEvents.length > 0) {
     const rng = new SeededRNG(world.seed + world.currentYear);
@@ -292,4 +292,3 @@ function applyOmen(world: WorldState, echo: TemporalEcho): WorldState {
     ]
   };
 }
-
