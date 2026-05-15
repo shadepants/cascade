@@ -1,4 +1,5 @@
-import type { WorldState, TemporalEcho, TileModifier } from '../types/world';
+import type { WorldState, TemporalEcho, TileModifier, KnowledgeEntry } from '../types/world';
+import { SeededRNG } from '../utils/rng';
 
 /**
  * Validates and executes a Temporal Echo action.
@@ -100,17 +101,35 @@ function applyFortify(world: WorldState, echo: TemporalEcho): WorldState {
 }
 
 function applyChronicle(world: WorldState, _echo: TemporalEcho): WorldState {
-  // Chronicle grants a large boost to insight and seeds knowledge of a significant past event
-  // const significantEvents = world.events.filter(e => e.significance >= 6 && e.year < world.currentYear);
-  // const randomEvent = significantEvents[Math.floor(Math.random() * significantEvents.length)];
+  const knownEventIds = new Set(world.player.knowledgeLog.map(k => k.eventId));
+  const significantEvents = world.events.filter(e =>
+    e.significance >= 6 &&
+    e.year < world.currentYear &&
+    !knownEventIds.has(e.id)
+  );
+
+  let newKnowledgeLog = [...world.player.knowledgeLog];
+
+  if (significantEvents.length > 0) {
+    const rng = new SeededRNG(world.seed + world.currentYear);
+    const randomEvent = significantEvents[rng.nextInt(significantEvents.length)];
+
+    const entry: KnowledgeEntry = {
+      eventId: randomEvent.id,
+      source: 'Ancient Chronicles',
+      factionPerspective: 'Historical Record',
+      text: randomEvent.description,
+      discoveredYear: world.currentYear
+    };
+    newKnowledgeLog.push(entry);
+  }
 
   return {
     ...world,
     player: {
       ...world.player,
-      insight: world.player.insight + 50, // Paradox: spending insight to gain more? 
-      // Maybe Chronicle should be free but requires Scholarship?
-      // No, let's make it a 'Discovery' action that costs 0 but can only be used once per era.
+      insight: world.player.insight + 50,
+      knowledgeLog: newKnowledgeLog
     },
     visuals: [
       ...(world.visuals || []),

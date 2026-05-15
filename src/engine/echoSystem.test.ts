@@ -123,6 +123,45 @@ describe('echoSystem', () => {
     expect(ripple?.position).toEqual({ x: 2, y: 2 });
   });
 
+  it('correctly applies Chronicle and grants an event', () => {
+    // Add a significant past event
+    world.events.push({
+      id: 'e1',
+      tick: 0,
+      year: 100,
+      secondsOffset: 0,
+      subject: 'f1',
+      action: 'founded',
+      object: 's1',
+      description: 'The foundation of the capital.',
+      motivation: 'necessity',
+      statDeltas: [],
+      significance: 8,
+      playerCaused: false,
+      causedBy: null
+    });
+
+    const echo: TemporalEcho = {
+      type: 'chronicle',
+      cost: 30,
+      position: { x: 0, y: 0 }
+    };
+
+    const nextWorld = executeEcho(world, echo);
+
+    // cost 30, grants 50 -> net +20
+    expect(nextWorld.player.insight).toBe(120);
+
+    // Check knowledge log
+    expect(nextWorld.player.knowledgeLog.length).toBe(1);
+    expect(nextWorld.player.knowledgeLog[0].eventId).toBe('e1');
+    expect(nextWorld.player.knowledgeLog[0].source).toBe('Ancient Chronicles');
+
+    // Check visuals
+    const chronicleVisual = nextWorld.visuals?.find(v => v.type === 'tech_spark');
+    expect(chronicleVisual).toBeDefined();
+  });
+
   it('throws error on insufficient insight', () => {
     const echo: TemporalEcho = {
       type: 'omen',
