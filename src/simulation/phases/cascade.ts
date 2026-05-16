@@ -5,12 +5,7 @@ import { CASCADE_SIGNIFICANCE_MIN, CASCADE_LOOKBACK_YEARS, REBELLION_STABILITY_M
 import { getCascadeThreshold, registerHighSigEvent, shouldSuppressEvent } from '../storyteller.ts';
 import { getFactionStat } from '../helpers/stats.ts';
 import { getNeighboringFactions } from '../helpers/spatial.ts';
-
-function emitEvent(world: WorldState, pool: GameEvent[], event: GameEvent, year: number): void {
-  if (shouldSuppressEvent(world.storyteller, year, event.significance)) return;
-  pool.push(event);
-  registerHighSigEvent(world.storyteller, event, year);
-}
+import { emitEvent } from '../emitEvent.ts';
 
 export function phaseCascade(
   world: WorldState,

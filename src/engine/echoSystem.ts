@@ -1,5 +1,5 @@
 import type { WorldState, TemporalEcho, TileModifier, KnowledgeEntry } from '../types/world';
-import { SeededRNG } from '../utils/rng.ts';
+import { SeededRNG } from '../utils/rng';
 
 /**
  * Validates and executes a Temporal Echo action.

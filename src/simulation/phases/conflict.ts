@@ -76,11 +76,7 @@ export function phaseConflict(
           ],
         });
 
-        const suppressed = world.storyteller.cooldowns.some(
-          cd => cd.triggerSignificance >= warEvent.significance && year < cd.startYear + cd.durationYears
-        );
-
-        if (!suppressed) {
+        if (!shouldSuppressEvent(world.storyteller, year, warEvent.significance)) {
           rel.state = 'war';
           emitEvent(world, events, warEvent, year);
         }
@@ -113,6 +109,25 @@ function resolveWar(
   const fAWins = rng.nextFloat() < strA / total;
   const winner = fAWins ? fA : fB;
   const loser  = fAWins ? fB : fA;
+
+  const conqueredEvent = createEvent({
+    tick: 0, year,
+    subject: winner.id, action: 'conquered', object: loser.id,
+    causedBy: null, significance: 7, playerCaused: false,
+    description: `${winner.name} pushed back ${loser.name}'s forces and seized territory`,
+    motivation: pickMotivation('conquered', rng),
+    statDeltas: [
+      { factionId: winner.id, stat: 'military',   delta: -10 },
+      { factionId: winner.id, stat: 'wealth',      delta: 15 },
+      { factionId: loser.id,  stat: 'military',    delta: -20 },
+      { factionId: loser.id,  stat: 'stability',   delta: -15 },
+      { factionId: loser.id,  stat: 'population',  delta: -50 },
+    ],
+  });
+
+  if (shouldSuppressEvent(world.storyteller, year, conqueredEvent.significance)) {
+    return null;
+  }
 
   const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
   const tilesToTransfer = Math.min(borderTiles.length, Math.max(1, Math.floor(borderTiles.length * 0.3)));
@@ -148,21 +163,7 @@ function resolveWar(
   loser.settlements = Array.from(loserSettlementsSet);
   winner.settlements = Array.from(winnerSettlementsSet);
 
-  const deltas: StatDelta[] = [
-    { factionId: winner.id, stat: 'military',   delta: -10 },
-    { factionId: winner.id, stat: 'wealth',      delta: 15 },
-    { factionId: loser.id,  stat: 'military',    delta: -20 },
-    { factionId: loser.id,  stat: 'stability',   delta: -15 },
-    { factionId: loser.id,  stat: 'population',  delta: -50 },
-  ];
-  emitEvent(world, events, createEvent({
-    tick: 0, year,
-    subject: winner.id, action: 'conquered', object: loser.id,
-    causedBy: null, significance: 7, playerCaused: false,
-    description: `${winner.name} pushed back ${loser.name}'s forces and seized territory`,
-    motivation: pickMotivation('conquered', rng),
-    statDeltas: deltas,
-  }), year);
+  emitEvent(world, events, conqueredEvent, year);
 
   if (loser.stability < 20 && rng.nextFloat() < 0.3) {
     const fractureEvent = fractureFaction(world, loser, year, rng);
@@ -197,6 +198,11 @@ export function fractureFaction(
   }
 
   const newFactionId = `faction_rebel_${original.id}_${year}_${Math.floor(rng.nextFloat() * 1000)}`;
+
+  if (shouldSuppressEvent(world.storyteller, year, 8)) {
+    return null;
+  }
+
   const targetCount = Math.floor(tiles.length * 0.3);
   const queue: Position[] = [furthest];
   const claimed = new Set<string>();
