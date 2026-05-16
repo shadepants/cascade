@@ -4,7 +4,7 @@ import {
   accumulateDebt,
   applyIntervention,
 } from './storyteller.ts';
-import { defaultStorytellerState, type WorldState, type GameEvent, type StorytellerState, type NPC } from '../types';
+import { defaultStorytellerState, type WorldState, type GameEvent, type StorytellerState } from '../types';
 import { SeededRNG } from '../utils/rng.ts';
 
 function makeState(overrides: Partial<StorytellerState> = {}): StorytellerState {
