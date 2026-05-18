@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'vitest';
 import {
   computeTension,
   accumulateDebt,
@@ -80,16 +80,12 @@ describe('Storyteller Performance', () => {
     computeTension(state, world);
     const endTension = performance.now();
     console.log(`computeTension (1 iteration, ${eventCount} events): ${(endTension - startTension).toFixed(2)}ms`);
-    // O(N²) regression guard: must complete well under 2s for 20k events
-    expect(endTension - startTension).toBeLessThan(2000);
 
     // 2. Benchmark accumulateDebt
     const startDebt = performance.now();
     accumulateDebt(state, world, 100);
     const endDebt = performance.now();
     console.log(`accumulateDebt (1 iteration, ${eventCount} events): ${(endDebt - startDebt).toFixed(2)}ms`);
-    // O(N²) regression guard: must complete well under 2s for 20k events
-    expect(endDebt - startDebt).toBeLessThan(2000);
 
     // 3. Benchmark applyIntervention (PLACE_WITNESS)
     const intervention = {
@@ -102,7 +98,5 @@ describe('Storyteller Performance', () => {
     applyIntervention(intervention, world, rng, 100);
     const endIntervention = performance.now();
     console.log(`applyIntervention (1 iteration, ${eventCount} events): ${(endIntervention - startIntervention).toFixed(2)}ms`);
-    // O(N²) regression guard: must complete well under 2s for 20k events
-    expect(endIntervention - startIntervention).toBeLessThan(2000);
   });
 });

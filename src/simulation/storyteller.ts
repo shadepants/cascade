@@ -28,7 +28,9 @@ export function computeTension(state: StorytellerState, world: WorldState): numb
   let recentActionCount = 0;
   const thresholdYear = world.currentYear - 20;
 
-  for (const e of world.events) {
+  // Single pass O(N) to build the map and count recent actions
+  for (let i = 0, len = world.events.length; i < len; i++) {
+    const e = world.events[i];
     eventMap.set(e.id, e);
     if (e.playerCaused && e.causedBy === null && e.year > thresholdYear) {
       recentActionCount++;
@@ -36,18 +38,25 @@ export function computeTension(state: StorytellerState, world: WorldState): numb
   }
   const actionPressure = Math.min(45, recentActionCount * 15);
 
-  // Longest active causedBy chain
+  // Longest active causedBy chain - memoized O(N)
   let maxDepth = 0;
   const depthCache = new Map<string, number>();
   function chainDepth(eventId: string): number {
-    if (depthCache.has(eventId)) return depthCache.get(eventId)!;
+    const cached = depthCache.get(eventId);
+    if (cached !== undefined) return cached;
+
     const event = eventMap.get(eventId);
-    if (!event?.causedBy) { depthCache.set(eventId, 0); return 0; }
+    if (!event?.causedBy) {
+      depthCache.set(eventId, 0);
+      return 0;
+    }
     const d = 1 + chainDepth(event.causedBy);
     depthCache.set(eventId, d);
     return d;
   }
-  for (const e of world.events) {
+
+  for (let i = 0, len = world.events.length; i < len; i++) {
+    const e = world.events[i];
     if (e.playerCaused) {
       const d = chainDepth(e.id);
       if (d > maxDepth) maxDepth = d;
@@ -199,16 +208,32 @@ export function accumulateDebt(
   state.yearsSincePlayerDiscovery++;
 
   let discoveredThisYear = false;
-  // Optimization: only build the map if we have entries to check this year
-  const entriesThisYear = world.player.knowledgeLog.filter(k => k.discoveredYear === currentYear);
-  if (entriesThisYear.length > 0) {
-    const eventMap = new Map<string, GameEvent>();
-    for (const e of world.events) eventMap.set(e.id, e);
+  // Optimization: check if we have entries to check this year without full filter
+  let hasEntriesThisYear = false;
+  for (let i = 0, len = world.player.knowledgeLog.length; i < len; i++) {
+    if (world.player.knowledgeLog[i].discoveredYear === currentYear) {
+      hasEntriesThisYear = true;
+      break;
+    }
+  }
 
-    discoveredThisYear = entriesThisYear.some(entry => {
-      const event = eventMap.get(entry.eventId);
-      return event?.playerCaused === true;
-    });
+  if (hasEntriesThisYear) {
+    const eventMap = new Map<string, GameEvent>();
+    for (let i = 0, len = world.events.length; i < len; i++) {
+      const e = world.events[i];
+      eventMap.set(e.id, e);
+    }
+
+    for (let i = 0, len = world.player.knowledgeLog.length; i < len; i++) {
+      const entry = world.player.knowledgeLog[i];
+      if (entry.discoveredYear === currentYear) {
+        const event = eventMap.get(entry.eventId);
+        if (event?.playerCaused === true) {
+          discoveredThisYear = true;
+          break;
+        }
+      }
+    }
   }
 
   if (discoveredThisYear) {
@@ -235,17 +260,35 @@ export function fireDebtIntervention(
   if (debt < 30) return null;
 
   // Find undiscovered playerCaused events, ranked by significance
-  const knownIds = new Set(world.player.knowledgeLog.map(k => k.eventId));
-  const undiscovered = world.events
-    .filter(e => e.playerCaused && !knownIds.has(e.id))
-    .sort((a, b) => b.significance - a.significance);
+  const knownIds = new Set<string>();
+  for (let i = 0, len = world.player.knowledgeLog.length; i < len; i++) {
+    knownIds.add(world.player.knowledgeLog[i].eventId);
+  }
 
-  if (undiscovered.length === 0) {
+  let target: GameEvent | null = null;
+  let second: GameEvent | null = null;
+  let third: GameEvent | null = null;
+
+  for (let i = 0, len = world.events.length; i < len; i++) {
+    const e = world.events[i];
+    if (e.playerCaused && !knownIds.has(e.id)) {
+      if (!target || e.significance > target.significance) {
+        third = second;
+        second = target;
+        target = e;
+      } else if (!second || e.significance > second.significance) {
+        third = second;
+        second = e;
+      } else if (!third || e.significance > third.significance) {
+        third = e;
+      }
+    }
+  }
+
+  if (!target) {
     state.yearsSincePlayerDiscovery = 0;  // nothing left to discover
     return null;
   }
-
-  const target = undiscovered[0];
   const MAX_PER_TYPE = 3;
 
   if (debt >= 70 && state.debtInterventionsFired < MAX_PER_TYPE * 3) {
@@ -254,10 +297,13 @@ export function fireDebtIntervention(
   }
   if (debt >= 50 && state.debtInterventionsFired < MAX_PER_TYPE * 2) {
     state.debtInterventionsFired++;
+    const secondaryEventIds: string[] = [];
+    if (second) secondaryEventIds.push(second.id);
+    if (third) secondaryEventIds.push(third.id);
     return {
       type:               'PLACE_WITNESS',
       eventId:            target.id,
-      secondaryEventIds:  undiscovered.slice(1, 3).map(e => e.id),
+      secondaryEventIds,
     };
   }
   if (debt >= 30 && state.debtInterventionsFired < MAX_PER_TYPE) {
@@ -288,14 +334,29 @@ export function applyIntervention(
     case 'SEED_KNOWLEDGE': {
       // Seed this event into an NPC near the player
       const playerPos = world.player.position;
-      const nearbyNpcs = world.npcs
-        .filter(n => n.alive && !n.knowledge.some(k => k.eventId === event.id))
-        .sort((a, b) => {
-          const da = Math.abs(a.position.x - playerPos.x) + Math.abs(a.position.y - playerPos.y);
-          const db = Math.abs(b.position.x - playerPos.x) + Math.abs(b.position.y - playerPos.y);
-          return da - db;
-        });
-      const target = nearbyNpcs[0];
+      let target: NPC | null = null;
+      let minDistance = Infinity;
+
+      for (let i = 0, len = world.npcs.length; i < len; i++) {
+        const n = world.npcs[i];
+        if (n.alive) {
+          let alreadyKnown = false;
+          for (let j = 0, klen = n.knowledge.length; j < klen; j++) {
+            if (n.knowledge[j].eventId === event.id) {
+              alreadyKnown = true;
+              break;
+            }
+          }
+
+          if (!alreadyKnown) {
+            const distance = Math.abs(n.position.x - playerPos.x) + Math.abs(n.position.y - playerPos.y);
+            if (distance < minDistance) {
+              minDistance = distance;
+              target = n;
+            }
+          }
+        }
+      }
       if (target) {
         target.knowledge.push({
           eventId:        event.id,
