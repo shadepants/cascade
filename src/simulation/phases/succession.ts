@@ -10,6 +10,7 @@ import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { NPC_NAMES } from '../../data/names.ts';
 import { fractureFaction } from './conflict.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 
 // ─── Ruler Utilities (shared by economics.ts and politics.ts) ─────────────
 
@@ -59,34 +60,41 @@ export function phaseSuccession(world: WorldState, year: number, rng: GameRNG): 
     const deathChance = Math.max(0, (age - 50) * 0.012);
 
     if (rng.nextFloat() < deathChance) {
-      ruler.diedYear = year;
-
-      emitEvent(world, events, createEvent({
+      const deathEvent = createEvent({
         tick: 0, year,
         subject: ruler.id, action: 'death', object: faction.id,
         causedBy: null, significance: 6, playerCaused: false,
         description: `${ruler.name}, ruler of ${faction.name}, has died at age ${age}`,
         motivation: 'natural causes and the passage of time',
-      }), year);
+      });
 
-      if (ruler.legitimacy < 45 && rng.nextFloat() < 0.4) {
-        const fractureEvent = fractureFaction(world, faction, year, rng);
-        if (fractureEvent) {
-          fractureEvent.description = `A succession crisis following ${ruler.name}'s death shattered ${faction.name}`;
-          emitEvent(world, events, fractureEvent, year);
+      if (!shouldSuppressEvent(world.storyteller, year, deathEvent.significance)) {
+        ruler.diedYear = year;
+        emitEvent(world, events, deathEvent, year);
+
+        if (ruler.legitimacy < 45 && rng.nextFloat() < 0.4) {
+          const fractureEvent = fractureFaction(world, faction, year, rng);
+          if (fractureEvent) {
+            fractureEvent.description = `A succession crisis following ${ruler.name}'s death shattered ${faction.name}`;
+            emitEvent(world, events, fractureEvent, year);
+          }
+        } else {
+          const newRuler = spawnNewRuler(world, faction, year, rng);
+
+          const ascensionEvent = createEvent({
+            tick: 0, year,
+            subject: newRuler.id, action: 'ascension', object: faction.id,
+            causedBy: null, significance: 5, playerCaused: false,
+            description: `${newRuler.name} has ascended to the throne of ${faction.name}`,
+            motivation: 'orderly dynastic succession',
+          });
+
+          if (!shouldSuppressEvent(world.storyteller, year, ascensionEvent.significance)) {
+            world.historicalFigures.push(newRuler);
+            faction.leaderId = newRuler.id;
+            emitEvent(world, events, ascensionEvent, year);
+          }
         }
-      } else {
-        const newRuler = spawnNewRuler(world, faction, year, rng);
-        world.historicalFigures.push(newRuler);
-        faction.leaderId = newRuler.id;
-
-        emitEvent(world, events, createEvent({
-          tick: 0, year,
-          subject: newRuler.id, action: 'ascension', object: faction.id,
-          causedBy: null, significance: 5, playerCaused: false,
-          description: `${newRuler.name} has ascended to the throne of ${faction.name}`,
-          motivation: 'orderly dynastic succession',
-        }), year);
       }
     }
   }

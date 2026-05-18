@@ -95,6 +95,8 @@ describe('phaseSuccession', () => {
     const ruler = makeRuler('r1', 'A', 10);
     const faction = makeFaction('A', 'r1');
     const world = makeWorld([faction], [ruler]);
+    // Use tyche mode to prevent storyteller suppression
+    world.storyteller.mode = 'tyche';
 
     const rng: GameRNG = { nextFloat: () => 0, nextInt: (max: number) => max - 1, next: () => 0, shuffle: (a) => a, reseed: () => {} };
     phaseSuccession(world, 100, rng);

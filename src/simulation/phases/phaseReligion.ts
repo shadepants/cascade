@@ -3,6 +3,7 @@ import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { applyStatDeltas } from '../helpers/stats.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 
 /**
  * Phase Religion: Manages the spread of faiths and religious conversion.
@@ -80,22 +81,25 @@ export function phaseReligion(
       const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
       const hasOmen = world.map.tiles[settlement.position.y][settlement.position.x].modifiers?.some(m => m.type === 'omen');
       
-      // Conversion adds significant tension
-      if (world.storyteller) {
-        world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 8 : 4));
-      }
-
-      emitEvent(world, events, createEvent({
+      const conversionEvent = createEvent({
         tick: 0, year,
         subject: settlement.id, action: 'religious_conversion', object: settlement.dominantReligionId || 'unknown',
         causedBy: null, playerCaused: !!hasOmen,
         description: `${settlement.name} has converted to ${religion?.name || 'a new faith'}${hasOmen ? ' as prophesied by a Sacred Omen' : ''}.`,
         significance: 4
-      }), year);
+      });
 
-      // Mechanical Impact: religion tenets shift faction stats + ethics
-      const faction = world.factions.find(f => f.id === settlement.factionId);
-      if (faction && religion) {
+      if (!shouldSuppressEvent(world.storyteller, year, conversionEvent.significance)) {
+        // Conversion adds significant tension
+        if (world.storyteller) {
+          world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 8 : 4));
+        }
+
+        emitEvent(world, events, conversionEvent, year);
+
+        // Mechanical Impact: religion tenets shift faction stats + ethics
+        const faction = world.factions.find(f => f.id === settlement.factionId);
+        if (faction && religion) {
         if (faction.interestGroups) {
           const ig = faction.interestGroups.find(g => g.type === 'religious');
           if (ig) ig.power = Math.min(100, ig.power + 6);
@@ -121,7 +125,11 @@ export function phaseReligion(
           if (religion.tenets.includes('war')) {
             faction.ethics.violence  = shiftTowardEmbraced(faction.ethics.violence);
           }
+          }
         }
+      } else {
+        // Suppression: revert dominance change to maintain sync
+        settlement.dominantReligionId = oldDominant;
       }
     }
 
@@ -168,25 +176,29 @@ function checkSchism(
     world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 12 : 6));
   }
 
-  const schismDeltas: StatDelta[] = faction
-    ? [{ factionId: faction.id, stat: 'stability', delta: -8 }]
-    : [];
-
-  emitEvent(world, events, createEvent({
+  const schismEvent = createEvent({
     tick: 0, year,
     subject: settlement.id, action: 'religious_schism', object: settlement.factionId,
     causedBy: null, playerCaused: !!hasOmen,
     description: `A schism erupted in ${settlement.name} between followers of ${relA?.name ?? 'an old faith'} and ${relB?.name ?? 'a new faith'}.`,
     significance: 5,
-    statDeltas: schismDeltas,
-  }), year);
+    statDeltas: faction ? [{ factionId: faction.id, stat: 'stability', delta: -8 }] : [],
+  });
 
-  if (schismDeltas.length > 0) applyStatDeltas(world, schismDeltas);
+  if (!shouldSuppressEvent(world.storyteller, year, schismEvent.significance)) {
+    // Schism adds tension
+    if (world.storyteller) {
+      world.storyteller.tension = Math.min(100, world.storyteller.tension + (hasOmen ? 12 : 6));
+    }
 
-  // Boost military interest group from religious conflict
-  if (faction?.interestGroups) {
-    const milIG = faction.interestGroups.find(g => g.type === 'military');
-    if (milIG) milIG.power = Math.min(100, milIG.power + 5);
+    emitEvent(world, events, schismEvent, year);
+    if (schismEvent.statDeltas.length > 0) applyStatDeltas(world, schismEvent.statDeltas);
+
+    // Boost military interest group from religious conflict
+    if (faction?.interestGroups) {
+      const milIG = faction.interestGroups.find(g => g.type === 'military');
+      if (milIG) milIG.power = Math.min(100, milIG.power + 5);
+    }
   }
 }
 
@@ -204,21 +216,24 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
       const primaryReligion = world.religions.find(r => r.id === `rel_${figure.factionId}`);
       
       if (faction && primaryReligion) {
-        // Boost faith in all settlements of this faction
-        for (const sId of faction.settlements) {
-          const settlement = world.settlements.find(s => s.id === sId);
-          if (settlement) {
-            applyPressure(world, settlement, primaryReligion.id, 15);
-          }
-        }
-
-        emitEvent(world, events, createEvent({
+        const martyrdomEvent = createEvent({
           tick: 0, year,
           subject: figure.id, action: 'martyrdom', object: primaryReligion.id,
           causedBy: death.id, playerCaused: false,
           description: `The passing of the pious ${figure.name} has sparked a wave of religious fervor for ${primaryReligion.name}.`,
           significance: 5
-        }), year);
+        });
+
+        if (!shouldSuppressEvent(world.storyteller, year, martyrdomEvent.significance)) {
+          // Boost faith in all settlements of this faction
+          for (const sId of faction.settlements) {
+            const settlement = world.settlements.find(s => s.id === sId);
+            if (settlement) {
+              applyPressure(world, settlement, primaryReligion.id, 15);
+            }
+          }
+          emitEvent(world, events, martyrdomEvent, year);
+        }
       }
     }
   }

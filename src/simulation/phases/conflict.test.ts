@@ -263,4 +263,32 @@ describe('fractureFaction', () => {
     expect(world.map.tiles[0][1].factionId).toBe('A');
     expect(world.map.tiles[1][1].factionId).toBe('A'); // This will fail if the bug exists
   });
+
+  it('skips war declaration when storyteller suppresses high-sig events', () => {
+    const fA = makeFaction('A');
+    const fB = makeFaction('B');
+    const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -80, animosity: 100, state: 'peace' };
+    const world = makeWorld([fA, fB], [rel], [['A', 'A'], ['B', 'B']]);
+
+    // Add a blocking cooldown
+    world.storyteller.cooldowns.push({
+      triggerEventId: 'prev',
+      triggerSignificance: 6,
+      startYear: 1,
+      durationYears: 5
+    });
+
+    const rng: GameRNG = {
+      nextFloat: () => 0.01, // Force warProb check success
+      nextInt: () => 0,
+      next: () => 0,
+      shuffle: (a) => a,
+      reseed: () => {},
+    };
+
+    const events = phaseConflict(world, 2, rng);
+
+    expect(rel.state).toBe('peace');
+    expect(events.length).toBe(0);
+  });
 });

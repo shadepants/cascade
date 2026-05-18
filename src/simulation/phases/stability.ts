@@ -9,6 +9,7 @@ import { emitEvent } from '../emitEvent.ts';
 import { REBELLION_STABILITY_MIN, pickMotivation } from '../constants.ts';
 import { getNeighboringFactions, type MapOwnershipSummary } from '../helpers/spatial.ts';
 import { fractureFaction } from './conflict.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 
 export function phaseStability(world: WorldState, year: number, rng: GameRNG, mapSummary: MapOwnershipSummary): GameEvent[] {
   const events: GameEvent[] = [];
@@ -19,30 +20,33 @@ export function phaseStability(world: WorldState, year: number, rng: GameRNG, ma
 
     // Faction collapse — no territory left
     if (!stats || stats.count === 0) {
-      const affectedSettlements = world.settlements.filter(s => s.factionId === faction.id);
-      for (const s of affectedSettlements) {
-        world.ruins.push({
-          id:              `ruin_${s.id}_${year}`,
-          name:            `Ruins of ${s.name}`,
-          position:        s.position,
-          formerFactionId: faction.id,
-          collapsedYear:   year,
-        });
-        for (const npcId of s.npcs) {
-          const npc = world.npcs.find(n => n.id === npcId);
-          if (npc) npc.alive = false;
-        }
-      }
-      world.settlements = world.settlements.filter(s => s.factionId !== faction.id);
-      world.factions    = world.factions.filter(f => f.id !== faction.id);
-
-      emitEvent(world, events, createEvent({
+      const collapseEvent = createEvent({
         tick: 0, year,
         subject: faction.id, action: 'collapse', object: 'history',
         causedBy: null, significance: 8, playerCaused: false,
         description: `${faction.name} has collapsed into history, leaving only ruins.`,
         motivation: 'imperial overstretch and loss of territory',
-      }), year);
+      });
+
+      if (!shouldSuppressEvent(world.storyteller, year, collapseEvent.significance)) {
+        const affectedSettlements = world.settlements.filter(s => s.factionId === faction.id);
+        for (const s of affectedSettlements) {
+          world.ruins.push({
+            id:              `ruin_${s.id}_${year}`,
+            name:            `Ruins of ${s.name}`,
+            position:        s.position,
+            formerFactionId: faction.id,
+            collapsedYear:   year,
+          });
+          for (const npcId of s.npcs) {
+            const npc = world.npcs.find(n => n.id === npcId);
+            if (npc) npc.alive = false;
+          }
+        }
+        world.settlements = world.settlements.filter(s => s.factionId !== faction.id);
+        world.factions    = world.factions.filter(f => f.id !== faction.id);
+        emitEvent(world, events, collapseEvent, year);
+      }
       continue;
     }
 
