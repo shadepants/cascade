@@ -109,15 +109,16 @@ function resolveWar(
   const fAWins = rng.nextFloat() < strA / total;
   const winner = fAWins ? fA : fB;
   const loser  = fAWins ? fB : fA;
+  const conqueredSignificance = 7;
 
-  if (shouldSuppressEvent(world.storyteller, year, 7)) {
+  if (shouldSuppressEvent(world.storyteller, year, conqueredSignificance)) {
     return null;
   }
 
   const conqueredEvent = createEvent({
     tick: 0, year,
     subject: winner.id, action: 'conquered', object: loser.id,
-    causedBy: null, significance: 7, playerCaused: false,
+    causedBy: null, significance: conqueredSignificance, playerCaused: false,
     description: `${winner.name} pushed back ${loser.name}'s forces and seized territory`,
     motivation: pickMotivation('conquered', rng),
     statDeltas: [

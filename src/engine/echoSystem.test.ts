@@ -218,6 +218,7 @@ describe('echoSystem', () => {
 
     const nextWorld = executeEcho(world, echo);
     const repeatWorld = executeEcho(world, echo);
+    const thirdWorld = executeEcho(world, echo);
 
     // cost 30, grants 50 -> net +20
     expect(nextWorld.player.insight).toBe(120);
@@ -228,6 +229,7 @@ describe('echoSystem', () => {
     expect(['eligible-a', 'eligible-b']).toContain(grantedId);
     expect(['known', 'future', 'low-significance']).not.toContain(grantedId);
     expect(repeatWorld.player.knowledgeLog[1].eventId).toBe(grantedId);
+    expect(thirdWorld.player.knowledgeLog[1].eventId).toBe(grantedId);
     expect(nextWorld.player.knowledgeLog[1].source).toBe('Ancient Chronicles');
 
     // Check visuals
