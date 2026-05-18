@@ -2,7 +2,7 @@
 // War declaration, combat resolution, territorial transfer, and faction fracture.
 
 import type {
-  WorldState, GameEvent, Faction, StatDelta, Position,
+  WorldState, GameEvent, Faction, Position,
 } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
@@ -110,6 +110,10 @@ function resolveWar(
   const winner = fAWins ? fA : fB;
   const loser  = fAWins ? fB : fA;
 
+  if (shouldSuppressEvent(world.storyteller, year, 7)) {
+    return null;
+  }
+
   const conqueredEvent = createEvent({
     tick: 0, year,
     subject: winner.id, action: 'conquered', object: loser.id,
@@ -124,10 +128,6 @@ function resolveWar(
       { factionId: loser.id,  stat: 'population',  delta: -50 },
     ],
   });
-
-  if (shouldSuppressEvent(world.storyteller, year, conqueredEvent.significance)) {
-    return null;
-  }
 
   const borderTiles = getBorderTilesOf(world.map, loser.id, winner.id);
   const tilesToTransfer = Math.min(borderTiles.length, Math.max(1, Math.floor(borderTiles.length * 0.3)));
@@ -197,11 +197,11 @@ export function fractureFaction(
     if (d > maxDist) { maxDist = d; furthest = t; }
   }
 
-  const newFactionId = `faction_rebel_${original.id}_${year}_${Math.floor(rng.nextFloat() * 1000)}`;
-
   if (shouldSuppressEvent(world.storyteller, year, 8)) {
     return null;
   }
+
+  const newFactionId = `faction_rebel_${original.id}_${year}_${Math.floor(rng.nextFloat() * 1000)}`;
 
   const targetCount = Math.floor(tiles.length * 0.3);
   const queue: Position[] = [furthest];

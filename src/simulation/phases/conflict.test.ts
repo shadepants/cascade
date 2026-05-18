@@ -71,7 +71,7 @@ describe('phaseConflict — war declaration', () => {
       shuffle: (a) => a,
       reseed: () => {},
     };
-    const events = phaseConflict(world, 2, rng, []);
+    const events = phaseConflict(world, 2, rng);
     expect(rel.state).toBe('war');
     expect(events.some(e => e.action === 'war_declared')).toBe(true);
   });
@@ -81,7 +81,7 @@ describe('phaseConflict — war declaration', () => {
     const fB = makeFaction('B');
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -20, animosity: 50, state: 'peace' };
     const world = makeWorld([fA, fB], [rel], [['A', 'A'], ['B', 'B']]);
-    phaseConflict(world, 2, new SeededRNG(1), []);
+    phaseConflict(world, 2, new SeededRNG(1));
     expect(rel.state).toBe('peace');
   });
 
@@ -91,7 +91,7 @@ describe('phaseConflict — war declaration', () => {
     const rel: FactionRelationship = { factionA: 'A', factionB: 'B', opinion: -80, animosity: 200, state: 'peace' };
     // A and B have tiles but don't share a border
     const world = makeWorld([fA, fB], [rel], [['A', null, 'B']]);
-    phaseConflict(world, 2, new SeededRNG(1), []);
+    phaseConflict(world, 2, new SeededRNG(1));
     expect(rel.state).toBe('peace');
   });
 });
@@ -129,7 +129,7 @@ describe('phaseConflict — war resolution settlement transfers', () => {
       reseed: () => {},
     };
 
-    phaseConflict(world, 2, rng, []);
+    phaseConflict(world, 2, rng);
 
     expect(world.map.tiles[0][1].factionId).toBe('A');
     expect(world.settlements.find(s => s.id === 'sB')?.factionId).toBe('A');
@@ -256,7 +256,7 @@ describe('fractureFaction', () => {
       reseed: () => {},
     };
 
-    phaseConflict(world, 2, rng, []);
+    phaseConflict(world, 2, rng);
 
     // BUG: Currently, only (1,0) is transferred because it's the only border tile.
     // (1,1) remains owned by B, even though the settlement sB now belongs to A.

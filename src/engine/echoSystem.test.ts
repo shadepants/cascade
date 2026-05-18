@@ -123,23 +123,92 @@ describe('echoSystem', () => {
     expect(ripple?.position).toEqual({ x: 2, y: 2 });
   });
 
-  it('correctly applies Chronicle and grants an event', () => {
-    // Add a significant past event
-    world.events.push({
-      id: 'e1',
-      tick: 0,
-      year: 100,
-      secondsOffset: 0,
-      subject: 'f1',
-      action: 'founded',
-      object: 's1',
-      description: 'The foundation of the capital.',
-      motivation: 'necessity',
-      statDeltas: [],
-      significance: 8,
-      playerCaused: false,
-      causedBy: null
+  it('chronicle only grants eligible unknown past events and selection is deterministic', () => {
+    world.player.knowledgeLog.push({
+      eventId: 'known',
+      source: 'Archive',
+      factionPerspective: 'Historical Record',
+      text: 'Already known event.',
+      discoveredYear: 300,
     });
+
+    world.events.push(
+      {
+        id: 'known',
+        tick: 0,
+        year: 100,
+        secondsOffset: 0,
+        subject: 'f1',
+        action: 'founded',
+        object: 's1',
+        description: 'Already known event.',
+        motivation: 'necessity',
+        statDeltas: [],
+        significance: 8,
+        playerCaused: false,
+        causedBy: null
+      },
+      {
+        id: 'future',
+        tick: 0,
+        year: 700,
+        secondsOffset: 0,
+        subject: 'f1',
+        action: 'alliance',
+        object: 'f2',
+        description: 'Future event.',
+        motivation: 'necessity',
+        statDeltas: [],
+        significance: 9,
+        playerCaused: false,
+        causedBy: null
+      },
+      {
+        id: 'low-significance',
+        tick: 0,
+        year: 120,
+        secondsOffset: 0,
+        subject: 'f1',
+        action: 'trade_pact',
+        object: 'f2',
+        description: 'Low significance event.',
+        motivation: 'necessity',
+        statDeltas: [],
+        significance: 5,
+        playerCaused: false,
+        causedBy: null
+      },
+      {
+        id: 'eligible-a',
+        tick: 0,
+        year: 150,
+        secondsOffset: 0,
+        subject: 'f1',
+        action: 'war_declared',
+        object: 'f2',
+        description: 'Eligible event A.',
+        motivation: 'necessity',
+        statDeltas: [],
+        significance: 7,
+        playerCaused: false,
+        causedBy: null
+      },
+      {
+        id: 'eligible-b',
+        tick: 0,
+        year: 200,
+        secondsOffset: 0,
+        subject: 'f2',
+        action: 'founded',
+        object: 's2',
+        description: 'Eligible event B.',
+        motivation: 'necessity',
+        statDeltas: [],
+        significance: 8,
+        playerCaused: false,
+        causedBy: null
+      }
+    );
 
     const echo: TemporalEcho = {
       type: 'chronicle',
@@ -148,14 +217,18 @@ describe('echoSystem', () => {
     };
 
     const nextWorld = executeEcho(world, echo);
+    const repeatWorld = executeEcho(world, echo);
 
     // cost 30, grants 50 -> net +20
     expect(nextWorld.player.insight).toBe(120);
 
-    // Check knowledge log
-    expect(nextWorld.player.knowledgeLog.length).toBe(1);
-    expect(nextWorld.player.knowledgeLog[0].eventId).toBe('e1');
-    expect(nextWorld.player.knowledgeLog[0].source).toBe('Ancient Chronicles');
+    // Check knowledge log: one prior known + one newly discovered eligible event
+    expect(nextWorld.player.knowledgeLog.length).toBe(2);
+    const grantedId = nextWorld.player.knowledgeLog[1].eventId;
+    expect(['eligible-a', 'eligible-b']).toContain(grantedId);
+    expect(['known', 'future', 'low-significance']).not.toContain(grantedId);
+    expect(repeatWorld.player.knowledgeLog[1].eventId).toBe(grantedId);
+    expect(nextWorld.player.knowledgeLog[1].source).toBe('Ancient Chronicles');
 
     // Check visuals
     const chronicleVisual = nextWorld.visuals?.find(v => v.type === 'tech_spark');
