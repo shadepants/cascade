@@ -3,6 +3,7 @@ import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { applyStatDeltas } from '../helpers/stats.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 
 const INNOVATIONS: Record<InnovationType, { name: string; description: string; impact: string }> = {
   agriculture: {
@@ -61,32 +62,33 @@ export function phaseTech(
         const type = availableTechs[Math.floor(rng.nextFloat() * availableTechs.length)];
         const tech = INNOVATIONS[type];
         
-        const newInnovation: Innovation = {
-          id: `tech_${type}_${year}`,
-          name: tech.name,
-          type: type,
-          description: tech.description,
-          originYear: year,
-          originSettlementId: settlement.id
-        };
-
-        world.innovations.push(newInnovation);
-        settlement.innovations.push(newInnovation.id);
-        faction.innovations.push(newInnovation.id);
-
-        emitEvent(world, events, createEvent({
+        const discoveryEvent = createEvent({
           tick: 0, year,
           subject: settlement.id, action: 'tech_discovery', object: type,
           causedBy: null, playerCaused: false,
           description: `The scholars of ${settlement.name} have discovered ${tech.name}: ${tech.description}`,
           significance: 6
-        }), year);
+        });
 
-        // Discovery bonus to faction
-        const bonusDeltas: StatDelta[] = [
-          { factionId: faction.id, stat: 'culture', delta: 10 }
-        ];
-        applyStatDeltas(world, bonusDeltas);
+        if (!shouldSuppressEvent(world.storyteller, year, discoveryEvent.significance)) {
+          const newInnovation: Innovation = {
+            id: `tech_${type}_${year}`,
+            name: tech.name,
+            type: type,
+            description: tech.description,
+            originYear: year,
+            originSettlementId: settlement.id
+          };
+
+          world.innovations.push(newInnovation);
+          settlement.innovations.push(newInnovation.id);
+          faction.innovations.push(newInnovation.id);
+
+          emitEvent(world, events, discoveryEvent, year);
+
+          // Discovery bonus to faction
+          applyStatDeltas(world, [{ factionId: faction.id, stat: 'culture', delta: 10 }]);
+        }
       }
     }
   }
@@ -130,21 +132,23 @@ export function phaseTech(
         }
 
         if (rng.nextFloat() < spreadChance) {
-          targetS.innovations.push(innovation.id);
-          const faction = world.factions.find(f => f.id === targetS.factionId);
-          if (faction && !faction.innovations.includes(innovation.id)) {
-            faction.innovations.push(innovation.id);
-            
-            emitEvent(world, events, createEvent({
-              tick: 0, year,
-              subject: targetS.id, action: 'tech_adoption', object: innovation.type,
-              causedBy: innovation.id, playerCaused: !!whisperEntry,
-              description: `${targetS.name} has adopted the knowledge of ${innovation.name}.`,
-              significance: 3
-            }), year);
+          const adoptionEvent = createEvent({
+            tick: 0, year,
+            subject: targetS.id, action: 'tech_adoption', object: innovation.type,
+            causedBy: innovation.id, playerCaused: !!whisperEntry,
+            description: `${targetS.name} has adopted the knowledge of ${innovation.name}.`,
+            significance: 3
+          });
 
-            // Small stat boost for adoption
-            applyStatDeltas(world, [{ factionId: faction.id, stat: 'culture', delta: 2 }]);
+          if (!shouldSuppressEvent(world.storyteller, year, adoptionEvent.significance)) {
+            targetS.innovations.push(innovation.id);
+            const faction = world.factions.find(f => f.id === targetS.factionId);
+            if (faction && !faction.innovations.includes(innovation.id)) {
+              faction.innovations.push(innovation.id);
+              emitEvent(world, events, adoptionEvent, year);
+              // Small stat boost for adoption
+              applyStatDeltas(world, [{ factionId: faction.id, stat: 'culture', delta: 2 }]);
+            }
           }
         }
       }

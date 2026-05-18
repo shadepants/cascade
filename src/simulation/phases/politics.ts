@@ -1,13 +1,14 @@
 ﻿// ─── Phase 3: Politics ────────────────────────────────────────────────────
 // Ethics divergence, animosity accumulation, alliance formation.
 
-import type { WorldState, GameEvent, StatDelta } from '../../types';
+import type { WorldState, GameEvent } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { computeEthicsDivergence } from '../../world/factions.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { ALLIANCE_OPINION_MIN, pickMotivation } from '../constants.ts';
 import { getRulerForFaction, hasTrait } from './succession.ts';
+import { shouldSuppressEvent } from '../storyteller.ts';
 
 export function phasePolitics(
   world: WorldState,
@@ -45,19 +46,22 @@ export function phasePolitics(
       fA.stability >= 40 && fB.stability >= 40 &&
       rng.nextFloat() < 0.05
     ) {
-      rel.state = 'alliance';
-      const deltas: StatDelta[] = [
-        { factionId: fA.id, stat: 'stability', delta: 5 },
-        { factionId: fB.id, stat: 'stability', delta: 5 },
-      ];
-      emitEvent(world, events, createEvent({
+      const allianceEvent = createEvent({
         tick: 0, year,
         subject: fA.id, action: 'alliance_formed', object: fB.id,
         causedBy: null, significance: 5, playerCaused: false,
         description: `${fA.name} and ${fB.name} forged a formal alliance`,
         motivation: pickMotivation('alliance_formed', rng),
-        statDeltas: deltas,
-      }), year);
+        statDeltas: [
+          { factionId: fA.id, stat: 'stability', delta: 5 },
+          { factionId: fB.id, stat: 'stability', delta: 5 },
+        ],
+      });
+
+      if (!shouldSuppressEvent(world.storyteller, year, allianceEvent.significance)) {
+        rel.state = 'alliance';
+        emitEvent(world, events, allianceEvent, year);
+      }
     }
   }
 
