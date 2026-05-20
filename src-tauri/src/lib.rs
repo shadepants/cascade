@@ -67,10 +67,15 @@ pub async fn anthropic_chat(
         .await
         .map_err(|e| format!("HTTP error: {e}"))?;
 
+    let status = response.status();
     let text = response
         .text()
         .await
         .map_err(|e| format!("Response read error: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!("Anthropic API error ({}): {}", status, text));
+    }
 
     Ok(text)
 }
