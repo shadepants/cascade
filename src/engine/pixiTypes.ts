@@ -3,6 +3,7 @@
 // can share them without circular imports.
 
 import type { Texture, Container, Graphics } from 'pixi.js';
+import type { TileRegion } from './tileMap.ts';
 
 export interface Sheets {
   terrain:    Texture;
@@ -37,3 +38,12 @@ export interface Layers {
 
 /** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
 export type SheetKey = keyof Sheets;
+
+/** Sheet keys that map to a single Texture (not the altars record). */
+export type TextureSheetKey = Exclude<SheetKey, 'altars'>;
+
+/** Metadata attached to animated sprites for frame-advance logic. */
+export interface CascadeSpriteMeta {
+  sheetKey: TextureSheetKey;
+  baseRegion: TileRegion;
+}

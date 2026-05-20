@@ -30,7 +30,7 @@ import {
   SHEET_ICONS,
   ALTAR_PATHS,
 } from '../engine/tileMap.ts';
-import type { Sheets, Layers } from '../engine/pixiTypes.ts';
+import type { Sheets, Layers, CascadeSpriteMeta } from '../engine/pixiTypes.ts';
 import { rebuildWorldSprites } from '../engine/worldRenderer.ts';
 import { updateTradeLayer } from '../engine/tradeLayer.ts';
 import { updateVisualEffectsLayer, updateModifierLayer } from '../engine/visualEffects.ts';
@@ -214,7 +214,7 @@ function PixiViewportInner() {
           animStateRef.current.lastFrameToggle = now;
           layersRef.current.top.children.forEach(child => {
             const sprite = child as Sprite;
-            const meta = (sprite as any)._cascadeMeta;
+            const meta = (sprite as Sprite & { _cascadeMeta?: CascadeSpriteMeta })._cascadeMeta;
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
               const frameOffset = animStateRef.current.frameIndex * 16;
