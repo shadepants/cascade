@@ -199,8 +199,8 @@ export function rebuildWorldSprites(
     if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
 
     if (settlement.dominantReligionId) {
-      const relDom = world.religions.find(r => r.id === settlement.dominantReligionId);
-      if (relDom) {
+      const dominantReligion = world.religions.find(r => r.id === settlement.dominantReligionId);
+      if (dominantReligion) {
         let glow: Graphics;
         if (midIdx < mid.children.length && mid.children[midIdx] instanceof Graphics) {
           glow = mid.children[midIdx] as Graphics;
@@ -210,7 +210,7 @@ export function rebuildWorldSprites(
           mid.addChildAt(glow, midIdx);
         }
         glow.clear();
-        const color = parseInt(relDom.color.replace('#', ''), 16);
+        const color = parseInt(dominantReligion.color.replace('#', ''), 16);
         glow.fill({ color, alpha: 0.25 });
         glow.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
         midIdx++;
@@ -253,27 +253,27 @@ export function rebuildWorldSprites(
     const row = site.position.y - camera.y;
     if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
 
-    const relSite = world.religions.find(r => r.id === site.religionId);
-    let spriteR: Sprite;
-    if (relSite && sheets.altars[relSite.tenets[0]]) {
-      const tex = sheets.altars[relSite.tenets[0]];
+    const siteReligion = world.religions.find(r => r.id === site.religionId);
+    let holySiteSprite: Sprite;
+    if (siteReligion && sheets.altars[siteReligion.tenets[0]]) {
+      const tex = sheets.altars[siteReligion.tenets[0]];
       if (religionIdx < religion.children.length) {
-        spriteR = religion.children[religionIdx] as Sprite;
-        spriteR.visible = true;
-        spriteR.texture = tex;
+        holySiteSprite = religion.children[religionIdx] as Sprite;
+        holySiteSprite.visible = true;
+        holySiteSprite.texture = tex;
       } else {
-        spriteR = new Sprite(tex);
-        religion.addChild(spriteR);
+        holySiteSprite = new Sprite(tex);
+        religion.addChild(holySiteSprite);
       }
-      spriteR.x      = col * tileDisplay;
-      spriteR.y      = row * tileDisplay;
-      spriteR.width  = tileDisplay;
-      spriteR.height = tileDisplay;
-      spriteR.tint   = 0xffffff;
+      holySiteSprite.x      = col * tileDisplay;
+      holySiteSprite.y      = row * tileDisplay;
+      holySiteSprite.width  = tileDisplay;
+      holySiteSprite.height = tileDisplay;
+      holySiteSprite.tint   = 0xffffff;
       religionIdx++;
     } else {
-      spriteR = getSprite(religion, religionIdx++, 'religion', HOLYSITE_TILE, col, row);
-      spriteR.tint = relSite ? parseInt(relSite.color.replace('#', ''), 16) : 0xffffff;
+      holySiteSprite = getSprite(religion, religionIdx++, 'religion', HOLYSITE_TILE, col, row);
+      holySiteSprite.tint = siteReligion ? parseInt(siteReligion.color.replace('#', ''), 16) : 0xffffff;
     }
   }
   hideUnusedSprites(religion, religionIdx);

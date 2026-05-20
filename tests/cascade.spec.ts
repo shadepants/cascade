@@ -382,3 +382,76 @@ test('action budget shows in action menu and blocks at 6', async ({ page }) => {
   await expect(page.locator('.action-panel')).toContainText('Era actions:');
   await expect(page.locator('.action-panel')).toContainText('/6');
 });
+
+// ─── 13. Oracle's Eye Panel Toggle ───────────────────────────────────────
+
+test("Oracle's Eye panel appears on O key and disappears on second O", async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New Game' }).click();
+  await waitForWorld(page);
+
+  // Panel should not exist before O is pressed
+  await expect(page.locator('.oracles-eye-panel')).not.toBeVisible();
+
+  // Press O — panel should appear
+  await page.keyboard.press('o');
+  await expect(page.locator('.oracles-eye-panel')).toBeVisible({ timeout: 5_000 });
+
+  // Press O again — panel should disappear
+  await page.keyboard.press('o');
+  await expect(page.locator('.oracles-eye-panel')).not.toBeVisible({ timeout: 5_000 });
+});
+
+// ─── 14. Storyteller Mode Persists After New Game ────────────────────────
+
+test('storyteller mode selected on title screen persists in world', async ({ page }) => {
+  for (const mode of ['clio', 'ares', 'tyche'] as const) {
+    await page.goto('/');
+    const buttonName = mode.charAt(0).toUpperCase() + mode.slice(1);
+    await page.getByRole('button', { name: buttonName }).click();
+    await page.getByRole('button', { name: 'New Game' }).click();
+    await waitForWorld(page);
+
+    const state = await getState(page);
+    expect(state?.world?.storyteller?.mode).toBe(mode);
+  }
+});
+
+// ─── 15. Save / Load Cycle ────────────────────────────────────────────────
+
+test('save and load preserves currentYear', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New Game' }).click();
+  await waitForWorld(page);
+
+  // Execute a time jump to advance the year
+  await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
+  await waitForPhase(page, 'exploring', 180_000);
+
+  const stateAfterJump = await getState(page);
+  const yearAfterJump: number = stateAfterJump?.world?.currentYear;
+  expect(yearAfterJump).toBeGreaterThan(0);
+
+  // Save via dispatch
+  await dispatch(page, { type: 'SAVE_GAME' });
+  await page.waitForTimeout(1000); // let IndexedDB write complete
+
+  // Reload the page
+  await page.reload();
+  await page.waitForTimeout(500);
+
+  // Load the save — the continue button should appear on the title screen
+  const continueBtn = page.getByRole('button', { name: 'Continue' });
+  if (await continueBtn.isVisible()) {
+    await continueBtn.click();
+  } else {
+    // Fallback: dispatch LOAD_GAME directly
+    await dispatch(page, { type: 'LOAD_GAME' });
+  }
+  await waitForWorld(page);
+
+  const stateAfterLoad = await getState(page);
+  const yearAfterLoad: number = stateAfterLoad?.world?.currentYear;
+
+  expect(yearAfterLoad).toBe(yearAfterJump);
+});

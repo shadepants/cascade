@@ -336,7 +336,7 @@ function buildSimConfig(config: WorldConfig): SimConfig {
   return {
     schismProbability: config.schismProbability ?? SCHISM_PROBABILITY_BASE,
     techDiffusionRate: config.techDiffusionRate ?? TECH_DIFFUSION_RATE,
-    tradeDecayRate:    config.tradeDecayRate    ?? TRADE_ROUTE_DECAY_RATE,
-    tradeGrowthRate:   config.tradeGrowthRate   ?? TRADE_ROUTE_GROWTH_RATE,
+    tradeDecayRate:    config.tradeDecayRate ?? TRADE_ROUTE_DECAY_RATE,
+    tradeGrowthRate:   config.tradeGrowthRate ?? TRADE_ROUTE_GROWTH_RATE,
   };
 }

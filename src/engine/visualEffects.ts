@@ -57,10 +57,10 @@ export function updateVisualEffectsLayer(
     } else if (effect.type === 'tech_spark') {
       const flash = (Math.sin(animTime / 100) + 1) / 2;
       vG.fill({ color: 0xffffff, alpha: 0.8 * flash });
-      const s = (tileDisplay / 2) * (1 + (1 - effect.duration / 4) * 2);
-      vG.rect(screenX - s / 2, screenY - s / 2, s, s);
+      const sparkSize = (tileDisplay / 2) * (1 + (1 - effect.duration / 4) * 2);
+      vG.rect(screenX - sparkSize / 2, screenY - sparkSize / 2, sparkSize, sparkSize);
       vG.stroke({ width: 2, color: 0xffffff, alpha: 0.4 });
-      vG.rect(screenX - s, screenY - s, s * 2, s * 2);
+      vG.rect(screenX - sparkSize, screenY - sparkSize, sparkSize * 2, sparkSize * 2);
     }
   }
 }
