@@ -133,20 +133,21 @@ function hideUnusedSprites(layer: Container, startIndex: number): void {
 /**
  * Rebuild all world-state-driven sprites for one render frame.
  * This is called inside a `useEffect` that depends on [world, camera, ...].
+ * `tileDisplay` is the already computed display size of a tile in pixels
+ * (for example, TILE_SIZE * zoom).
  */
 export function rebuildWorldSprites(
   world: WorldState,
   camera: Camera,
   previousWorld: WorldState | null,
   showHistory: boolean,
-  zoom: number,
+  tileDisplay: number,
   layers: Layers,
   sheets: Sheets,
   texPool: Map<string, Texture>,
   frameIndex: number,
 ): void {
   const { terrain, mid, resources, items, religion, innovations, top, ghost } = layers;
-  const tileDisplay = zoom; // caller passes TILE_SIZE * zoom already
 
   // Bind helper with shared context
   const getSprite = (
