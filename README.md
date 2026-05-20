@@ -66,6 +66,8 @@ When running inside the Tauri desktop wrapper, HTTP requests bypass CORS entirel
 via `tauri-plugin-http`. The Anthropic call is made from a native Tauri command
 (`src-tauri/src/lib.rs`) using the system HTTP client rather than the browser
 fetch API. This is the cleanest architecture for the desktop build — no proxy
-needed, and the API key is stored in the OS keychain via `tauri-plugin-store`.
+needed. Note that `tauri-plugin-store` is not an OS keychain/keyring, so do not
+assume the Anthropic API key is stored in the system keychain unless a dedicated
+Rust-side keychain/keyring integration has been implemented.
 
 See `src-tauri/tauri.conf.json` for the Tauri configuration.
