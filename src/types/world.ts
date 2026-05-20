@@ -280,6 +280,16 @@ export interface WorldState {
   player: Player;
   storyteller: StorytellerState;
   visuals: VisualEffect[];
+  /** Optional simulation tuning params stored from WorldConfig at generation time. */
+  simConfig?: SimConfig;
+}
+
+/** Tunable simulation balance parameters. */
+export interface SimConfig {
+  schismProbability: number;
+  techDiffusionRate: number;
+  tradeDecayRate: number;
+  tradeGrowthRate: number;
 }
 
 export interface WorldConfig {
@@ -291,4 +301,9 @@ export interface WorldConfig {
   pregenYears: number;
   ticksPerYear: number;
   storytellerMode: StorytellerMode;
+  /** Optional simulation balance overrides. Defaults from constants.ts when absent. */
+  schismProbability?: number;
+  techDiffusionRate?: number;
+  tradeDecayRate?: number;
+  tradeGrowthRate?: number;
 }

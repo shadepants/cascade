@@ -31,6 +31,8 @@ See: `docs/ENGINE_INVARIANTS.md`
 - `npm run test` — unit tests (`src/**/*.test.ts`)
 - `npm run build` — type-check + production build
 - `npm run lint` — eslint (currently reports pre-existing repo violations)
+- `npm run tauri:dev` — launch the Tauri desktop wrapper (requires `src-tauri/` Rust toolchain)
+- `npm run tauri:build` — compile a cross-platform desktop binary via Tauri
 
 ## Validation Matrix (before merge)
 1. `npm run test`
@@ -41,3 +43,31 @@ See: `docs/ENGINE_INVARIANTS.md`
 ## Playtest/QA Docs
 - `tasks/003-playtest-sop.md`
 - `tasks/004-gems-playtest-guide.md`
+
+## LLM / Anthropic API — Production Deployment
+
+In development, a Vite proxy forwards `/api/anthropic` → `https://api.anthropic.com`.
+This proxy is **dev-only** and does not exist in a production build.
+
+### Browser (production)
+
+You must run a reverse proxy on your server that forwards `/api/anthropic` to
+`https://api.anthropic.com` and injects the `x-api-key` header.
+
+An nginx config snippet is provided at [`public/api-proxy.example.conf`](public/api-proxy.example.conf).
+
+Alternative hosted solutions:
+- **Cloudflare Workers**: deploy a worker that proxies the Anthropic endpoint.
+- **Caddy**: use `reverse_proxy` with header injection.
+
+### Tauri (desktop)
+
+When running inside the Tauri desktop wrapper, HTTP requests bypass CORS entirely
+via `tauri-plugin-http`. The Anthropic call is made from a native Tauri command
+(`src-tauri/src/lib.rs`) using the system HTTP client rather than the browser
+fetch API. This is the cleanest architecture for the desktop build — no proxy
+needed. The API key is stored in a local config file (`cascade.json`) managed by
+`tauri-plugin-store` and read on the Rust side — it is never passed over IPC from
+the frontend, so it does not appear in JS memory or network DevTools.
+
+See `src-tauri/tauri.conf.json` for the Tauri configuration.

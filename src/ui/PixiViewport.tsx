@@ -9,14 +9,12 @@
 // Phase 5 scope: Tree canopy + items + resource nodes (ore/relic) sprite layers.
 // NOT wired into App.tsx yet — that swap happens in Phase 5.
 
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
+import { useRef, useEffect, useCallback, useState, memo } from 'react';
+import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { useGameStore } from '../store/index';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
 import { TILE_SIZE } from '../types';
-import type { Biome } from '../types';
-import type { TileRegion } from '../engine/tileMap.ts';
 import {
   SHEET_TERRAIN,
   SHEET_SETTLEMENT,
@@ -30,142 +28,18 @@ import {
   SHEET_RELIGION,
   SHEET_BOOKS,
   SHEET_ICONS,
-  BIOME_TILES,
-  SETTLEMENT_TILE,
-  RUIN_TILE,
-  HOLYSITE_TILE,
-  NPC_TILE,
-  PLAYER_TILE,
-  TREE_TILES,
-  RESOURCE_SPRITE,
-  ITEM_SPRITE,
-  INNOVATION_SPRITE,
   ALTAR_PATHS,
 } from '../engine/tileMap.ts';
+import type { Sheets, Layers, CascadeSpriteMeta } from '../engine/pixiTypes.ts';
+import { rebuildWorldSprites } from '../engine/worldRenderer.ts';
+import { updateTradeLayer } from '../engine/tradeLayer.ts';
+import { updateVisualEffectsLayer, updateModifierLayer } from '../engine/visualEffects.ts';
 
-// ─── Internal types ──────────────────────────────────────────────────────
-
-interface Sheets {
-  terrain:    Texture;
-  settlement: Texture;
-  character:  Texture;
-  player:     Texture;
-  tree:       Texture;
-  ore:        Texture;
-  itemAmulet: Texture;
-  itemScroll: Texture;
-  itemKey:    Texture;
-  religion:   Texture;
-  books:      Texture;
-  icons:      Texture;
-  decor:      Texture;
-  altars:     Record<string, Texture>;
-}
-
-interface Layers {
-  terrain:     Container;
-  mid:         Container;  // settlements, ruins, tree canopy
-  resources:   Container;  // ore deposits and relic sites
-  items:       Container;  // pickup items (artifacts, letters, keys)
-  religion:    Container;  // Holy Sites (shrines, temples)
-  innovations: Container;  // Innovation icons
-  trade:       Graphics;   // Phase 1: trade routes (golden pulsing lines)
-  modifiers:   Graphics;   // Persistent tile modifiers (Omens, Blooms)
-  visuals:     Graphics;   // Phase 0: Echo System visual feedback (ripples, sparks)
-  top:         Container;  // characters (NPCs + player)
-  ghost:       Container;  // Phase 2: Ghost of History overlay
-}
-
-/** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
-type SheetKey = keyof Sheets;
-
-// ─── Ghost layer helpers ─────────────────────────────────────────────────
-
-/**
- * Accumulate moveTo/lineTo pairs for one tile-edge as a dashed line,
- * matching Canvas renderer's setLineDash([4, 4]) ghost territory effect.
- * Does NOT call g.stroke() — the caller batches multiple edges per faction
- * color and strokes them all in one call for efficiency.
- */
-function strokeDashedEdge(
-  g: Graphics,
-  x1: number, y1: number,
-  x2: number, y2: number,
-): void {
-  const DASH = 4;
-  const GAP  = 4;
-  const horiz = y1 === y2;
-  const total = horiz ? Math.abs(x2 - x1) : Math.abs(y2 - y1);
-  let pos  = 0;
-  let draw = true;
-  while (pos < total) {
-    const len = Math.min(draw ? DASH : GAP, total - pos);
-    if (draw) {
-      if (horiz) {
-        g.moveTo(x1 + pos, y1).lineTo(x1 + pos + len, y1);
-      } else {
-        g.moveTo(x1, y1 + pos).lineTo(x1, y1 + pos + len);
-      }
-    }
-    pos  += len;
-    draw = !draw;
-  }
-}
-
-// ─── Terrain tinting ─────────────────────────────────────────────────────
-
-/**
- * Returns a PixiJS tint value (0xRRGGBB) for a terrain tile.
- * 0xffffff = no change. Subtle shifts based on elevation/rainfall
- * add visual variety without additional sprite sheets.
- */
-function terrainTint(biome: Biome, elevation: number, rainfall: number): number {
-  switch (biome) {
-    case 'ocean':
-    case 'coast': {
-      // Deeper (lower elevation) = darker blue, shallower = lighter
-      const v = Math.floor(160 + elevation * 80); // 160–240
-      return (v << 16) | (v << 8) | 0xff;
-    }
-    case 'mountain': {
-      if (elevation > 0.75) {
-        // Snow-capped peaks: cool grey-white tint
-        const v = Math.floor(215 + elevation * 40); // 215–255
-        return (v << 16) | (v << 8) | 0xff;
-      }
-      return 0xffffff;
-    }
-    case 'grassland':
-    case 'forest':
-    case 'rainforest': {
-      // Higher rainfall → richer green (slightly reduce red channel)
-      const r = Math.floor(255 - rainfall * 28); // 227–255
-      return (r << 16) | 0x00ffff;
-    }
-    case 'arid': {
-      // Drier = warmer/redder (reduce blue channel slightly)
-      const b = Math.floor(255 - (1 - rainfall) * 35); // 220–255
-      return (0xff << 16) | (0xff << 8) | b;
-    }
-    case 'desert': {
-      // Higher elevation = slightly cooler sand
-      const b = Math.floor(180 + elevation * 50); // 180–230
-      return (0xff << 16) | (0xee << 8) | b;
-    }
-    case 'tundra': {
-      // Higher elevation = icier blue-white
-      const b = Math.floor(220 + elevation * 35); // 220–255
-      const r = Math.floor(210 + elevation * 30); // 210–240
-      return (r << 16) | (0xe0 << 8) | b;
-    }
-    default:
-      return 0xffffff;
-  }
-}
+// ─── Terrain tinting removed — moved to src/engine/worldRenderer.ts ─────
 
 // ─── Component ───────────────────────────────────────────────────────────
 
-export function PixiViewport() {
+function PixiViewportInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef       = useRef<Application | null>(null);
   const sheetsRef    = useRef<Sheets | null>(null);
@@ -175,6 +49,10 @@ export function PixiViewport() {
   const texPoolRef   = useRef<Map<string, Texture>>(new Map());
 
   const [ready, setReady] = useState(false);
+
+  // Dev-only performance tracking
+  const [devPerf, setDevPerf] = useState<{ fps: number; poolSize: number } | null>(null);
+  const lastPerfUpdateRef = useRef(0);
   
   const phase = useGameStore(s => s.phase);
   const world = useGameStore(s => s.world);
@@ -311,143 +189,23 @@ export function PixiViewport() {
         if (!world) return;
         const zoom = camera.zoom ?? 1.0;
         const tileDisplay = TILE_SIZE * zoom;
+        const animTime = animStateRef.current.time;
 
-        // 1. Redraw Trade Routes
-        const tradeG = layersRef.current.trade;
-        if (tradeG) {
-          tradeG.clear();
-          const pulse = (Math.sin(animStateRef.current.time / 1000) + 1) / 2;
-          for (const route of world.tradeRoutes) {
-            if (!route.active || route.path.length < 2) continue;
-            
-            const startX = (route.path[0].x - camera.x) * tileDisplay + tileDisplay / 2;
-            const startY = (route.path[0].y - camera.y) * tileDisplay + tileDisplay / 2;
-            
-            // Culling
-            if (startX < -100 || startY < -100 || startX > canvasWidth + 100 || startY > canvasHeight + 100) continue;
-
-            tradeG.moveTo(startX, startY);
-            for (let i = 1; i < route.path.length; i++) {
-              const p = route.path[i];
-              tradeG.lineTo(
-                (p.x - camera.x) * tileDisplay + tileDisplay / 2,
-                (p.y - camera.y) * tileDisplay + tileDisplay / 2
-              );
-            }
-            const alpha = Math.max(0.2, (route.volume / 100) * (0.5 + pulse * 0.3));
-            const width = 1 + (route.volume / 40);
-            tradeG.stroke({ color: 0xffcc00, width, alpha });
-            
-            // Flow particles (very subtle dots moving along route)
-            const flowPos = (animStateRef.current.time / 2000) % 1;
-            const flowIdx = Math.floor(flowPos * (route.path.length - 1));
-            const p1 = route.path[flowIdx];
-            const p2 = route.path[flowIdx + 1];
-            if (p1 && p2) {
-              const lerp = (flowPos * (route.path.length - 1)) % 1;
-              const fx = ((p1.x + (p2.x - p1.x) * lerp) - camera.x) * tileDisplay + tileDisplay / 2;
-              const fy = ((p1.y + (p2.y - p1.y) * lerp) - camera.y) * tileDisplay + tileDisplay / 2;
-              tradeG.fill({ color: 0xffffff, alpha: alpha * 0.8 });
-              tradeG.circle(fx, fy, 2);
-            }
-          }
+        // 1. Redraw Trade Routes — use live renderer dimensions, not captured mount-time values
+        if (layersRef.current.trade) {
+          const rendererW = app.renderer.width;
+          const rendererH = app.renderer.height;
+          updateTradeLayer(layersRef.current.trade, world, camera, tileDisplay, rendererW, rendererH, animTime);
         }
 
-        // 2. Redraw Visual Effects
-        const vG = layersRef.current.visuals;
-        if (vG) {
-          vG.clear();
-          for (const effect of world.visuals || []) {
-            const { x, y } = effect.position;
-            const col = x - camera.x;
-            const row = y - camera.y;
-            if (col < -4 || row < -4 || col >= camera.viewportWidth + 4 || row >= camera.viewportHeight + 4) continue;
-
-            const screenX = col * tileDisplay + tileDisplay / 2;
-            const screenY = row * tileDisplay + tileDisplay / 2;
-            const color = effect.color ? parseInt(effect.color.replace('#', ''), 16) : 0xFFFFFF;
-
-            if (effect.type === 'ripple') {
-              const scale = 0.5 + (1 - effect.duration / 5) * 2.5;
-              const subTick = (Math.sin(animStateRef.current.time / 150) + 1) / 2;
-              const alpha = (effect.duration / 5) * (0.4 + subTick * 0.4);
-              vG.stroke({ width: 3, color, alpha });
-              vG.circle(screenX, screenY, (tileDisplay * 0.8) * scale);
-            } else if (effect.type === 'sparkle') {
-              const flicker = (Math.sin(animStateRef.current.time / 50) + 1) / 2;
-              vG.fill({ color, alpha: 0.6 + flicker * 0.4 });
-              const size = (tileDisplay / 4) * (0.8 + flicker * 0.4);
-              vG.rect(screenX - 1, screenY - size, 2, size * 2);
-              vG.rect(screenX - size, screenY - 1, size * 2, 2);
-            } else if (effect.type === 'aura') {
-              const breathe = (Math.sin(animStateRef.current.time / 800) + 1) / 2;
-              const alpha = 0.15 + breathe * 0.15;
-              vG.fill({ color, alpha });
-              vG.circle(screenX, screenY, tileDisplay * 1.2);
-              vG.stroke({ width: 1.5, color, alpha: alpha * 0.5 });
-              vG.circle(screenX, screenY, tileDisplay * (1.2 + breathe * 0.2));
-            } else if (effect.type === 'tech_spark') {
-              const flash = (Math.sin(animStateRef.current.time / 100) + 1) / 2;
-              vG.fill({ color: 0xffffff, alpha: 0.8 * flash });
-              const s = (tileDisplay / 2) * (1 + (1 - effect.duration / 4) * 2);
-              vG.rect(screenX - s/2, screenY - s/2, s, s);
-              vG.stroke({ width: 2, color: 0xffffff, alpha: 0.4 });
-              vG.rect(screenX - s, screenY - s, s * 2, s * 2);
-            }
-          }
+        // 2. Redraw Visual Effects (ripples, sparkles, auras)
+        if (layersRef.current.visuals) {
+          updateVisualEffectsLayer(layersRef.current.visuals, world, camera, tileDisplay, animTime);
         }
 
         // 3. Redraw Modifiers & Religion Overlay
-        const modG = layersRef.current.modifiers;
-        if (modG) {
-          modG.clear();
-          const breathe = (Math.sin(animStateRef.current.time / 1500) + 1) / 2;
-          
-          // Tile Modifiers
-          for (let row = 0; row < camera.viewportHeight; row++) {
-            for (let col = 0; col < camera.viewportWidth; col++) {
-              const wx = camera.x + col;
-              const wy = camera.y + row;
-              if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) continue;
-              const tile = world.map.tiles[wy][wx];
-              if (!tile.modifiers || tile.modifiers.length === 0) continue;
-
-              const sx = col * tileDisplay + tileDisplay / 2;
-              const sy = row * tileDisplay + tileDisplay / 2;
-
-              for (const mod of tile.modifiers) {
-                if (mod.type === 'bloom') {
-                  modG.fill({ color: 0x4ade80, alpha: 0.15 + breathe * 0.1 });
-                  modG.circle(sx, sy, tileDisplay * (0.6 + breathe * 0.1));
-                } else if (mod.type === 'omen') {
-                  modG.stroke({ width: 2, color: 0x00ccff, alpha: 0.4 + breathe * 0.2 });
-                  modG.circle(sx, sy, tileDisplay * (0.4 - breathe * 0.1));
-                }
-              }
-            }
-          }
-
-          // Religion Heatmap
-          if (showReligionOverlay) {
-            for (const settlement of world.settlements) {
-              const col = settlement.position.x - camera.x;
-              const row = settlement.position.y - camera.y;
-              if (col < -2 || row < -2 || col >= camera.viewportWidth + 2 || row >= camera.viewportHeight + 2) continue;
-              const sx = col * tileDisplay + tileDisplay / 2;
-              const sy = row * tileDisplay + tileDisplay / 2;
-
-              for (const f of settlement.faith) {
-                const religion = world.religions.find(r => r.id === f.religionId);
-                if (religion) {
-                  const color = parseInt(religion.color.replace('#', ''), 16);
-                  const alpha = (f.pressure / 100) * (0.2 + breathe * 0.1);
-                  const radius = (tileDisplay * 2.5) * (f.pressure / 100);
-                  modG.fill({ color, alpha });
-                  modG.circle(sx, sy, radius);
-                }
-              }
-            }
-          }
+        if (layersRef.current.modifiers) {
+          updateModifierLayer(layersRef.current.modifiers, world, camera, tileDisplay, animTime, showReligionOverlay);
         }
 
         // 4. Character 2-frame animation
@@ -456,7 +214,7 @@ export function PixiViewport() {
           animStateRef.current.lastFrameToggle = now;
           layersRef.current.top.children.forEach(child => {
             const sprite = child as Sprite;
-            const meta = (sprite as any)._cascadeMeta;
+            const meta = (sprite as Sprite & { _cascadeMeta?: CascadeSpriteMeta })._cascadeMeta;
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
               const frameOffset = animStateRef.current.frameIndex * 16;
@@ -466,6 +224,15 @@ export function PixiViewport() {
                 sprite.texture = tex;
               }
             }
+          });
+        }
+
+        // 5. Dev performance overlay (updated once per second)
+        if (import.meta.env.DEV && now - lastPerfUpdateRef.current > 1000) {
+          lastPerfUpdateRef.current = now;
+          setDevPerf({
+            fps: Math.round(app.ticker.FPS),
+            poolSize: texPoolRef.current.size,
           });
         }
       };
@@ -499,309 +266,11 @@ export function PixiViewport() {
   // ── Rebuild sprites on world / camera / history change ───────────────
   useEffect(() => {
     if (!ready || !world || !appRef.current || !sheetsRef.current || !layersRef.current) return;
-
-    const { 
-      terrain, mid, resources, items, religion, innovations, top, ghost 
-    } = layersRef.current;
-    const sheets  = sheetsRef.current;
-    const texPool = texPoolRef.current;
-    const tileDisplay = TILE_SIZE * zoom;
-
-    /**
-     * Index-based Sprite Pooling: instead of clearing and destroying all sprites,
-     * we recycle existing ones. This eliminates GC pressure during high-speed jumps.
-     */
-    function getOrCreateSprite(layer: Container, index: number, sheetKey: SheetKey, region: TileRegion, col: number, row: number): Sprite {
-      const isAnimated = sheetKey === 'character' || sheetKey === 'player';
-      
-      // Pool key for the base texture (for non-animated) or the specific frame (for animated)
-      const frameOffset = isAnimated ? animStateRef.current.frameIndex * 16 : 0;
-      const poolKey = `${sheetKey}:${region.x + frameOffset}:${region.y}`;
-      
-      let tex = texPool.get(poolKey);
-      if (!tex) {
-        tex = new Texture({
-          source: (sheets[sheetKey] as any).source,
-          frame:  new Rectangle(region.x + frameOffset, region.y, region.w, region.h),
-        });
-        texPool.set(poolKey, tex);
-      }
-
-      let sprite: Sprite;
-      if (index < layer.children.length) {
-        sprite = layer.children[index] as Sprite;
-        sprite.visible = true;
-        sprite.texture = tex;
-      } else {
-        sprite = new Sprite(tex);
-        layer.addChild(sprite);
-      }
-
-      sprite.x      = col * tileDisplay;
-      sprite.y      = row * tileDisplay;
-      sprite.width  = tileDisplay;
-      sprite.height = tileDisplay;
-
-      if (isAnimated) {
-        (sprite as any)._cascadeMeta = { sheetKey, baseRegion: region };
-      } else {
-        (sprite as any)._cascadeMeta = undefined;
-      }
-
-      return sprite;
-    }
-
-    /** Hides sprites from the pool that weren't used in this render pass. */
-    const hideUnusedSprites = (layer: Container, startIndex: number) => {
-      for (let i = startIndex; i < layer.children.length; i++) {
-        layer.children[i].visible = false;
-      }
-    };
-
-    // Initialize indices for each layer
-    let terrainIdx    = 0;
-    let midIdx        = 0;
-    let resourceIdx   = 0;
-    let itemIdx       = 0;
-    let religionIdx   = 0;
-    let innovationIdx = 0;
-    let topIdx        = 0;
-    let ghostIdx      = 0;
-
-    // ── Layer 1: terrain ────────────────────────────────────────────────
-    for (let row = 0; row < camera.viewportHeight; row++) {
-      for (let col = 0; col < camera.viewportWidth; col++) {
-        const wx = camera.x + col;
-        const wy = camera.y + row;
-        if (wx < 0 || wy < 0 || wx >= world.map.width || wy >= world.map.height) continue;
-        const tile = world.map.tiles[wy][wx];
-        const sprite = getOrCreateSprite(terrain, terrainIdx++, 'terrain', BIOME_TILES[tile.biome], col, row);
-        // Apply subtle elevation/rainfall tint for visual variety
-        sprite.tint = terrainTint(tile.biome, tile.elevation, tile.rainfall);
-      }
-    }
-    hideUnusedSprites(terrain, terrainIdx);
-
-    // ── Layer 2: tree canopy (forest/rainforest biomes) ──────────────────
-    for (let row = 0; row < camera.viewportHeight; row++) {
-      for (let col = 0; col < camera.viewportWidth; col++) {
-        const wx = camera.x + col;
-        const wy = camera.y + row;
-        if (wx >= world.map.width || wy >= world.map.height) continue;
-        const tile = world.map.tiles[wy][wx];
-        const treeRegion = TREE_TILES[tile.biome];
-        if (treeRegion) {
-          const sprite = getOrCreateSprite(mid, midIdx++, 'tree', treeRegion, col, row);
-          // Vary tree tint slightly by position for visual diversity
-          const hash = (wx * 7 + wy * 13) & 0xff; // 0–255
-          const tintShift = Math.floor(hash * 0.06); // 0–15
-          const r = Math.max(200, 240 - tintShift);
-          sprite.tint = (r << 16) | (0xff << 8) | (r & 0xaa);
-        }
-      }
-    }
-
-    // ── Layer 2: settlements + ruins (above tree canopy) ────────────────
-    for (const settlement of world.settlements) {
-      const col = settlement.position.x - camera.x;
-      const row = settlement.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-
-      // Faith underlay glow (standard)
-      if (settlement.dominantReligionId) {
-        const religion = world.religions.find(r => r.id === settlement.dominantReligionId);
-        if (religion) {
-          // Glow is a Graphics object — we'll reuse it if it already exists as a child at this index
-          let glow: Graphics;
-          if (midIdx < mid.children.length && mid.children[midIdx] instanceof Graphics) {
-            glow = mid.children[midIdx] as Graphics;
-            glow.visible = true;
-          } else {
-            glow = new Graphics();
-            mid.addChildAt(glow, midIdx);
-          }
-          glow.clear();
-          const color = parseInt(religion.color.replace('#', ''), 16);
-          glow.fill({ color, alpha: 0.25 });
-          glow.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
-          midIdx++;
-        }
-      }
-
-      getOrCreateSprite(mid, midIdx++, 'settlement', SETTLEMENT_TILE, col, row);
-    }
-
-    for (const ruin of world.ruins) {
-      const col = ruin.position.x - camera.x;
-      const row = ruin.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      getOrCreateSprite(mid, midIdx++, 'settlement', RUIN_TILE, col, row);
-    }
-    hideUnusedSprites(mid, midIdx);
-
-    // ── Layer 3: resource nodes (ore deposits + relic sites) ─────────────
-    for (const node of world.resourceNodes) {
-      const col = node.position.x - camera.x;
-      const row = node.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      const { sheetKey, region } = RESOURCE_SPRITE[node.type];
-      getOrCreateSprite(resources, resourceIdx++, sheetKey as any, region, col, row);
-    }
-    hideUnusedSprites(resources, resourceIdx);
-
-    // ── Layer 4: items on the ground ─────────────────────────────────────
-    for (const item of world.items) {
-      const col = item.position.x - camera.x;
-      const row = item.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      const { sheetKey, region } = ITEM_SPRITE[item.type];
-      getOrCreateSprite(items, itemIdx++, sheetKey as any, region, col, row);
-    }
-    hideUnusedSprites(items, itemIdx);
-
-    // ── Layer 4.2: Holy Sites ────────────────────────────────────────────
-    for (const site of world.holySites) {
-      const col = site.position.x - camera.x;
-      const row = site.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      
-      const rel = world.religions.find(r => r.id === site.religionId);
-      
-      // Use deity-specific altar if possible, fallback to generic shrine
-      let sprite: Sprite;
-      if (rel && sheets.altars[rel.tenets[0]]) {
-        const tex = sheets.altars[rel.tenets[0]];
-        if (religionIdx < religion.children.length) {
-          sprite = religion.children[religionIdx] as Sprite;
-          sprite.visible = true;
-          sprite.texture = tex;
-        } else {
-          sprite = new Sprite(tex);
-          religion.addChild(sprite);
-        }
-        sprite.x      = col * tileDisplay;
-        sprite.y      = row * tileDisplay;
-        sprite.width  = tileDisplay;
-        sprite.height = tileDisplay;
-        sprite.tint   = 0xffffff;
-        religionIdx++;
-      } else {
-        sprite = getOrCreateSprite(religion, religionIdx++, 'religion', HOLYSITE_TILE, col, row);
-        if (rel) {
-          sprite.tint = parseInt(rel.color.replace('#', ''), 16);
-        } else {
-          sprite.tint = 0xffffff;
-        }
-      }
-    }
-    hideUnusedSprites(religion, religionIdx);
-
-    // ── Layer 4.3: Innovations ──────────────────────────────────────────
-    for (const settlement of world.settlements) {
-      if (settlement.innovations.length === 0) continue;
-      const col = settlement.position.x - camera.x;
-      const row = settlement.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-
-      // Render the latest innovation as a small icon offset from settlement
-      const latestId = settlement.innovations[settlement.innovations.length - 1];
-      const tech = world.innovations.find(i => i.id === latestId);
-      if (tech) {
-        const { sheetKey, region: innovRegion } = INNOVATION_SPRITE[tech.type];
-        const sprite = getOrCreateSprite(innovations, innovationIdx++, sheetKey as any, innovRegion, col, row);
-        sprite.width = tileDisplay / 2;
-        sprite.height = tileDisplay / 2;
-        sprite.x += tileDisplay / 2; // Offset to top-right of tile
-      }
-    }
-    hideUnusedSprites(innovations, innovationIdx);
-
-    // ── Layer 5: NPCs ────────────────────────────────────────────────────
-    for (const npc of world.npcs) {
-      if (!npc.alive) continue;
-      const col = npc.position.x - camera.x;
-      const row = npc.position.y - camera.y;
-      if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
-      getOrCreateSprite(top, topIdx++, 'character', NPC_TILE, col, row);
-    }
-
-    // ── Layer 5: player ──────────────────────────────────────────────────
-    const px = world.player.position.x - camera.x;
-    const py = world.player.position.y - camera.y;
-    if (px >= 0 && py >= 0 && px < camera.viewportWidth && py < camera.viewportHeight) {
-      getOrCreateSprite(top, topIdx++, 'player', PLAYER_TILE, px, py);
-    }
-    hideUnusedSprites(top, topIdx);
-
-    // ── Layer 6: Ghost of History ─────────────────────────────────────────
-    if (showHistory && previousWorld) {
-      const prevWorld = previousWorld;
-
-      // Build color lookup: faction id → 0xRRGGBB integer (PixiJS format)
-      const prevFactionColors = new Map<string, number>();
-      for (const f of prevWorld.factions) {
-        prevFactionColors.set(f.id, parseInt(f.color.replace('#', ''), 16));
-      }
-
-      // Collect border edge segments grouped by faction color
-      const segsByColor = new Map<number, Array<[number, number, number, number]>>();
-
-      for (let row = 0; row < camera.viewportHeight; row++) {
-        for (let col = 0; col < camera.viewportWidth; col++) {
-          const wx = camera.x + col;
-          const wy = camera.y + row;
-          if (wx < 0 || wy < 0 || wx >= prevWorld.map.width || wy >= prevWorld.map.height) continue;
-          const tile = prevWorld.map.tiles[wy][wx];
-          if (!tile.factionId) continue;
-
-          const color = prevFactionColors.get(tile.factionId) ?? 0xffffff;
-          const sx = col * tileDisplay;
-          const sy = row * tileDisplay;
-
-          // Check all 4 edges — emit border where neighbor belongs to a different faction
-          const edgeCandidates = [
-            { dx: 0, dy: -1, x1: sx,             y1: sy,              x2: sx + tileDisplay, y2: sy              },
-            { dx: 0, dy:  1, x1: sx,             y1: sy + tileDisplay, x2: sx + tileDisplay, y2: sy + tileDisplay },
-            { dx: -1, dy: 0, x1: sx,             y1: sy,              x2: sx,               y2: sy + tileDisplay },
-            { dx:  1, dy: 0, x1: sx + tileDisplay, y1: sy,            x2: sx + tileDisplay, y2: sy + tileDisplay },
-          ];
-
-          for (const e of edgeCandidates) {
-            const nx = wx + e.dx;
-            const ny = wy + e.dy;
-            const neighborFaction = (nx >= 0 && ny >= 0 && nx < prevWorld.map.width && ny < prevWorld.map.height)
-              ? prevWorld.map.tiles[ny][nx].factionId
-              : null;
-            if (neighborFaction !== tile.factionId) {
-              if (!segsByColor.has(color)) segsByColor.set(color, []);
-              segsByColor.get(color)!.push([e.x1, e.y1, e.x2, e.y2]);
-            }
-          }
-        }
-      }
-
-      // Draw all edges — one Graphics object, batched per faction color
-      if (segsByColor.size > 0) {
-        let g: Graphics;
-        if (ghostIdx < ghost.children.length && ghost.children[ghostIdx] instanceof Graphics) {
-          g = ghost.children[ghostIdx] as Graphics;
-          g.visible = true;
-        } else {
-          g = new Graphics();
-          ghost.addChild(g);
-        }
-        g.clear();
-        for (const [color, segs] of segsByColor) {
-          for (const [x1, y1, x2, y2] of segs) {
-            strokeDashedEdge(g, x1, y1, x2, y2);
-          }
-          g.stroke({ color, width: 2, alpha: 0.4 });
-        }
-        ghostIdx++;
-      }
-    }
-    hideUnusedSprites(ghost, ghostIdx);
-
+    rebuildWorldSprites(
+      world, camera, previousWorld, showHistory, TILE_SIZE * zoom,
+      layersRef.current, sheetsRef.current, texPoolRef.current,
+      animStateRef.current.frameIndex,
+    );
   }, [world, camera, previousWorld, ready, showHistory, zoom]);
 
   // ── H key: Ghost of History toggle (mirrors GameCanvas) ──────────────
@@ -1025,6 +494,24 @@ export function PixiViewport() {
           </div>
         </div>
       )}
+      {import.meta.env.DEV && devPerf && (
+        <div style={{
+          position: 'absolute', top: 4, right: 4,
+          background: 'rgba(0,0,0,0.6)',
+          color: '#00ff88',
+          fontSize: '10px',
+          fontFamily: 'monospace',
+          padding: '3px 6px',
+          borderRadius: '3px',
+          pointerEvents: 'none',
+          lineHeight: '1.5',
+        }}>
+          {devPerf.fps} FPS | pool: {devPerf.poolSize} tex
+        </div>
+      )}
     </div>
   );
 }
+
+/** Memoized wrapper — prevents re-renders caused by unrelated store changes (e.g. notifications). */
+export const PixiViewport = memo(PixiViewportInner);

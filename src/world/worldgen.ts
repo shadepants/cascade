@@ -14,7 +14,7 @@
 
 import type {
   WorldState, WorldConfig, Position, HistoricalFigure, Faction, RulerTrait, ResourceNode, GameMap, NPC, GameEvent,
-  Religion, HolySite, Settlement,
+  Religion, HolySite, Settlement, SimConfig,
 } from '../types';
 import { generateTerrain } from './terrain.ts';
 import { generateFactions } from './factions.ts';
@@ -24,6 +24,12 @@ import { runSimulation } from '../simulation/tick.ts';
 import { defaultStorytellerState } from '../types';
 import { NPC_NAMES } from '../data/names.ts';
 import { SeededRNG } from '../utils/rng.ts';
+import {
+  SCHISM_PROBABILITY_BASE,
+  TECH_DIFFUSION_RATE,
+  TRADE_ROUTE_DECAY_RATE,
+  TRADE_ROUTE_GROWTH_RATE,
+} from '../simulation/constants.ts';
 
 /** Generate a complete world from a config. Pure function (stateless). */
 export function generateWorld(config: WorldConfig): WorldState {
@@ -85,6 +91,7 @@ export function generateWorld(config: WorldConfig): WorldState {
     visuals: [],
     player,
     storyteller: defaultStorytellerState(config.storytellerMode ?? 'clio'),
+    simConfig: buildSimConfig(config),
   };
 
   // Run the pre-history simulation — this is what makes history real.
@@ -322,4 +329,14 @@ function getScenicScore(tile: any, pos: Position, center: Position): number {
   if (tile.elevation > 0.6) score += 5;
   const dist = Math.abs(pos.x - center.x) + Math.abs(pos.y - center.y);
   return score - dist * 2;
+}
+
+/** Build a SimConfig from WorldConfig, falling back to global constants. */
+function buildSimConfig(config: WorldConfig): SimConfig {
+  return {
+    schismProbability: config.schismProbability ?? SCHISM_PROBABILITY_BASE,
+    techDiffusionRate: config.techDiffusionRate ?? TECH_DIFFUSION_RATE,
+    tradeDecayRate:    config.tradeDecayRate ?? TRADE_ROUTE_DECAY_RATE,
+    tradeGrowthRate:   config.tradeGrowthRate ?? TRADE_ROUTE_GROWTH_RATE,
+  };
 }

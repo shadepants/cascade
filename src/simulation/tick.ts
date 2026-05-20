@@ -36,6 +36,12 @@ import {
   computeTension, decayTension, pruneCooldowns,
   accumulateDebt, fireDebtIntervention, applyIntervention,
 } from './storyteller.ts';
+import {
+  SCHISM_PROBABILITY_BASE,
+  TECH_DIFFUSION_RATE,
+  TRADE_ROUTE_DECAY_RATE,
+  TRADE_ROUTE_GROWTH_RATE,
+} from './constants.ts';
 
 /** Main simulation loop — runs multiple year-ticks. */
 export function runSimulation(world: WorldState, jumpYears: number, headless: boolean = false): GameEvent[] {
@@ -45,6 +51,16 @@ export function runSimulation(world: WorldState, jumpYears: number, headless: bo
   // Save-compatibility guard: old saves lack world.storyteller
   if (!world.storyteller) {
     world.storyteller = defaultStorytellerState();
+  }
+
+  // Save-compatibility guard: old saves lack world.simConfig
+  if (!world.simConfig) {
+    world.simConfig = {
+      schismProbability: SCHISM_PROBABILITY_BASE,
+      techDiffusionRate: TECH_DIFFUSION_RATE,
+      tradeDecayRate:    TRADE_ROUTE_DECAY_RATE,
+      tradeGrowthRate:   TRADE_ROUTE_GROWTH_RATE,
+    };
   }
 
   if (!headless) {

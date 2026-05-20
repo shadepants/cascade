@@ -9,6 +9,23 @@ export const ALLIANCE_OPINION_MIN = 55;
 export const CASCADE_SIGNIFICANCE_MIN = 3;
 export const CASCADE_LOOKBACK_YEARS = 50;
 
+// ─── Simulation Tuning Constants ─────────────────────────────────────────
+// These govern the core simulation balance. They can be overridden at world-
+// generation time by setting the corresponding field in WorldConfig, which
+// stores them into WorldState.simConfig for use during the tick loop.
+
+/** Base probability (0–1) that a contested settlement fires a schism per year. */
+export const SCHISM_PROBABILITY_BASE = 0.2;
+
+/** Base tech spread chance per year per adjacent settlement within range. */
+export const TECH_DIFFUSION_RATE = 0.05;
+
+/** Trade route volume lost per year when the connected factions are at war. */
+export const TRADE_ROUTE_DECAY_RATE = 15;
+
+/** Trade route volume gained per year when the connected factions are at peace. */
+export const TRADE_ROUTE_GROWTH_RATE = 5;
+
 export const PERSONALITIES: NPCPersonality[] = ['loyal', 'skeptic', 'zealot', 'pragmatist'];
 
 export const BIOME_POP_DELTA: Record<string, number> = {

@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "scout": "node scripts/scout-index.mjs",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "prepare": "node -e \"const fs = require('fs'); const path = require('path'); const hookPath = '.git/hooks/post-merge'; const sourcePath = 'scripts/hooks/post-merge'; if (!fs.existsSync(hookPath) && fs.existsSync(sourcePath)) { fs.copyFileSync(sourcePath, hookPath); fs.chmodSync(hookPath, 0o755); console.log('✅ Git hook installed.'); }\""
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "@eslint/js": "^9.39.1",
     "@microsoft/eslint-formatter-sarif": "^3.1.0",
     "@playwright/test": "^1.58.2",
+    "@tauri-apps/cli": "^2.5.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

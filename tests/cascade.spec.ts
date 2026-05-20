@@ -382,3 +382,99 @@ test('action budget shows in action menu and blocks at 6', async ({ page }) => {
   await expect(page.locator('.action-panel')).toContainText('Era actions:');
   await expect(page.locator('.action-panel')).toContainText('/6');
 });
+
+// ─── 13. Oracle's Eye Panel Toggle ───────────────────────────────────────
+
+test("Oracle's Eye panel appears on O key and disappears on second O", async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New Game' }).click();
+  await waitForWorld(page);
+
+  // Panel should not exist before O is pressed
+  await expect(page.locator('.oracles-eye-panel')).not.toBeVisible();
+
+  // Press O — panel should appear
+  await page.keyboard.press('o');
+  await expect(page.locator('.oracles-eye-panel')).toBeVisible({ timeout: 5_000 });
+
+  // Press O again — panel should disappear
+  await page.keyboard.press('o');
+  await expect(page.locator('.oracles-eye-panel')).not.toBeVisible({ timeout: 5_000 });
+});
+
+// ─── 14. Storyteller Mode Persists After New Game ────────────────────────
+
+test('storyteller mode selected on title screen persists in world', async ({ page }) => {
+  for (const mode of ['clio', 'ares', 'tyche'] as const) {
+    await page.goto('/');
+    const buttonName = mode.charAt(0).toUpperCase() + mode.slice(1);
+    await page.getByRole('button', { name: buttonName }).click();
+    await page.getByRole('button', { name: 'New Game' }).click();
+    await waitForWorld(page);
+
+    const state = await getState(page);
+    expect(state?.world?.storyteller?.mode).toBe(mode);
+  }
+});
+
+// ─── 15. Save / Load Cycle ────────────────────────────────────────────────
+
+test('save and load preserves currentYear', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New Game' }).click();
+  await waitForWorld(page);
+
+  // Execute a time jump to advance the year
+  await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
+  await waitForPhase(page, 'exploring', 180_000);
+
+  const stateAfterJump = await getState(page);
+  const yearAfterJump: number = stateAfterJump?.world?.currentYear;
+  expect(yearAfterJump).toBeGreaterThan(0);
+
+  // App.tsx auto-saves immediately after every jump (phase → 'exploring' effect).
+  // Poll IndexedDB directly until auto_save matches the jumped year before reloading.
+  await expect.poll(
+    async () => {
+      return page.evaluate(async () => {
+        return await new Promise<number | null>((resolve, reject) => {
+          const openReq = indexedDB.open('CascadeDatabase');
+          openReq.onerror = () => reject(openReq.error);
+          openReq.onsuccess = () => {
+            const db = openReq.result;
+            const tx = db.transaction('saves', 'readonly');
+            const store = tx.objectStore('saves');
+            const index = store.index('name');
+            const getReq = index.get('auto_save');
+            getReq.onerror = () => reject(getReq.error);
+            getReq.onsuccess = () => {
+              const save = getReq.result as { currentYear?: number } | undefined;
+              resolve(save?.currentYear ?? null);
+            };
+            tx.oncomplete = () => db.close();
+            tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        });
+      });
+    },
+    { timeout: 10_000 },
+  ).toBe(yearAfterJump);
+
+  // Reload the page
+  await page.reload();
+
+  // Wait for the Resume button to appear (TitleScreen checks hasSave on mount).
+  const resumeBtn = page.getByRole('button', { name: 'Resume' });
+  await expect(resumeBtn).toBeVisible({ timeout: 10_000 });
+  await resumeBtn.click();
+
+  await waitForWorld(page);
+
+  const stateAfterLoad = await getState(page);
+  const yearAfterLoad: number = stateAfterLoad?.world?.currentYear;
+
+  expect(yearAfterLoad).toBe(yearAfterJump);
+});
