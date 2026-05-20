@@ -11,7 +11,7 @@ import type { WorldState } from '../types';
 import type { Biome } from '../types';
 import type { Camera } from '../types/ui.ts';
 import type { TileRegion } from './tileMap.ts';
-import type { Sheets, Layers, SheetKey } from './pixiTypes.ts';
+import type { Sheets, Layers, SheetKey, CascadeSprite } from './pixiTypes.ts';
 import {
   BIOME_TILES,
   SETTLEMENT_TILE,
@@ -92,7 +92,7 @@ function getOrCreateSprite(
   let tex = texPool.get(poolKey);
   if (!tex) {
     tex = new Texture({
-      source: (sheets[sheetKey] as any).source,
+      source: (sheets[sheetKey] as Texture).source,
       frame:  new Rectangle(region.x + frameOffset, region.y, region.w, region.h),
     });
     texPool.set(poolKey, tex);
@@ -121,9 +121,9 @@ function getOrCreateSprite(
   sprite.height = tileDisplay;
 
   if (isAnimated) {
-    (sprite as any)._cascadeMeta = { sheetKey, baseRegion: region };
+    (sprite as CascadeSprite)._cascadeMeta = { sheetKey, baseRegion: region };
   } else {
-    (sprite as any)._cascadeMeta = undefined;
+    (sprite as CascadeSprite)._cascadeMeta = undefined;
   }
 
   return sprite;

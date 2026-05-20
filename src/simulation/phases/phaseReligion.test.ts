@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { phaseReligion } from './phaseReligion.ts';
 import type { WorldState, Settlement, Religion, Faction } from '../../types';
+import type { GameRNG } from '../../utils/rng.ts';
 import { SeededRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState } from '../../types';
 
@@ -139,15 +140,15 @@ describe('phaseReligion', () => {
     ];
     
     // We need to force the RNG to trigger the schism (20% chance)
-    const forcedRng = { 
+    const forcedRng: GameRNG = {
       nextFloat: () => 0.1,
-      nextInt: (_max: number) => 0,
+      nextInt: () => 0,
       next: () => 0,
-      shuffle: (arr: any[]) => arr,
+      shuffle: <T>(arr: T[]): T[] => arr,
       reseed: () => {}
     };
     
-    const events = phaseReligion(world, 101, forcedRng as any);
+    const events = phaseReligion(world, 101, forcedRng);
     
     expect(events.some(e => e.action === 'religious_schism')).toBe(true);
     
@@ -174,8 +175,8 @@ describe('phaseReligion', () => {
       tradeDecayRate: 15,
       tradeGrowthRate: 5,
     };
-    const alwaysLow = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: (a: any[]) => a, reseed: () => {} };
-    const events = phaseReligion(world, 101, alwaysLow as any);
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const events = phaseReligion(world, 101, alwaysLow);
     expect(events.some(e => e.action === 'religious_schism')).toBe(false);
   });
 
@@ -197,8 +198,8 @@ describe('phaseReligion', () => {
       tradeDecayRate: 15,
       tradeGrowthRate: 5,
     };
-    const alwaysLow = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: (a: any[]) => a, reseed: () => {} };
-    const events = phaseReligion(world, 101, alwaysLow as any);
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const events = phaseReligion(world, 101, alwaysLow);
     expect(events.some(e => e.action === 'religious_schism')).toBe(true);
   });
 });
