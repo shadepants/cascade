@@ -445,10 +445,10 @@ test('save and load preserves currentYear', async ({ page }) => {
   // Reload the page
   await page.reload();
 
-  // Wait for the Continue button to appear (TitleScreen checks hasSave on mount).
-  const continueBtn = page.getByRole('button', { name: 'Continue' });
-  await expect(continueBtn).toBeVisible({ timeout: 10_000 });
-  await continueBtn.click();
+  // Wait for the Resume button to appear (TitleScreen checks hasSave on mount).
+  const resumeBtn = page.getByRole('button', { name: 'Resume' });
+  await expect(resumeBtn).toBeVisible({ timeout: 10_000 });
+  await resumeBtn.click();
 
   await waitForWorld(page);
 
