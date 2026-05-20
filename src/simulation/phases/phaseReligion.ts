@@ -59,10 +59,13 @@ export function phaseReligion(
 
   // 3. Trade Route diffusion (Missionaries / Merchants)
   if (world.tradeRoutes) {
+    const settlementMap = new Map<string, Settlement>();
+    for (const s of settlements) settlementMap.set(s.id, s);
+
     for (const route of world.tradeRoutes) {
       if (!route.active || route.volume < 30) continue;
-      const s1 = settlements.find(s => s.id === route.startSettlementId);
-      const s2 = settlements.find(s => s.id === route.endSettlementId);
+      const s1 = settlementMap.get(route.startSettlementId);
+      const s2 = settlementMap.get(route.endSettlementId);
       if (s1 && s2) {
         const pressure = Math.floor(route.volume / 8);
         shareFaith(world, s1, s2, pressure);
