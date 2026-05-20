@@ -49,23 +49,5 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - tasks/003-playtest-sop.md — DONE (2026-05-08 verified)
 - tasks/006-final-asset-evaluation.md — ALL PHASES DONE
 
-## Don't Forget
-- `runSimulation(world, jumpYears): GameEvent[]` — external contract must stay unchanged
-- NPC uses `knowledge: NPCKnowledge[]` (not old `knownEvents: string[]`)
-- CASCADE order: cascade → seedEventKnowledge → gossip (seeding must precede gossip)
-- FactionEthics keys: `violence | expansion | trade | tradition | mercy` with `embraced | neutral | shunned`
-- MAX_ACTIONS_PER_ERA = 6 in types.ts — reset in App.tsx after each jump
-- LLM config in `sessionStorage` as `cascade_llm_config` (session-only, not localStorage)
-- Vite proxy: `/api/anthropic` → `api.anthropic.com` (dev only; prod needs real proxy)
-- Build ~813KB main bundle (xyflow/react + PixiJS + vocab tables; chunk warning is expected)
-- `emitEvent(world, pool, event, year)` — helper in tick.ts; returns void, not usable where side-effects need suppression gating (phaseCascade consequence block stays inline)
-- Mode selector on TitleScreen reads `state.config.storytellerMode` on mount; dispatches `SET_CONFIG` on New Game before `SET_WORLD`
-- Unit tests: `npm test` (Vitest, 186 tests / 24 suites, node env, scoped to src/**/*.test.ts — Playwright E2E excluded)
-- SHEET_TERRAIN = Tile.png (NOT Map0.png). BIOME_TILES calibrated to row 0. forest/grassland intentionally share green tile — tree sprites differentiate visually.
-- Ghost layer batching: edges grouped by faction color → one `g.stroke()` per color (not per segment)
-- Texture pool key: `sheetKey:region.x:region.y` (sheetKey = 'terrain'|'settlement'|'character'|'player')
-- Cascade thresholds (cascade.ts): `cultural_spread` fires at culture >40 (was >65); `military_buildup` fires at military >50 (was >70)
-- `SET_CONFIG` action in store.ts — updates `state.config` with a `WorldConfig` value; WorldConfig is now in the type import
-- `CODEBASE.md` — auto-generated module map, dependency graph, and hotspot analysis. Run `npm run scout` to regenerate. Updated automatically on git merge via post-merge hook.
-- **Spread Mechanics:** Faith spreads via Holy Sites, Trade Routes (volume > 30), and proximity. Tech spreads via proximity and trade, accelerated by "Whisper" echoes.
-- **Sacred Omens:** Pressure multiplier (4x) for Holy Sites on Omen tiles; conversion tension boost (+8) on Omens.
+## See Also
+- `@INVARIANTS.md` — Strict mechanical rules and constraints for the Cascade engine.
