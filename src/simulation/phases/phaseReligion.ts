@@ -1,4 +1,4 @@
-import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
+import type { WorldState, GameEvent, Settlement, StatDelta, HistoricalFigure, Faction, Religion } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -211,11 +211,28 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
     e.year === year - 1 && e.action === 'death'
   );
 
+  if (recentDeaths.length === 0) return;
+
+  const hfMap = new Map<string, HistoricalFigure>();
+  for (const hf of world.historicalFigures) {
+    hfMap.set(hf.id, hf);
+  }
+
+  const factionMap = new Map<string, Faction>();
+  for (const f of world.factions) {
+    factionMap.set(f.id, f);
+  }
+
+  const religionMap = new Map<string, Religion>();
+  for (const r of world.religions) {
+    religionMap.set(r.id, r);
+  }
+
   for (const death of recentDeaths) {
-    const figure = world.historicalFigures.find(hf => hf.id === death.subject);
+    const figure = hfMap.get(death.subject);
     if (figure && figure.traits.includes('pious')) {
-      const faction = world.factions.find(f => f.id === figure.factionId);
-      const primaryReligion = world.religions.find(r => r.id === `rel_${figure.factionId}`);
+      const faction = factionMap.get(figure.factionId);
+      const primaryReligion = religionMap.get(`rel_${figure.factionId}`);
       
       if (faction && primaryReligion) {
         const martyrdomEvent = createEvent({
