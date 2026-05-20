@@ -97,10 +97,12 @@ export function phaseTech(
   // 2. Innovation Spread (Diffusion)
   // Innovations spread between nearby settlements and along trade routes.
   const recentWhisperedInnovations = new Set<string>();
-  // To avoid N+1 query overhead in the loops, we precalculate recent whisper entries
+  // To avoid N+1 query overhead in the loops, we precalculate recent whisper entries.
+  // world.events is appended chronologically, so when scanning backward we can stop once
+  // we move past the 5-year window.
   for (let i = world.events.length - 1; i >= 0; i--) {
     const e = world.events[i];
-    if (e.year < year - 5) continue; // Events are typically chronological
+    if (e.year < year - 5) break;
     if (e.action === 'whisper' && e.object) {
       recentWhisperedInnovations.add(e.object);
     }
