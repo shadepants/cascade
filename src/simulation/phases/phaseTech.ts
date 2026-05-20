@@ -96,9 +96,21 @@ export function phaseTech(
 
   // 2. Innovation Spread (Diffusion)
   // Innovations spread between nearby settlements and along trade routes.
+
+  const recentWhispersByType = new Map<string, GameEvent>();
+  for (const e of world.events) {
+    if (e.action === 'whisper' && e.year >= year - 5) {
+      recentWhispersByType.set(e.object, e);
+    }
+  }
+
   for (const innovation of world.innovations) {
     const knownBySettlements = world.settlements.filter(s => s.innovations.includes(innovation.id));
     
+    // Check for 'Whisper' influence (Scholar's Ledger hook)
+    // If the player has whispered about this innovation, spread is much faster.
+    const whisperEntry = recentWhispersByType.get(innovation.type);
+
     for (const knownS of knownBySettlements) {
       for (const targetS of world.settlements) {
         if (targetS.innovations.includes(innovation.id)) continue;
@@ -124,11 +136,6 @@ export function phaseTech(
           spreadChance += (route.volume / 200); // Up to 0.5 additional chance
         }
 
-        // Check for 'Whisper' influence (Scholar's Ledger hook)
-        // If the player has whispered about this innovation, spread is much faster.
-        const whisperEntry = world.events.find(e => 
-          e.action === 'whisper' && e.object === innovation.type && e.year >= year - 5
-        );
         if (whisperEntry) {
           spreadChance *= 3;
         }
