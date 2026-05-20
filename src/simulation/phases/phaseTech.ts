@@ -100,7 +100,7 @@ export function phaseTech(
   // To avoid N+1 query overhead in the loops, we precalculate recent whisper entries
   for (let i = world.events.length - 1; i >= 0; i--) {
     const e = world.events[i];
-    if (e.year < year - 5) continue; // Events might not be chronological
+    if (e.year < year - 5) continue; // Events are typically chronological
     if (e.action === 'whisper' && e.object) {
       recentWhisperedInnovations.add(e.object);
     }
