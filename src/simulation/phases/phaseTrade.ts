@@ -2,6 +2,7 @@
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
+import { TRADE_ROUTE_DECAY_RATE, TRADE_ROUTE_GROWTH_RATE } from '../constants.ts';
 
 /**
  * Phase Trade: Manages the emergence and decay of trade routes between settlements.
@@ -42,9 +43,11 @@ export function phaseTrade(
 
     const oldVolume = route.volume;
     if (rel?.state === 'war') {
-      route.volume = Math.max(0, route.volume - 15);
+      const decayRate = world.simConfig?.tradeDecayRate ?? TRADE_ROUTE_DECAY_RATE;
+      route.volume = Math.max(0, route.volume - decayRate);
     } else {
-      route.volume = Math.min(100, route.volume + 5);
+      const growthRate = world.simConfig?.tradeGrowthRate ?? TRADE_ROUTE_GROWTH_RATE;
+      route.volume = Math.min(100, route.volume + growthRate);
     }
 
     // Significant volume shift event

@@ -4,6 +4,7 @@ import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { applyStatDeltas } from '../helpers/stats.ts';
 import { shouldSuppressEvent } from '../storyteller.ts';
+import { TECH_DIFFUSION_RATE } from '../constants.ts';
 
 const INNOVATIONS: Record<InnovationType, { name: string; description: string; impact: string }> = {
   agriculture: {
@@ -109,7 +110,8 @@ export function phaseTech(
         // Spread by proximity (within 15 tiles)
         let spreadChance = 0;
         if (distSq < 225) {
-          spreadChance = 0.05 * (1 - Math.sqrt(distSq) / 15);
+          const diffusionRate = world.simConfig?.techDiffusionRate ?? TECH_DIFFUSION_RATE;
+          spreadChance = diffusionRate * (1 - Math.sqrt(distSq) / 15);
         }
 
         // Spread by trade route

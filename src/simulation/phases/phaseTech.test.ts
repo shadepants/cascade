@@ -103,4 +103,34 @@ describe('phaseTech', () => {
 
     expect(world.factions[0].military).toBeGreaterThan(50);
   });
+
+  // ─── Parametric tech diffusion rate tests ────────────────────────────
+
+  it('never spreads tech when techDiffusionRate is 0', () => {
+    const tech = { id: 'tech_agriculture_100', name: 'Irrigation', type: 'agriculture', originYear: 100, originSettlementId: 's1' } as any;
+    world.innovations.push(tech);
+    world.settlements[0].innovations.push(tech.id);
+    world.factions[0].innovations.push(tech.id);
+    world.simConfig = { schismProbability: 0.2, techDiffusionRate: 0, tradeDecayRate: 15, tradeGrowthRate: 5 };
+
+    // Run many years — spread should never happen
+    const alwaysLow = new (class { nextFloat() { return 0.0; } nextInt() { return 0; } next() { return 0; } shuffle(a: any[]) { return a; } reseed() {} })();
+    for (let i = 0; i < 20; i++) {
+      phaseTech(world, 101 + i, alwaysLow as any);
+    }
+    expect(world.settlements[1].innovations).not.toContain(tech.id);
+  });
+
+  it('always spreads tech immediately when techDiffusionRate is very high', () => {
+    const tech = { id: 'tech_navigation_100', name: 'Lateen Sails', type: 'navigation', originYear: 100, originSettlementId: 's1' } as any;
+    world.innovations.push(tech);
+    world.settlements[0].innovations.push(tech.id);
+    world.factions[0].innovations.push(tech.id);
+    world.simConfig = { schismProbability: 0.2, techDiffusionRate: 1.0, tradeDecayRate: 15, tradeGrowthRate: 5 };
+
+    // With rate 1.0 and distance within range, should spread on first tick
+    const alwaysLow = new (class { nextFloat() { return 0.0; } nextInt() { return 0; } next() { return 0; } shuffle(a: any[]) { return a; } reseed() {} })();
+    phaseTech(world, 101, alwaysLow as any);
+    expect(world.settlements[1].innovations).toContain(tech.id);
+  });
 });

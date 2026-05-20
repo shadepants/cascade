@@ -144,4 +144,41 @@ describe('phaseTrade', () => {
     const events = phaseTrade(world, 2, new SeededRNG(1));
     expect(events.some(e => e.action === 'trade_collapse')).toBe(true);
   });
+
+  // ─── Parametric trade decay/growth rate tests ─────────────────────────
+
+  it('respects simConfig.tradeDecayRate during war', () => {
+    const fA = makeFaction('A');
+    const fB = makeFaction('B');
+    const sA = makeSettlement('sA', 'A');
+    const sB = makeSettlement('sB', 'B', 1, 0);
+    const route: TradeRoute = {
+      id: 'r1', startSettlementId: 'sA', endSettlementId: 'sB',
+      active: true, volume: 50, commodity: 'grain',
+      path: [{ x: 0, y: 0 }, { x: 1, y: 0 }],
+    };
+    const world = makeWorld([fA, fB], [route], {
+      settlements: [sA, sB],
+      relationships: [{ factionA: 'A', factionB: 'B', opinion: -80, animosity: 150, state: 'war' }],
+    });
+    world.simConfig = { schismProbability: 0.2, techDiffusionRate: 0.05, tradeDecayRate: 30, tradeGrowthRate: 5 };
+    phaseTrade(world, 2, new SeededRNG(1));
+    expect(world.tradeRoutes[0].volume).toBe(20); // 50 - 30
+  });
+
+  it('respects simConfig.tradeGrowthRate during peace', () => {
+    const fA = makeFaction('A');
+    const fB = makeFaction('B');
+    const sA = makeSettlement('sA', 'A');
+    const sB = makeSettlement('sB', 'B', 1, 0);
+    const route: TradeRoute = {
+      id: 'r1', startSettlementId: 'sA', endSettlementId: 'sB',
+      active: true, volume: 50, commodity: 'grain',
+      path: [{ x: 0, y: 0 }, { x: 1, y: 0 }],
+    };
+    const world = makeWorld([fA, fB], [route], { settlements: [sA, sB] });
+    world.simConfig = { schismProbability: 0.2, techDiffusionRate: 0.05, tradeDecayRate: 15, tradeGrowthRate: 20 };
+    phaseTrade(world, 2, new SeededRNG(1));
+    expect(world.tradeRoutes[0].volume).toBe(70); // 50 + 20
+  });
 });

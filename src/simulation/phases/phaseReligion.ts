@@ -4,6 +4,7 @@ import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
 import { applyStatDeltas } from '../helpers/stats.ts';
 import { shouldSuppressEvent } from '../storyteller.ts';
+import { SCHISM_PROBABILITY_BASE } from '../constants.ts';
 
 /**
  * Phase Religion: Manages the spread of faiths and religious conversion.
@@ -163,7 +164,8 @@ function checkSchism(
 ): void {
   const contested = settlement.faith.filter(f => f.pressure > 40);
   if (contested.length < 2) return;
-  if (rng.nextFloat() > 0.2) return; // 20% chance per year per settlement
+  const schismProb = world.simConfig?.schismProbability ?? SCHISM_PROBABILITY_BASE;
+  if (rng.nextFloat() >= schismProb) return; // fire with probability schismProb
 
   const hasOmen = world.map.tiles[settlement.position.y]?.[settlement.position.x]?.modifiers?.some(m => m.type === 'omen');
   const faction = world.factions.find(f => f.id === settlement.factionId);

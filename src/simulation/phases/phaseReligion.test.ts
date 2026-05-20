@@ -155,4 +155,50 @@ describe('phaseReligion', () => {
     const faction = world.factions[0];
     expect(faction.stability).toBe(0);
   });
+
+  // ─── Parametric schism probability tests ─────────────────────────────
+
+  it('suppresses schism when simConfig.schismProbability is 0 (never)', () => {
+    const settlement = world.settlements[0];
+    settlement.faith = [
+      { religionId: 'rel_light', pressure: 60 },
+      { religionId: 'rel_dark', pressure: 55 },
+    ];
+    world.religions.push({
+      id: 'rel_dark', name: 'The Dark', color: '#000000',
+      originSettlementId: 's1', tenets: ['war'], founderId: null,
+    });
+    world.simConfig = {
+      schismProbability: 0,
+      techDiffusionRate: 0.05,
+      tradeDecayRate: 15,
+      tradeGrowthRate: 5,
+    };
+    const alwaysLow = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: (a: any[]) => a, reseed: () => {} };
+    const events = phaseReligion(world, 101, alwaysLow as any);
+    expect(events.some(e => e.action === 'religious_schism')).toBe(false);
+  });
+
+  it('always fires schism when simConfig.schismProbability is 1 (certain)', () => {
+    const settlement = world.settlements[0];
+    settlement.faith = [
+      { religionId: 'rel_light', pressure: 60 },
+      { religionId: 'rel_dark', pressure: 55 },
+    ];
+    if (!world.religions.find(r => r.id === 'rel_dark')) {
+      world.religions.push({
+        id: 'rel_dark', name: 'The Dark', color: '#000000',
+        originSettlementId: 's1', tenets: ['war'], founderId: null,
+      });
+    }
+    world.simConfig = {
+      schismProbability: 1,
+      techDiffusionRate: 0.05,
+      tradeDecayRate: 15,
+      tradeGrowthRate: 5,
+    };
+    const alwaysLow = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: (a: any[]) => a, reseed: () => {} };
+    const events = phaseReligion(world, 101, alwaysLow as any);
+    expect(events.some(e => e.action === 'religious_schism')).toBe(true);
+  });
 });
