@@ -11,7 +11,7 @@
 // Tauri command: `anthropic_chat` forwards the request body to Anthropic
 // and streams the response back to the frontend.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tauri::command;
 
 /// Minimal request envelope — mirrors what the browser sends to /api/anthropic/v1/messages
