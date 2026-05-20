@@ -433,11 +433,32 @@ test('save and load preserves currentYear', async ({ page }) => {
   expect(yearAfterJump).toBeGreaterThan(0);
 
   // App.tsx auto-saves immediately after every jump (phase → 'exploring' effect).
-  // Poll until IndexedDB confirms the save is written before reloading.
+  // Poll IndexedDB directly until auto_save matches the jumped year before reloading.
   await expect.poll(
     async () => {
-      const s = await getState(page);
-      return s?.world?.currentYear;
+      return page.evaluate(async () => {
+        return await new Promise<number | null>((resolve, reject) => {
+          const openReq = indexedDB.open('CascadeDatabase');
+          openReq.onerror = () => reject(openReq.error);
+          openReq.onsuccess = () => {
+            const db = openReq.result;
+            const tx = db.transaction('saves', 'readonly');
+            const store = tx.objectStore('saves');
+            const index = store.index('name');
+            const getReq = index.get('auto_save');
+            getReq.onerror = () => reject(getReq.error);
+            getReq.onsuccess = () => {
+              const save = getReq.result as { currentYear?: number } | undefined;
+              resolve(save?.currentYear ?? null);
+            };
+            tx.oncomplete = () => db.close();
+            tx.onerror = () => {
+              db.close();
+              reject(tx.error);
+            };
+          };
+        });
+      });
     },
     { timeout: 10_000 },
   ).toBe(yearAfterJump);
