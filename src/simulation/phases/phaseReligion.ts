@@ -228,6 +228,7 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
     religionMap.set(r.id, r);
   }
 
+  // Also precompute settlements to avoid O(S) inside the loop
   const settlementMap = new Map<string, Settlement>();
   for (const s of world.settlements) {
     settlementMap.set(s.id, s);
