@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { phaseTech } from './phaseTech';
 import type { WorldState, Innovation } from '../../types';
-import type { GameRNG } from '../../utils/rng';
 import { defaultStorytellerState } from '../../types';
-import { SeededRNG } from '../../utils/rng';
+import { SeededRNG, type GameRNG } from '../../utils/rng';
 
 describe('phaseTech', () => {
   let world: WorldState;
@@ -115,7 +114,7 @@ describe('phaseTech', () => {
     world.simConfig = { schismProbability: 0.2, techDiffusionRate: 0, tradeDecayRate: 15, tradeGrowthRate: 5 };
 
     // Run many years — spread should never happen
-    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]) => a, reseed: () => {} };
     for (let i = 0; i < 20; i++) {
       phaseTech(world, 101 + i, alwaysLow);
     }
@@ -130,7 +129,7 @@ describe('phaseTech', () => {
     world.simConfig = { schismProbability: 0.2, techDiffusionRate: 1.0, tradeDecayRate: 15, tradeGrowthRate: 5 };
 
     // With rate 1.0 and distance within range, should spread on first tick
-    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]) => a, reseed: () => {} };
     phaseTech(world, 101, alwaysLow);
     expect(world.settlements[1].innovations).toContain(tech.id);
   });

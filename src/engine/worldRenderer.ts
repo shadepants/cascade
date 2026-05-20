@@ -2,8 +2,9 @@
 // Rebuilds all world-state-driven sprites onto their respective Pixi layers.
 // Called from PixiViewport.tsx whenever world, camera, or history changes.
 //
-// Sprite pooling strategy: Index-based reuse. Sprites are never destroyed;
-// they are hidden when not needed. This eliminates GC pressure during jumps.
+// Sprite pooling strategy: Index-based reuse. Unused sprites are normally
+// hidden for reuse, but incompatible pooled children may be replaced and
+// destroyed when encountered. This still minimizes GC pressure during jumps.
 
 import { Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import type { Container } from 'pixi.js';
@@ -11,7 +12,7 @@ import type { WorldState } from '../types';
 import type { Biome } from '../types';
 import type { Camera } from '../types/ui.ts';
 import type { TileRegion } from './tileMap.ts';
-import type { Sheets, Layers, SheetKey, CascadeSprite } from './pixiTypes.ts';
+import type { Sheets, Layers, TextureSheetKey, CascadeSpriteMeta } from './pixiTypes.ts';
 import {
   BIOME_TILES,
   SETTLEMENT_TILE,
@@ -78,7 +79,7 @@ function getOrCreateSprite(
   texPool: Map<string, Texture>,
   sheets: Sheets,
   index: number,
-  sheetKey: SheetKey,
+  sheetKey: TextureSheetKey,
   region: TileRegion,
   col: number,
   row: number,
@@ -92,7 +93,7 @@ function getOrCreateSprite(
   let tex = texPool.get(poolKey);
   if (!tex) {
     tex = new Texture({
-      source: (sheets[sheetKey] as Texture).source,
+      source: sheets[sheetKey].source,
       frame:  new Rectangle(region.x + frameOffset, region.y, region.w, region.h),
     });
     texPool.set(poolKey, tex);
@@ -106,8 +107,9 @@ function getOrCreateSprite(
     sprite.texture = tex;
   } else if (existingChild !== undefined) {
     // Wrong type at this pool slot (e.g. a Graphics glow replaced a Sprite or vice-versa).
-    // Swap it out so we don't corrupt the pool.
-    layer.removeChildAt(index);
+    // Remove and destroy it so detached display objects don't leak resources.
+    const removed = layer.removeChildAt(index);
+    removed.destroy();
     sprite = new Sprite(tex);
     layer.addChildAt(sprite, index);
   } else {
@@ -120,10 +122,11 @@ function getOrCreateSprite(
   sprite.width  = tileDisplay;
   sprite.height = tileDisplay;
 
+  const animSprite = sprite as Sprite & { _cascadeMeta?: CascadeSpriteMeta };
   if (isAnimated) {
-    (sprite as CascadeSprite)._cascadeMeta = { sheetKey, baseRegion: region };
+    animSprite._cascadeMeta = { sheetKey, baseRegion: region };
   } else {
-    (sprite as CascadeSprite)._cascadeMeta = undefined;
+    animSprite._cascadeMeta = undefined;
   }
 
   return sprite;
@@ -158,7 +161,7 @@ export function rebuildWorldSprites(
 
   // Bind helper with shared context
   const getSprite = (
-    layer: Container, index: number, sheetKey: SheetKey, region: TileRegion, col: number, row: number,
+    layer: Container, index: number, sheetKey: TextureSheetKey, region: TileRegion, col: number, row: number,
   ) => getOrCreateSprite(layer, texPool, sheets, index, sheetKey, region, col, row, tileDisplay, frameIndex);
 
   let terrainIdx    = 0;
@@ -241,7 +244,7 @@ export function rebuildWorldSprites(
     const row = node.position.y - camera.y;
     if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
     const { sheetKey, region } = RESOURCE_SPRITE[node.type];
-    getSprite(resources, resourceIdx++, sheetKey as SheetKey, region, col, row);
+    getSprite(resources, resourceIdx++, sheetKey as TextureSheetKey, region, col, row);
   }
   hideUnusedSprites(resources, resourceIdx);
 
@@ -251,7 +254,7 @@ export function rebuildWorldSprites(
     const row = item.position.y - camera.y;
     if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
     const { sheetKey, region } = ITEM_SPRITE[item.type];
-    getSprite(items, itemIdx++, sheetKey as SheetKey, region, col, row);
+    getSprite(items, itemIdx++, sheetKey as TextureSheetKey, region, col, row);
   }
   hideUnusedSprites(items, itemIdx);
 
@@ -297,7 +300,7 @@ export function rebuildWorldSprites(
     const tech = world.innovations.find(i => i.id === latestId);
     if (tech) {
       const { sheetKey, region: innovRegion } = INNOVATION_SPRITE[tech.type];
-      const sprite = getSprite(innovations, innovationIdx++, sheetKey as SheetKey, innovRegion, col, row);
+      const sprite = getSprite(innovations, innovationIdx++, sheetKey as TextureSheetKey, innovRegion, col, row);
       sprite.width  = tileDisplay / 2;
       sprite.height = tileDisplay / 2;
       sprite.x     += tileDisplay / 2;

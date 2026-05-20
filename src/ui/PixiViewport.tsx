@@ -10,7 +10,7 @@
 // NOT wired into App.tsx yet — that swap happens in Phase 5.
 
 import { useRef, useEffect, useCallback, useState, memo } from 'react';
-import { Application, Assets, Container, Graphics, Texture } from 'pixi.js';
+import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { useGameStore } from '../store/index';
 import { mapKeyToAction } from '../engine/input.ts';
 import { centerOnPlayer } from '../engine/camera.ts';
@@ -30,7 +30,7 @@ import {
   SHEET_ICONS,
   ALTAR_PATHS,
 } from '../engine/tileMap.ts';
-import type { Sheets, Layers, CascadeSprite } from '../engine/pixiTypes.ts';
+import type { Sheets, Layers, CascadeSpriteMeta } from '../engine/pixiTypes.ts';
 import { rebuildWorldSprites } from '../engine/worldRenderer.ts';
 import { updateTradeLayer } from '../engine/tradeLayer.ts';
 import { updateVisualEffectsLayer, updateModifierLayer } from '../engine/visualEffects.ts';
@@ -213,8 +213,8 @@ function PixiViewportInner() {
           animStateRef.current.frameIndex = (animStateRef.current.frameIndex + 1) % 2;
           animStateRef.current.lastFrameToggle = now;
           layersRef.current.top.children.forEach(child => {
-            const sprite = child as CascadeSprite;
-            const meta = sprite._cascadeMeta;
+            const sprite = child as Sprite;
+            const meta = (sprite as Sprite & { _cascadeMeta?: CascadeSpriteMeta })._cascadeMeta;
             if (meta && (meta.sheetKey === 'character' || meta.sheetKey === 'player')) {
               const baseRegion = meta.baseRegion;
               const frameOffset = animStateRef.current.frameIndex * 16;

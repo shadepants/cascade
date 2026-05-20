@@ -1,8 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { phaseReligion } from './phaseReligion.ts';
 import type { WorldState, Settlement, Religion, Faction } from '../../types';
-import type { GameRNG } from '../../utils/rng.ts';
-import { SeededRNG } from '../../utils/rng.ts';
+import { SeededRNG, type GameRNG } from '../../utils/rng.ts';
 import { defaultStorytellerState } from '../../types';
 
 describe('phaseReligion', () => {
@@ -140,11 +139,11 @@ describe('phaseReligion', () => {
     ];
     
     // We need to force the RNG to trigger the schism (20% chance)
-    const forcedRng: GameRNG = {
+    const forcedRng: GameRNG = { 
       nextFloat: () => 0.1,
       nextInt: () => 0,
       next: () => 0,
-      shuffle: <T>(arr: T[]): T[] => arr,
+      shuffle: <T>(arr: T[]) => arr,
       reseed: () => {}
     };
     
@@ -175,7 +174,7 @@ describe('phaseReligion', () => {
       tradeDecayRate: 15,
       tradeGrowthRate: 5,
     };
-    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]) => a, reseed: () => {} };
     const events = phaseReligion(world, 101, alwaysLow);
     expect(events.some(e => e.action === 'religious_schism')).toBe(false);
   });
@@ -198,7 +197,7 @@ describe('phaseReligion', () => {
       tradeDecayRate: 15,
       tradeGrowthRate: 5,
     };
-    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]): T[] => a, reseed: () => {} };
+    const alwaysLow: GameRNG = { nextFloat: () => 0.0, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]) => a, reseed: () => {} };
     const events = phaseReligion(world, 101, alwaysLow);
     expect(events.some(e => e.action === 'religious_schism')).toBe(true);
   });

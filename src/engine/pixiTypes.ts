@@ -2,7 +2,7 @@
 // These types are defined here so both PixiViewport.tsx and worldRenderer.ts
 // can share them without circular imports.
 
-import type { Texture, Container, Graphics, Sprite } from 'pixi.js';
+import type { Texture, Container, Graphics } from 'pixi.js';
 import type { TileRegion } from './tileMap.ts';
 
 export interface Sheets {
@@ -39,11 +39,11 @@ export interface Layers {
 /** Stable string key for the texture pool — one entry per (sheet, frame) pair. */
 export type SheetKey = keyof Sheets;
 
-/** Metadata attached to animated sprites so the ticker can swap animation frames. */
-export interface SpriteMeta {
-  sheetKey: SheetKey;
+/** Sheet keys that map to a single Texture (not the altars record). */
+export type TextureSheetKey = Exclude<SheetKey, 'altars'>;
+
+/** Metadata attached to animated sprites for frame-advance logic. */
+export interface CascadeSpriteMeta {
+  sheetKey: TextureSheetKey;
   baseRegion: TileRegion;
 }
-
-/** A PixiJS Sprite extended with optional Cascade animation metadata. */
-export type CascadeSprite = Sprite & { _cascadeMeta?: SpriteMeta };
