@@ -1,4 +1,4 @@
-// ─── Cascade Tauri Backend ───────────────────────────────────────────────
+// ─── Cascade Tauri Backend ───────────────────────────────────────────────────
 //
 // This is the native Rust backend for the Cascade desktop wrapper.
 // In the browser build, Anthropic API calls are proxied through a Vite
@@ -6,14 +6,15 @@
 //
 // In the Tauri build, calls go directly to the Anthropic API via the
 // tauri-plugin-http native HTTP client, which bypasses CORS entirely.
-// The API key is passed from the frontend via IPC (the user enters it in
-// the AI Settings panel and it is stored session-only in JS memory).
+// The user's API key is stored in a local config file managed by
+// tauri-plugin-store. The key is never passed over IPC from the frontend.
 //
 // Tauri command: `anthropic_chat` forwards the request body to Anthropic
-// and returns the response body as a string.
+// and returns the full response to the frontend.
 
 use serde::Deserialize;
 use tauri::command;
+use tauri_plugin_store::StoreExt;
 
 /// Minimal request envelope — mirrors what the browser sends to /api/anthropic/v1/messages
 #[derive(Deserialize)]
@@ -25,13 +26,24 @@ pub struct AnthropicRequest {
 }
 
 /// Forward an Anthropic chat request from the frontend.
-/// The API key is provided by the caller (entered by the user in the AI Settings
-/// panel and held session-only in JS memory — it is never bundled in the binary).
+/// The API key is read from the local Tauri store — it is never accepted
+/// as an IPC argument, so it does not transit the JS/Rust boundary at runtime.
 #[command]
 pub async fn anthropic_chat(
+    app: tauri::AppHandle,
     request: AnthropicRequest,
-    api_key: String,
 ) -> Result<String, String> {
+    // Read the API key from the local store (cascade.json) — never from the frontend.
+    let store = app
+        .store("cascade.json")
+        .map_err(|e| format!("Store open error: {e}"))?;
+    let api_key = store
+        .get("anthropic_api_key")
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .ok_or_else(|| {
+            "Anthropic API key not configured. Save it via the Settings panel.".to_string()
+        })?;
+
     use tauri_plugin_http::reqwest;
 
     let client = reqwest::Client::new();
