@@ -211,6 +211,8 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
     e.year === year - 1 && e.action === 'death'
   );
 
+  let settlementMap: Map<string, Settlement> | undefined;
+
   for (const death of recentDeaths) {
     const figure = world.historicalFigures.find(hf => hf.id === death.subject);
     if (figure && figure.traits.includes('pious')) {
@@ -227,9 +229,15 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
         });
 
         if (!shouldSuppressEvent(world.storyteller, year, martyrdomEvent.significance)) {
+          if (!settlementMap) {
+            settlementMap = new Map();
+            for (const s of world.settlements) {
+              settlementMap.set(s.id, s);
+            }
+          }
           // Boost faith in all settlements of this faction
           for (const sId of faction.settlements) {
-            const settlement = world.settlements.find(s => s.id === sId);
+            const settlement = settlementMap.get(sId);
             if (settlement) {
               applyPressure(world, settlement, primaryReligion.id, 15);
             }
