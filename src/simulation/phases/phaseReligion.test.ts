@@ -201,4 +201,57 @@ describe('phaseReligion', () => {
     const events = phaseReligion(world, 101, alwaysLow);
     expect(events.some(e => e.action === 'religious_schism')).toBe(true);
   });
+
+  // ─── Martyrdom path test ──────────────────────────────────────────────
+  
+  it('emits a martyrdom event and applies pressure when a pious ruler dies in the previous year', () => {
+    // Add a pious historical figure who died in the previous year (year 100)
+    world.historicalFigures.push({
+      id: 'hf_martyr',
+      name: 'Saint John',
+      factionId: 'f1',
+      traits: ['pious'],
+      birthYear: 50,
+      deathYear: 100,
+      titles: []
+    });
+
+    // We need a religion tied to faction 'f1' via the `rel_f1` format
+    world.religions.push({
+      id: 'rel_f1',
+      name: 'The True Faith',
+      color: '#ffffff',
+      originSettlementId: 's1',
+      tenets: ['peace'],
+      founderId: null
+    });
+
+    world.events.push({
+      id: 'evt_death_john',
+      tick: 0,
+      year: 100,
+      subject: 'hf_martyr',
+      action: 'death',
+      object: 'old age',
+      causedBy: null,
+      playerCaused: false,
+      description: 'Saint John has died.',
+      significance: 3,
+      statDeltas: []
+    });
+
+    const events = phaseReligion(world, 101, rng);
+    
+    // Check that the martyrdom event was emitted
+    expect(events.some(e => e.action === 'martyrdom' && e.subject === 'hf_martyr')).toBe(true);
+
+    // Check that pressure was applied to the faction's settlement
+    const s1 = world.settlements[0];
+    const trueFaith = s1.faith.find(f => f.religionId === 'rel_f1');
+    expect(trueFaith).toBeDefined();
+    // Base amount is 15. Stability is 0, so 15 pressure should be applied.
+    // It will then decay by 3 at the end of the phase (if it is not dominant or if we just check the amount).
+    // Actually, check if the pressure is greater than 0.
+    expect(trueFaith?.pressure).toBeGreaterThan(0);
+  });
 });
