@@ -191,9 +191,11 @@ function PixiViewportInner() {
         const tileDisplay = TILE_SIZE * zoom;
         const animTime = animStateRef.current.time;
 
-        // 1. Redraw Trade Routes
+        // 1. Redraw Trade Routes — use live renderer dimensions, not captured mount-time values
         if (layersRef.current.trade) {
-          updateTradeLayer(layersRef.current.trade, world, camera, tileDisplay, canvasWidth, canvasHeight, animTime);
+          const rendererW = app.renderer.width;
+          const rendererH = app.renderer.height;
+          updateTradeLayer(layersRef.current.trade, world, camera, tileDisplay, rendererW, rendererH, animTime);
         }
 
         // 2. Redraw Visual Effects (ripples, sparkles, auras)

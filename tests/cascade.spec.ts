@@ -432,22 +432,24 @@ test('save and load preserves currentYear', async ({ page }) => {
   const yearAfterJump: number = stateAfterJump?.world?.currentYear;
   expect(yearAfterJump).toBeGreaterThan(0);
 
-  // Save via dispatch
-  await dispatch(page, { type: 'SAVE_GAME' });
-  await page.waitForTimeout(1000); // let IndexedDB write complete
+  // App.tsx auto-saves immediately after every jump (phase → 'exploring' effect).
+  // Poll until IndexedDB confirms the save is written before reloading.
+  await expect.poll(
+    async () => {
+      const s = await getState(page);
+      return s?.world?.currentYear;
+    },
+    { timeout: 10_000 },
+  ).toBe(yearAfterJump);
 
   // Reload the page
   await page.reload();
-  await page.waitForTimeout(500);
 
-  // Load the save — the continue button should appear on the title screen
+  // Wait for the Continue button to appear (TitleScreen checks hasSave on mount).
   const continueBtn = page.getByRole('button', { name: 'Continue' });
-  if (await continueBtn.isVisible()) {
-    await continueBtn.click();
-  } else {
-    // Fallback: dispatch LOAD_GAME directly
-    await dispatch(page, { type: 'LOAD_GAME' });
-  }
+  await expect(continueBtn).toBeVisible({ timeout: 10_000 });
+  await continueBtn.click();
+
   await waitForWorld(page);
 
   const stateAfterLoad = await getState(page);

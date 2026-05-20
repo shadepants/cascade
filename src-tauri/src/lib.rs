@@ -6,12 +6,13 @@
 //
 // In the Tauri build, calls go directly to the Anthropic API via the
 // tauri-plugin-http native HTTP client, which bypasses CORS entirely.
-// The user's API key is stored in the OS credential store via tauri-plugin-store.
+// The API key is passed from the frontend via IPC (the user enters it in
+// the AI Settings panel and it is stored session-only in JS memory).
 //
 // Tauri command: `anthropic_chat` forwards the request body to Anthropic
-// and streams the response back to the frontend.
+// and returns the response body as a string.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tauri::command;
 
 /// Minimal request envelope — mirrors what the browser sends to /api/anthropic/v1/messages
@@ -24,7 +25,8 @@ pub struct AnthropicRequest {
 }
 
 /// Forward an Anthropic chat request from the frontend.
-/// The API key is read from the Tauri store (never bundled in JS).
+/// The API key is provided by the caller (entered by the user in the AI Settings
+/// panel and held session-only in JS memory — it is never bundled in the binary).
 #[command]
 pub async fn anthropic_chat(
     request: AnthropicRequest,

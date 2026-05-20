@@ -99,10 +99,16 @@ function getOrCreateSprite(
   }
 
   let sprite: Sprite;
-  if (index < layer.children.length) {
+  if (index < layer.children.length && layer.children[index] instanceof Sprite) {
     sprite = layer.children[index] as Sprite;
     sprite.visible = true;
     sprite.texture = tex;
+  } else if (index < layer.children.length) {
+    // Wrong type at this pool slot (e.g. a Graphics glow replaced a Sprite or vice-versa).
+    // Swap it out so we don't corrupt the pool.
+    layer.removeChildAt(index);
+    sprite = new Sprite(tex);
+    layer.addChildAt(sprite, index);
   } else {
     sprite = new Sprite(tex);
     layer.addChild(sprite);
@@ -139,14 +145,13 @@ export function rebuildWorldSprites(
   camera: Camera,
   previousWorld: WorldState | null,
   showHistory: boolean,
-  zoom: number,
+  tileDisplay: number,
   layers: Layers,
   sheets: Sheets,
   texPool: Map<string, Texture>,
   frameIndex: number,
 ): void {
   const { terrain, mid, resources, items, religion, innovations, top, ghost } = layers;
-  const tileDisplay = zoom; // caller passes TILE_SIZE * zoom already
 
   // Bind helper with shared context
   const getSprite = (
