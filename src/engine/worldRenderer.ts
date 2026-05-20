@@ -2,8 +2,9 @@
 // Rebuilds all world-state-driven sprites onto their respective Pixi layers.
 // Called from PixiViewport.tsx whenever world, camera, or history changes.
 //
-// Sprite pooling strategy: Index-based reuse. Sprites are never destroyed;
-// they are hidden when not needed. This eliminates GC pressure during jumps.
+// Sprite pooling strategy: Index-based reuse. Unused sprites are normally
+// hidden for reuse, but incompatible pooled children may be replaced and
+// destroyed when encountered. This still minimizes GC pressure during jumps.
 
 import { Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import type { Container } from 'pixi.js';
