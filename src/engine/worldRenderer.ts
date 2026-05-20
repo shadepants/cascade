@@ -106,8 +106,9 @@ function getOrCreateSprite(
     sprite.texture = tex;
   } else if (existingChild !== undefined) {
     // Wrong type at this pool slot (e.g. a Graphics glow replaced a Sprite or vice-versa).
-    // Swap it out so we don't corrupt the pool.
-    layer.removeChildAt(index);
+    // Remove and destroy it so detached display objects don't leak resources.
+    const removed = layer.removeChildAt(index);
+    removed.destroy();
     sprite = new Sprite(tex);
     layer.addChildAt(sprite, index);
   } else {
