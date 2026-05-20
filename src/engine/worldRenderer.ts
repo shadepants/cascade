@@ -121,6 +121,7 @@ function getOrCreateSprite(
   sprite.y      = row * tileDisplay;
   sprite.width  = tileDisplay;
   sprite.height = tileDisplay;
+  sprite.tint   = 0xffffff;
 
   const animSprite = sprite as Sprite & { _cascadeMeta?: CascadeSpriteMeta };
   if (isAnimated) {
@@ -209,24 +210,37 @@ export function rebuildWorldSprites(
     const row = settlement.position.y - camera.y;
     if (col < 0 || row < 0 || col >= camera.viewportWidth || row >= camera.viewportHeight) continue;
 
+    let glow: Graphics;
+    const existingGlowChild = midIdx < mid.children.length ? mid.children[midIdx] : undefined;
+    if (existingGlowChild instanceof Graphics) {
+      glow = existingGlowChild;
+      glow.visible = true;
+    } else if (existingGlowChild !== undefined) {
+      const removed = mid.removeChildAt(midIdx);
+      removed.destroy();
+      glow = new Graphics();
+      mid.addChildAt(glow, midIdx);
+    } else {
+      glow = new Graphics();
+      mid.addChild(glow);
+    }
+
+    glow.clear();
     if (settlement.dominantReligionId) {
       const dominantReligion = world.religions.find(r => r.id === settlement.dominantReligionId);
       if (dominantReligion) {
-        let glow: Graphics;
-        if (midIdx < mid.children.length && mid.children[midIdx] instanceof Graphics) {
-          glow = mid.children[midIdx] as Graphics;
-          glow.visible = true;
-        } else {
-          glow = new Graphics();
-          mid.addChildAt(glow, midIdx);
-        }
-        glow.clear();
         const color = parseInt(dominantReligion.color.replace('#', ''), 16);
         glow.fill({ color, alpha: 0.25 });
         glow.circle(col * tileDisplay + tileDisplay / 2, row * tileDisplay + tileDisplay / 2, tileDisplay / 1.5);
-        midIdx++;
+        glow.visible = true;
+      } else {
+        glow.visible = false;
       }
+    } else {
+      glow.visible = false;
     }
+    midIdx++;
+
     getSprite(mid, midIdx++, 'settlement', SETTLEMENT_TILE, col, row);
   }
 
