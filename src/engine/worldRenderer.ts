@@ -99,11 +99,12 @@ function getOrCreateSprite(
   }
 
   let sprite: Sprite;
-  if (index < layer.children.length && layer.children[index] instanceof Sprite) {
-    sprite = layer.children[index] as Sprite;
+  const existingChild = index < layer.children.length ? layer.children[index] : undefined;
+  if (existingChild instanceof Sprite) {
+    sprite = existingChild;
     sprite.visible = true;
     sprite.texture = tex;
-  } else if (index < layer.children.length) {
+  } else if (existingChild !== undefined) {
     // Wrong type at this pool slot (e.g. a Graphics glow replaced a Sprite or vice-versa).
     // Swap it out so we don't corrupt the pool.
     layer.removeChildAt(index);
