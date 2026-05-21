@@ -133,4 +133,70 @@ describe('phaseTech', () => {
     phaseTech(world, 101, alwaysLow);
     expect(world.settlements[1].innovations).toContain(tech.id);
   });
+
+  it('treats only whispers within 5 years as player-caused and boosts spread chance', () => {
+    const baseWorld = structuredClone(world);
+    baseWorld.factions.push({
+      id: 'f2',
+      name: 'Faction 2',
+      culture: 30,
+      wealth: 30,
+      innovations: [],
+      settlements: ['s2'],
+      techLevel: 1,
+      military: 20
+    } as typeof baseWorld.factions[number]);
+    baseWorld.settlements[1].factionId = 'f2';
+    baseWorld.simConfig = { schismProbability: 0.2, techDiffusionRate: 0.1, tradeDecayRate: 15, tradeGrowthRate: 5 };
+
+    const tech: Innovation = {
+      id: 'tech_navigation_100',
+      name: 'Lateen Sails',
+      type: 'navigation',
+      description: '',
+      originYear: 100,
+      originSettlementId: 's1'
+    };
+    baseWorld.innovations.push(tech);
+    baseWorld.settlements[0].innovations.push(tech.id);
+    baseWorld.factions[0].innovations.push(tech.id);
+
+    const deterministicRng: GameRNG = { nextFloat: () => 0.1, nextInt: () => 0, next: () => 0, shuffle: <T>(a: T[]) => a, reseed: () => {} };
+
+    const withRecentWhisper = structuredClone(baseWorld);
+    withRecentWhisper.events.push({
+      id: 'e_recent',
+      tick: 0,
+      year: 98,
+      subject: 'player',
+      action: 'whisper',
+      object: 'navigation',
+      causedBy: null,
+      playerCaused: true,
+      description: '',
+      significance: 1
+    });
+    const recentEvents = phaseTech(withRecentWhisper, 101, deterministicRng);
+    const recentAdoption = recentEvents.find(e => e.action === 'tech_adoption' && e.subject === 's2');
+    expect(withRecentWhisper.settlements[1].innovations).toContain(tech.id);
+    expect(recentAdoption?.playerCaused).toBe(true);
+
+    const withOldWhisper = structuredClone(baseWorld);
+    withOldWhisper.events.push({
+      id: 'e_old',
+      tick: 0,
+      year: 95,
+      subject: 'player',
+      action: 'whisper',
+      object: 'navigation',
+      causedBy: null,
+      playerCaused: true,
+      description: '',
+      significance: 1
+    });
+    const oldEvents = phaseTech(withOldWhisper, 101, deterministicRng);
+    const oldAdoption = oldEvents.find(e => e.action === 'tech_adoption' && e.subject === 's2');
+    expect(withOldWhisper.settlements[1].innovations).not.toContain(tech.id);
+    expect(oldAdoption).toBeUndefined();
+  });
 });
