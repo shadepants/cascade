@@ -105,10 +105,10 @@ This roadmap turns the approved plan into executable phases with concrete file s
 
 ### 11) Architecture docs refresh process
 - Keep docs synchronized with engine and UI wiring:
-  - README.md
-  - docs/ENGINE_INVARIANTS.md
-  - docs/TEST_STRATEGY.md
-  - CODEBASE.md (`npm run scout`)
+  - [README.md](../README.md)
+  - [docs/ENGINE_INVARIANTS.md](./ENGINE_INVARIANTS.md)
+  - [docs/TEST_STRATEGY.md](./TEST_STRATEGY.md)
+  - [CODEBASE.md](../CODEBASE.md) (`npm run scout`)
 
 ## Standard validation for each phase
 - `npm run lint`
