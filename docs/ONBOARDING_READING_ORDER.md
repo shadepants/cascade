@@ -3,40 +3,40 @@
 Use this order to understand the codebase quickly with minimal backtracking.
 
 ## 1) Foundation docs
-- /home/runner/work/cascade/cascade/README.md
-- /home/runner/work/cascade/cascade/docs/ENGINE_INVARIANTS.md
-- /home/runner/work/cascade/cascade/docs/TEST_STRATEGY.md
-- /home/runner/work/cascade/cascade/CODEBASE.md
+- [README.md](../README.md)
+- [docs/ENGINE_INVARIANTS.md](ENGINE_INVARIANTS.md)
+- [docs/TEST_STRATEGY.md](TEST_STRATEGY.md)
+- [CODEBASE.md](../CODEBASE.md)
 
 ## 2) App/runtime entry points
-- /home/runner/work/cascade/cascade/src/main.tsx
-- /home/runner/work/cascade/cascade/src/ui/App.tsx
-- /home/runner/work/cascade/cascade/src/store/index.ts
-- /home/runner/work/cascade/cascade/src/store/slices/world.ts
+- [src/main.tsx](../src/main.tsx)
+- [src/ui/App.tsx](../src/ui/App.tsx)
+- [src/store/index.ts](../src/store/index.ts)
+- [src/store/slices/world.ts](../src/store/slices/world.ts)
 
 ## 3) Core simulation flow
-- /home/runner/work/cascade/cascade/src/simulation/README.md
-- /home/runner/work/cascade/cascade/src/simulation/worker.ts
-- /home/runner/work/cascade/cascade/src/simulation/tick.ts
-- /home/runner/work/cascade/cascade/src/simulation/storyteller.ts
-- /home/runner/work/cascade/cascade/src/simulation/phases/cascade.ts
-- /home/runner/work/cascade/cascade/src/simulation/phases/knowledge.ts
+- [src/simulation/README.md](../src/simulation/README.md)
+- [src/simulation/worker.ts](../src/simulation/worker.ts)
+- [src/simulation/tick.ts](../src/simulation/tick.ts)
+- [src/simulation/storyteller.ts](../src/simulation/storyteller.ts)
+- [src/simulation/phases/cascade.ts](../src/simulation/phases/cascade.ts)
+- [src/simulation/phases/knowledge.ts](../src/simulation/phases/knowledge.ts)
 
 ## 4) World lifecycle
-- /home/runner/work/cascade/cascade/src/world/worldgen.ts
-- /home/runner/work/cascade/cascade/src/world/factions.ts
-- /home/runner/work/cascade/cascade/src/world/entities.ts
-- /home/runner/work/cascade/cascade/src/world/events.ts
+- [src/world/worldgen.ts](../src/world/worldgen.ts)
+- [src/world/factions.ts](../src/world/factions.ts)
+- [src/world/entities.ts](../src/world/entities.ts)
+- [src/world/events.ts](../src/world/events.ts)
 
 ## 5) Rendering + UX layers
-- /home/runner/work/cascade/cascade/src/ui/PixiViewport.tsx
-- /home/runner/work/cascade/cascade/src/engine/worldRenderer.ts
-- /home/runner/work/cascade/cascade/src/engine/visualEffects.ts
-- /home/runner/work/cascade/cascade/src/ui/TitleScreen.tsx
-- /home/runner/work/cascade/cascade/src/ui/DialoguePanel.tsx
+- [src/ui/PixiViewport.tsx](../src/ui/PixiViewport.tsx)
+- [src/engine/worldRenderer.ts](../src/engine/worldRenderer.ts)
+- [src/engine/visualEffects.ts](../src/engine/visualEffects.ts)
+- [src/ui/TitleScreen.tsx](../src/ui/TitleScreen.tsx)
+- [src/ui/DialoguePanel.tsx](../src/ui/DialoguePanel.tsx)
 
 ## 6) Persistence + result handling + test contracts
-- /home/runner/work/cascade/cascade/src/data/db.ts
-- /home/runner/work/cascade/cascade/src/ui/simulationResult.ts
-- /home/runner/work/cascade/cascade/src/simulation/tick.test.ts
-- /home/runner/work/cascade/cascade/tests/cascade.spec.ts
+- [src/data/db.ts](../src/data/db.ts)
+- [src/ui/simulationResult.ts](../src/ui/simulationResult.ts)
+- [src/simulation/tick.test.ts](../src/simulation/tick.test.ts)
+- [tests/cascade.spec.ts](../tests/cascade.spec.ts)
