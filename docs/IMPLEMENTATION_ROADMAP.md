@@ -6,14 +6,14 @@ This roadmap turns the approved plan into executable phases with concrete file s
 
 ### 1) Stabilize lint baseline
 - Target files first:
-  - /home/runner/work/cascade/cascade/src/ui/TitleScreen.tsx
-  - /home/runner/work/cascade/cascade/src/ui/DialoguePanel.tsx
-  - /home/runner/work/cascade/cascade/src/ui/App.tsx
-  - /home/runner/work/cascade/cascade/src/ui/PixiViewport.tsx
+  - src/ui/TitleScreen.tsx
+  - src/ui/DialoguePanel.tsx
+  - src/ui/App.tsx
+  - src/ui/PixiViewport.tsx
 - Then clear `any`/unused-param debt in:
-  - /home/runner/work/cascade/cascade/src/simulation/**
-  - /home/runner/work/cascade/cascade/src/world/**
-  - /home/runner/work/cascade/cascade/tests/**
+  - src/simulation/**
+  - src/world/**
+  - tests/**
 - Exit criteria:
   - `npm run lint` has no newly introduced violations in touched files.
   - Invalid lint-rule comments are removed/fixed.
@@ -22,10 +22,10 @@ This roadmap turns the approved plan into executable phases with concrete file s
 - Refactor mount-time effects that synchronously call `setState`.
 - Normalize dependency arrays for deterministic worker + jump flow.
 - Prioritize:
-  - /home/runner/work/cascade/cascade/src/ui/App.tsx
-  - /home/runner/work/cascade/cascade/src/ui/TitleScreen.tsx
-  - /home/runner/work/cascade/cascade/src/ui/DialoguePanel.tsx
-  - /home/runner/work/cascade/cascade/src/ui/PixiViewport.tsx
+  - src/ui/App.tsx
+  - src/ui/TitleScreen.tsx
+  - src/ui/DialoguePanel.tsx
+  - src/ui/PixiViewport.tsx
 - Exit criteria:
   - No hook-order/ref misuse violations.
   - Jump orchestration behavior remains unchanged.
@@ -34,9 +34,9 @@ This roadmap turns the approved plan into executable phases with concrete file s
 - Remove remaining explicit `any`.
 - Add typed fixtures/helpers where tests currently bypass strict types.
 - Prioritize:
-  - /home/runner/work/cascade/cascade/src/simulation/phases/phaseTech.test.ts
-  - /home/runner/work/cascade/cascade/src/world/worldgen.ts
-  - /home/runner/work/cascade/cascade/tests/cascade.spec.ts
+  - src/simulation/phases/phaseTech.test.ts
+  - src/world/worldgen.ts
+  - tests/cascade.spec.ts
 - Exit criteria:
   - `npm run build` passes cleanly.
   - Test fixtures compile against current domain types.
@@ -66,10 +66,10 @@ This roadmap turns the approved plan into executable phases with concrete file s
   - insight append behavior
   - seeded jump-knowledge distribution
 - Scope:
-  - /home/runner/work/cascade/cascade/src/simulation/tick.ts
-  - /home/runner/work/cascade/cascade/src/simulation/storyteller.ts
-  - /home/runner/work/cascade/cascade/src/ui/simulationResult.ts
-  - /home/runner/work/cascade/cascade/src/ui/simulationResult.test.ts
+  - src/simulation/tick.ts
+  - src/simulation/storyteller.ts
+  - src/ui/simulationResult.ts
+  - src/ui/simulationResult.test.ts
 
 ## P2 — Upgrades, enhancements, and long-term hardening
 
@@ -93,7 +93,7 @@ This roadmap turns the approved plan into executable phases with concrete file s
 - Add save schema version stamp in Dexie records.
 - Add explicit migration flow for backward compatibility.
 - Scope:
-  - /home/runner/work/cascade/cascade/src/data/db.ts
+  - src/data/db.ts
   - save/load call sites in UI/store integration paths
 
 ### 10) Performance profiling hooks
@@ -105,10 +105,10 @@ This roadmap turns the approved plan into executable phases with concrete file s
 
 ### 11) Architecture docs refresh process
 - Keep docs synchronized with engine and UI wiring:
-  - /home/runner/work/cascade/cascade/README.md
-  - /home/runner/work/cascade/cascade/docs/ENGINE_INVARIANTS.md
-  - /home/runner/work/cascade/cascade/docs/TEST_STRATEGY.md
-  - /home/runner/work/cascade/cascade/CODEBASE.md (`npm run scout`)
+  - README.md
+  - docs/ENGINE_INVARIANTS.md
+  - docs/TEST_STRATEGY.md
+  - CODEBASE.md (`npm run scout`)
 
 ## Standard validation for each phase
 - `npm run lint`

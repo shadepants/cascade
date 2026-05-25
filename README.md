@@ -27,7 +27,7 @@ npm run dev
 See: `docs/ENGINE_INVARIANTS.md`
 
 ## Onboarding + Roadmap
-- Reading order: `docs/ONBOARDING_READING_ORDER.md`
+- Reading order: [docs/ONBOARDING_READING_ORDER.md](docs/ONBOARDING_READING_ORDER.md)
 - Phased implementation plan: [docs/IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md)
 
 ## Commands
