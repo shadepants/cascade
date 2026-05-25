@@ -25,6 +25,7 @@ import {
   SHEET_ITEM_AMULET,
   SHEET_ITEM_SCROLL,
   SHEET_ITEM_KEY,
+  SHEET_DECOR,
   SHEET_RELIGION,
   SHEET_BOOKS,
   SHEET_ICONS,
@@ -126,6 +127,7 @@ function PixiViewportInner() {
       const itemAmulet = await load('itemAmulet', SHEET_ITEM_AMULET);
       const itemScroll = await load('itemScroll', SHEET_ITEM_SCROLL);
       const itemKey = await load('itemKey', SHEET_ITEM_KEY);
+      const decor = await load('decor', SHEET_DECOR);
       const religion = await load('religion', SHEET_RELIGION);
       const books = await load('books', SHEET_BOOKS);
       const icons = await load('icons', SHEET_ICONS);
@@ -164,7 +166,7 @@ function PixiViewportInner() {
       app.stage.addChild(terrainLayer, midLayer, resourcesLayer, itemsLayer, religionLayer, innovationLayer, tradeLayer, modifiersLayer, visualsLayer, topLayer, ghostLayer);
 
       appRef.current    = app;
-      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, religion, books, icons, altars } as any;
+      sheetsRef.current = { terrain, settlement, character, player, tree, ore, itemAmulet, itemScroll, itemKey, decor, religion, books, icons, altars };
       layersRef.current = {
         terrain:   terrainLayer,
         mid:       midLayer,
@@ -254,7 +256,8 @@ function PixiViewportInner() {
       sheetsRef.current = null;
       layersRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally mount-only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally mount-only
 
   // ── Resize renderer when zoom or viewport size changes ────────────────
   useEffect(() => {
