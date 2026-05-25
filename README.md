@@ -26,6 +26,10 @@ npm run dev
 ## Engine Invariants
 See: `docs/ENGINE_INVARIANTS.md`
 
+## Onboarding + Roadmap
+- Reading order: `docs/ONBOARDING_READING_ORDER.md`
+- Phased implementation plan: `docs/IMPLEMENTATION_ROADMAP.md`
+
 ## Commands
 - `npm run dev` — local playtest
 - `npm run test` — unit tests (`src/**/*.test.ts`)
