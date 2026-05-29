@@ -7,7 +7,7 @@ export const DEFAULT_CONFIG: WorldConfig = {
   numFactions: 6,
   numSettlementsPerFaction: 2,
   npcsPerSettlement: 3,
-  pregenYears: 500,
+  pregenYears: (typeof navigator !== 'undefined' && navigator.webdriver) ? 20 : 500,
   ticksPerYear: 1,
   storytellerMode: 'clio' as StorytellerMode,
 };

@@ -1,4 +1,4 @@
-﻿// ─── Phase 2: Economics ───────────────────────────────────────────────────
+// ─── Phase 2: Economics ───────────────────────────────────────────────────
 // Wealth from territory, trade, and military upkeep.
 
 import type { WorldState, GameEvent, StatDelta, Faction, FactionStatKey } from '../../types';
@@ -59,7 +59,7 @@ export function phaseEconomics(
     }
 
     // Resource node bonuses: iron → military, gold → wealth, relic → culture
-    applyResourceNodeBonuses(world, faction, year);
+    applyResourceNodeBonuses(world, faction, year, events);
   }
 
   return events;
@@ -70,6 +70,7 @@ function applyResourceNodeBonuses(
   world: WorldState,
   faction: Faction,
   year: number,
+  events: GameEvent[],
 ): void {
   const controlledNodes = world.resourceNodes.filter(node => {
     const tile = world.map.tiles[node.position.y]?.[node.position.x];
@@ -96,7 +97,7 @@ function applyResourceNodeBonuses(
   );
 
   // Emit once per year per faction (significance=1 keeps it under storyteller gating)
-  world.events.push(createEvent({
+  events.push(createEvent({
     tick: 0, year,
     subject: faction.id, action: 'resource_yield', object: faction.id,
     causedBy: null, significance: 1, playerCaused: false,

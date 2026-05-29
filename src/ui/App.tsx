@@ -16,6 +16,7 @@ import { OraclesEye } from './OraclesEye.tsx';
 import { saveGame } from '../data/db.ts';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
+import type { WorldState, GameEvent } from '../types';
 
 
 
@@ -88,10 +89,71 @@ export function App() {
   }, [toggleOraclesEye, toggleLedger]);
 
   // Dev-only test hook — exposes state for Playwright
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__CASCADE_STATE = useGameStore.getState();
+      
+      const unsubscribe = useGameStore.subscribe((state) => {
+        window.__CASCADE_STATE = state;
+      });
 
-  // Always-current world ref — avoids stale closure in WebWorker effect
+      window.__CASCADE_DISPATCH = (action) => {
+        const store = useGameStore.getState();
+        switch (action.type) {
+          case 'SET_PHASE':
+            store.setPhase(action.phase);
+            break;
+          case 'OPEN_DIALOGUE':
+            store.openDialogue(action.npc);
+            break;
+          case 'CLOSE_DIALOGUE':
+            store.closeDialogue();
+            break;
+          case 'OPEN_ACTION':
+            store.openAction(action.item);
+            break;
+          case 'CLOSE_ACTION':
+            store.closeAction();
+            break;
+          case 'SET_WORLD':
+            store.setWorld(action.world);
+            break;
+          case 'SET_CONFIG':
+            store.setConfig(action.config);
+            break;
+          case 'GAIN_INSIGHT':
+            store.gainInsight(action.amount);
+            break;
+        }
+      };
+
+      return () => {
+        unsubscribe();
+        delete window.__CASCADE_STATE;
+        delete window.__CASCADE_DISPATCH;
+      };
+    }
+  }, []);  // Always-current world ref — avoids stale closure in WebWorker effect
   const worldRef = useRef(world);
   useEffect(() => { worldRef.current = world; }, [world]);
+
+  const cachedSeed = useRef<number | null>(null);
+
+  // Cache static map fields in Rust when world seed changes
+  useEffect(() => {
+    const w = window as any;
+    const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
+    const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
+
+    if (isTauri && invokeFn && world && world.seed !== cachedSeed.current) {
+      invokeFn('cache_static_map', { map: world.map })
+        .then(() => {
+          console.log('[TAURI] Static map cached successfully.');
+          cachedSeed.current = world.seed;
+        })
+        .catch((err: any) => console.error('[TAURI] Failed to cache static map:', err));
+    }
+  }, [world]);
 
   // Auto-save every 5 minutes
   useEffect(() => {
@@ -113,13 +175,89 @@ export function App() {
   useEffect(() => {
     if (phase !== 'jumping' || !world) return;
 
-    // Initialize the WebWorker
+    const JUMP_YEARS     = 10;
+    const MAX_GAME_YEARS = 200;
+
+    const w = window as any;
+    const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
+
+    if (isTauri) {
+      const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
+      if (invokeFn) {
+        console.log('[TAURI] Invoking native simulation tick...');
+
+        const worldDyn = { ...worldRef.current, events: [] };
+        worldDyn.map = {
+          ...worldDyn.map,
+          tiles: worldDyn.map.tiles.map(row => row.map(t => ({
+            factionId: t.factionId,
+            settlementId: t.settlementId,
+            modifiers: t.modifiers
+          } as any)))
+        };
+
+        const nextEventId = worldRef.current.events.reduce((max, e) => {
+          if (e.id.startsWith('evt_')) {
+            const id = parseInt(e.id.slice(4), 10);
+            return id >= max ? id + 1 : max;
+          }
+          return max;
+        }, 0);
+
+        invokeFn('run_simulation', {
+          worldDynamic: worldDyn,
+          years: JUMP_YEARS,
+          nextEventId: nextEventId,
+        })
+          .then((result: any) => {
+            const [dynamicWorld, newEvents] = result as [any, GameEvent[]];
+            
+            // Reconstruct full world state
+            const fullMapTiles = worldRef.current!.map.tiles.map((row, y) => 
+              row.map((t, x) => ({
+                ...t,
+                factionId: dynamicWorld.map.tiles[y][x].factionId,
+                settlementId: dynamicWorld.map.tiles[y][x].settlementId,
+                modifiers: dynamicWorld.map.tiles[y][x].modifiers,
+              }))
+            );
+            
+            const newWorld = { 
+              ...dynamicWorld, 
+              events: [...worldRef.current!.events, ...newEvents], 
+              map: { 
+                ...dynamicWorld.map, 
+                tiles: fullMapTiles 
+              } 
+            } as WorldState;
+
+            const pendingNotification = world
+              ? processSimulationResult(newWorld, newEvents, world).notification
+              : null;
+
+            setWorld(newWorld);
+
+            if (pendingNotification) {
+              showNotification(pendingNotification);
+            }
+
+            if (newWorld.currentYear >= config.pregenYears + MAX_GAME_YEARS) {
+              setPhase('score');
+            }
+          })
+          .catch((err: any) => {
+            console.error('[TAURI] Simulation Command Error:', err);
+            setPhase('exploring');
+            showNotification('Simulation error occurred.');
+          });
+        return;
+      }
+    }
+
+    // Initialize the WebWorker (Browser Fallback)
     const worker = new Worker(new URL('../simulation/worker.ts', import.meta.url), {
       type: 'module'
     });
-
-    const JUMP_YEARS     = 10;
-    const MAX_GAME_YEARS = 200;
 
     worker.onmessage = (event: MessageEvent<SimulationResult>) => {
       const result = event.data;

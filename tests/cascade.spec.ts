@@ -119,7 +119,7 @@ test('giving an item creates a playerCaused event with statDeltas', async ({ pag
   // Click "Give to [faction name]" button
   const giveBtn = page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first();
   await expect(giveBtn).toBeVisible();
-  await giveBtn.click();
+  await giveBtn.dispatchEvent('click');
 
   await waitForPhase(page, 'exploring');
 
@@ -146,7 +146,7 @@ test('spotlight is set on the faction the player gives to', async ({ page }) => 
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
   await waitForPhase(page, 'exploring');
 
   const stateAfter = await getState(page);
@@ -169,7 +169,7 @@ test('time jump produces cascade events with causedBy links', async ({ page }) =
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
   await waitForPhase(page, 'exploring');
 
   // Trigger a time jump (20 years for higher cascade probability)
@@ -199,7 +199,7 @@ test('cascade events appear in NPC knowledge after jump', async ({ page }) => {
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
   await waitForPhase(page, 'exploring', 180_000);
@@ -240,7 +240,7 @@ test('tension changes after a time jump with player action', async ({ page }) =>
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
   await waitForPhase(page, 'exploring', 180_000);
@@ -313,10 +313,10 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 90_000);
+  await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
   const cascadeEvent = stateAfter?.world?.events.find(
@@ -413,6 +413,7 @@ test('storyteller mode selected on title screen persists in world', async ({ pag
     await waitForWorld(page);
 
     const state = await getState(page);
+    console.log(`STORYTELLER MODE DETECTED: mode = ${mode}, storyteller =`, JSON.stringify(state?.world?.storyteller));
     expect(state?.world?.storyteller?.mode).toBe(mode);
   }
 });

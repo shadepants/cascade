@@ -1,15 +1,21 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore, WorldSlice } from '../types';
+import { initEventIds } from '../../world/events.ts';
 
 export const createWorldSlice: StateCreator<GameStore, [], [], WorldSlice> = (set) => ({
   world: null,
   previousWorld: null,
 
-  setWorld: (world) => set((state) => ({ 
-    ...state, 
-    world, 
-    phase: 'exploring' 
-  })),
+  setWorld: (world) => {
+    if (world) {
+      initEventIds(world.events.length);
+    }
+    return set((state) => ({ 
+      ...state, 
+      world, 
+      phase: 'exploring' 
+    }));
+  },
 
   setPreviousWorld: (world) => set({ previousWorld: world }),
 

@@ -58,6 +58,18 @@ export function DialoguePanel() {
     ? world.events.find(e => e.id === unseenKnowledge[0].eventId) 
     : null;
 
+  const activeKnowledge = unseenKnowledge[0] || activeNpc.knowledge[0];
+  let accuracySymbol = '';
+  if (activeKnowledge) {
+    if (activeKnowledge.accuracy > 0.8) {
+      accuracySymbol = '●';
+    } else if (activeKnowledge.accuracy >= 0.5) {
+      accuracySymbol = '◑';
+    } else {
+      accuracySymbol = '○';
+    }
+  }
+
   function handleLearnEvent() {
     if (!spotlightEvent || !world) return;
     
@@ -132,7 +144,14 @@ export function DialoguePanel() {
   return (
     <div className="panel dialogue-panel">
       <div className="panel-header">
-        <span>{activeNpc.name} — {factionName}</span>
+        <span>
+          {activeNpc.name} — {factionName}
+          {accuracySymbol && (
+            <span className="accuracy-dot" style={{ marginLeft: '8px', color: '#ffcc00' }} title={`Accuracy: ${Math.round(activeKnowledge.accuracy * 100)}%`}>
+              {accuracySymbol}
+            </span>
+          )}
+        </span>
         <button onClick={closeDialogue} aria-label="Close dialogue panel">✕</button>
       </div>
 
@@ -150,7 +169,7 @@ export function DialoguePanel() {
         <div style={{ marginTop: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
           {spotlightEvent && !isTyping && (
             <button 
-              className="start-btn" 
+              className="learn-btn start-btn" 
               onClick={handleLearnEvent}
               style={{ padding: '8px 24px', fontSize: '14px', background: 'rgba(255, 204, 0, 0.1)' }}
             >

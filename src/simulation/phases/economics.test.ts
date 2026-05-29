@@ -92,11 +92,11 @@ describe('phaseEconomics', () => {
     }];
     // Mark the tile as faction-owned (it already is from mapRows)
     const summary = getMapOwnershipSummary(world.map);
-    phaseEconomics(world, 2, new SeededRNG(1), [], summary);
+    const events = phaseEconomics(world, 2, new SeededRNG(1), [], summary);
 
-    // resource_yield events are pushed directly to world.events
-    expect(world.events.some(e => e.action === 'resource_yield')).toBe(true);
-    const yieldEvent = world.events.find(e => e.action === 'resource_yield');
+    // resource_yield events are returned by phaseEconomics
+    expect(events.some(e => e.action === 'resource_yield')).toBe(true);
+    const yieldEvent = events.find(e => e.action === 'resource_yield');
     expect(yieldEvent?.statDeltas.some(d => d.stat === 'military')).toBe(true);
   });
 });
