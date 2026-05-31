@@ -103,31 +103,55 @@ export function assembleNarrativeContext(
     factionName,
     factionEthics: ethicsStr,
     recentEvents: eventSummaries,
-    innovations: settlement?.innovations.map(id => world.innovations.find(i => i.id === id)?.name).filter(Boolean) as string[],
+    innovations: settlement?.innovations.map(id => world.innovations.find(i => i.id === id)?.name).filter(Boolean) as string[] ?? [],
   };
 }
 
 /**
- * Generate a prompt for the Socratic Gate (Deep Interrogation).
- * This focuses on philosophical/emotional depth rather than facts.
+ * Generate a procedural profound outlook for the Deep Insight feature.
  */
-export function buildInterrogationPrompt(ctx: NarrativeContext): string {
+export function synthesizeFutureOutlook(npc: NPC, world: WorldState): string {
+  const seed = world.seed + world.currentYear + npc.id.charCodeAt(0);
+  const rng = new SeededRNG(seed);
+  const pick = <T>(arr: T[]) => arr[rng.nextInt(arr.length)];
+
+  const ctx = assembleNarrativeContext(npc, world);
+  const faction = world.factions.find(f => f.id === npc.factionId);
+  const stability = faction?.stability ?? 50;
+
+  let tone = 'calm';
+  if (stability < 40) tone = 'fearful';
+  if (stability > 80) tone = 'confident';
+
+  const intros = {
+    calm: [
+      "The winds of time blow steadily. ",
+      "I look to the horizon and see paths yet untrodden. ",
+    ],
+    fearful: [
+      "Dark clouds gather over us. ",
+      "I fear for what tomorrow brings. Our foundations shake. ",
+    ],
+    confident: [
+      "Our golden age dawns. ",
+      "Nothing can stand in our way now. ",
+    ]
+  };
+
+  const ethicsParts = [];
+  if (ctx.factionEthics.includes('violence:embraced')) ethicsParts.push("Through strength and steel, we will carve our destiny.");
+  if (ctx.factionEthics.includes('trade:embraced')) ethicsParts.push("The flow of wealth will bind the world to our vision.");
+  if (ctx.factionEthics.includes('mercy:embraced')) ethicsParts.push("Compassion must guide us, lest we become monsters.");
+  if (ctx.factionEthics.includes('tradition:embraced')) ethicsParts.push("The old ways will protect us from the storm.");
+  if (ctx.factionEthics.includes('expansion:embraced')) ethicsParts.push("Our borders must grow, for stagnation is death.");
+
+  const ethicsStr = ethicsParts.length > 0 ? pick(ethicsParts) : "We walk the middle path, avoiding extremes.";
+
   const innovationStr = ctx.innovations.length > 0
-    ? `\nYour settlement has mastered: ${ctx.innovations.join(', ')}.`
+    ? ` With ${ctx.innovations.join(' and ')} in our hands, the impossible becomes mundane.`
     : '';
 
-  return `
-You are ${ctx.npcName}, a ${ctx.personality} member of the ${ctx.factionName} faction.
-Your faction's core ethics are: ${ctx.factionEthics}.${innovationStr}
-
-Historical Context:
-${ctx.recentEvents.join('\n')}
-
-The stranger before you asks for deep insight. Speak from your soul. 
-How do these events make you feel? What do you believe they mean for the future of your people?
-Focus on philosophy, emotion, and the "why" rather than just repeating the facts. 
-Be concise but profound.
-  `.trim();
+  return `${pick(intros[tone as keyof typeof intros])}${ethicsStr}${innovationStr} I believe the history we write today will echo forever.`;
 }
 
 /**

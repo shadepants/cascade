@@ -12,81 +12,13 @@
 // Tauri command: `anthropic_chat` forwards the request body to Anthropic
 // and returns the full response to the frontend.
 
-use serde::Deserialize;
-use tauri_plugin_store::StoreExt;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{State, Emitter, Manager};
+use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem};
 
 pub mod state;
 pub mod rng;
 pub mod simulation;
-
-/// Minimal request envelope — mirrors what the browser sends to /api/anthropic/v1/messages
-#[derive(Deserialize)]
-pub struct AnthropicRequest {
-    pub model: String,
-    pub max_tokens: u32,
-    pub messages: serde_json::Value,
-    pub system: Option<String>,
-}
-
-/// Forward an Anthropic chat request from the frontend.
-/// The API key is read from the local Tauri store — it is never accepted
-/// as an IPC argument, so it does not transit the JS/Rust boundary at runtime.
-#[tauri::command]
-async fn anthropic_chat(
-    app: tauri::AppHandle,
-    request: AnthropicRequest,
-) -> Result<String, String> {
-    // Read the API key from the local store (cascade.json) — never from the frontend.
-    let store = app
-        .store("cascade.json")
-        .map_err(|e| format!("Store open error: {e}"))?;
-    let api_key = store
-        .get("anthropic_api_key")
-        .and_then(|v| v.as_str().map(str::to_owned))
-        .ok_or_else(|| {
-            "Anthropic API key not configured. Save it via the Settings panel.".to_string()
-        })?;
-
-    use tauri_plugin_http::reqwest;
-
-    let client = reqwest::Client::new();
-
-    let mut body = serde_json::json!({
-        "model": request.model,
-        "max_tokens": request.max_tokens,
-        "messages": request.messages,
-    });
-    if let Some(system) = &request.system {
-        body["system"] = serde_json::Value::String(system.clone());
-    }
-
-    let body_str = serde_json::to_string(&body)
-        .map_err(|e| format!("Serialization error: {e}"))?;
-
-    let response = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", &api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .body(body_str)
-        .send()
-        .await
-        .map_err(|e| format!("HTTP error: {e}"))?;
-
-    let status = response.status();
-    let text = response
-        .text()
-        .await
-        .map_err(|e| format!("Response read error: {e}"))?;
-
-    if !status.is_success() {
-        return Err(format!("Anthropic API error ({}): {}", status, text));
-    }
-
-    Ok(text)
-}
 
 pub struct StaticMapCache(pub Mutex<Option<state::StaticMapData>>);
 
@@ -220,10 +152,42 @@ async fn run_simulation(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_http::init())
+        .setup(|app| {
+            let new_game_i = MenuItemBuilder::with_id("new_game", "New Game").build(app)?;
+            let load_auto_i = MenuItemBuilder::with_id("load_auto", "Load Auto-Save").build(app)?;
+            let toggle_ledger_i = MenuItemBuilder::with_id("toggle_ledger", "Toggle Global Ledger (L)").build(app)?;
+            let toggle_oracle_i = MenuItemBuilder::with_id("toggle_oracle", "Toggle Oracle's Eye (O)").build(app)?;
+            let quit_i = PredefinedMenuItem::quit(app, None)?;
+            
+            let file_menu = SubmenuBuilder::new(app, "File")
+                .item(&new_game_i)
+                .item(&load_auto_i)
+                .separator()
+                .item(&quit_i)
+                .build()?;
+                
+            let view_menu = SubmenuBuilder::new(app, "View")
+                .item(&toggle_ledger_i)
+                .item(&toggle_oracle_i)
+                .build()?;
+                
+            let menu = MenuBuilder::new(app)
+                .items(&[&file_menu, &view_menu])
+                .build()?;
+                
+            app.set_menu(menu)?;
+
+            app.on_menu_event(move |app_handle, event| {
+                let id = event.id.as_ref();
+                if id != "quit" {
+                    let _ = app_handle.emit("menu-click", id);
+                }
+            });
+
+            Ok(())
+        })
         .manage(StaticMapCache(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![anthropic_chat, run_simulation, cache_static_map])
+        .invoke_handler(tauri::generate_handler![run_simulation, cache_static_map])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

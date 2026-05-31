@@ -36,4 +36,18 @@ export const createWorldSlice: StateCreator<GameStore, [], [], WorldSlice> = (se
       }
     };
   }),
+
+  spendInsight: (amount) => set((state) => {
+    if (!state.world) return state;
+    const newInsight = Math.max(0, state.world.player.insight - amount);
+    return {
+      world: {
+        ...state.world,
+        player: {
+          ...state.world.player,
+          insight: newInsight
+        }
+      }
+    };
+  }),
 });

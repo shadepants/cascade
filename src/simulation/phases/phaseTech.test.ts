@@ -145,7 +145,7 @@ describe('phaseTech', () => {
       settlements: ['s2'],
       techLevel: 1,
       military: 20
-    } as typeof baseWorld.factions[number]);
+    } as any);
     baseWorld.settlements[1].factionId = 'f2';
     baseWorld.simConfig = { schismProbability: 0.2, techDiffusionRate: 0.1, tradeDecayRate: 15, tradeGrowthRate: 5 };
 
@@ -175,7 +175,7 @@ describe('phaseTech', () => {
       playerCaused: true,
       description: '',
       significance: 1
-    });
+    } as any);
     const recentEvents = phaseTech(withRecentWhisper, 101, deterministicRng);
     const recentAdoption = recentEvents.find(e => e.action === 'tech_adoption' && e.subject === 's2');
     expect(withRecentWhisper.settlements[1].innovations).toContain(tech.id);
@@ -193,7 +193,7 @@ describe('phaseTech', () => {
       playerCaused: true,
       description: '',
       significance: 1
-    });
+    } as any);
     const oldEvents = phaseTech(withOldWhisper, 101, deterministicRng);
     const oldAdoption = oldEvents.find(e => e.action === 'tech_adoption' && e.subject === 's2');
     expect(withOldWhisper.settlements[1].innovations).not.toContain(tech.id);

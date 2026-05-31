@@ -8,10 +8,8 @@ import { executeEcho } from '../engine/echoSystem.ts';
 import type { KnowledgeEntry, TemporalEcho } from '../types';
 import {
   synthesizeHistoryMonologue,
-  assembleNarrativeContext,
-  buildInterrogationPrompt,
+  synthesizeFutureOutlook,
 } from '../simulation/narrative.ts';
-import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
 
 export function DialoguePanel() {
   const activeNpc = useGameStore(s => s.activeNpc);
@@ -23,7 +21,6 @@ export function DialoguePanel() {
   const setWorld = useGameStore(s => s.setWorld);
 
   const [aiText, setAiText] = useState<string | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
   const [hasInterrogated, setHasInterrogated] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showWhisperMenu, setShowWhisperMenu] = useState(false);
@@ -35,7 +32,6 @@ export function DialoguePanel() {
     const simText = synthesizeHistoryMonologue(activeNpc, world);
     setAiText(simText);
     setHasInterrogated(false);
-    setIsTyping(false);
   }, [activeNpc, world]);
 
   if (!activeNpc || !world) return null;
@@ -117,28 +113,21 @@ export function DialoguePanel() {
     }
   }
 
-  const handleAskForDepth = async () => {
+  const handleDeepInsight = () => {
     if (!activeNpc || !world) return;
-    const config = getLLMConfig();
-    if (!config) {
-      showNotification("LLM not configured. Check settings.");
+    if (world.player.insight < 10) {
+      showNotification("Not enough Insight.");
       return;
     }
 
-    setIsTyping(true);
+    // Deduct insight
+    const worldSlice = useGameStore.getState();
+    worldSlice.spendInsight(10);
+    
     setHasInterrogated(true);
-    const narrativeCtx = assembleNarrativeContext(activeNpc, world);
-    const prompt = buildInterrogationPrompt(narrativeCtx);
-
-    try {
-      const depthText = await fetchNarrative(prompt, config);
-      setAiText(prev => `${prev}\n\n[DEEP INTERROGATION]\n${depthText}`);
-    } catch (err) {
-      console.error('LLM Error:', err);
-      showNotification("AI failed to respond. Check API key.");
-    } finally {
-      setIsTyping(false);
-    }
+    
+    const depthText = synthesizeFutureOutlook(activeNpc, world);
+    setAiText(prev => `${prev}\n\n[DEEP INSIGHT]\n${depthText}`);
   };
 
   return (
@@ -160,14 +149,8 @@ export function DialoguePanel() {
           {aiText}
         </div>
 
-        {isTyping && (
-          <p className="dialogue-text" style={{ fontStyle: 'italic', color: '#4ade80', marginTop: '12px' }}>
-            Interrogating the deeper simulation...
-          </p>
-        )}
-
         <div style={{ marginTop: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {spotlightEvent && !isTyping && (
+          {spotlightEvent && (
             <button 
               className="learn-btn start-btn" 
               onClick={handleLearnEvent}
@@ -177,9 +160,14 @@ export function DialoguePanel() {
             </button>
           )}
 
-          {!isTyping && !hasInterrogated && getLLMConfig() && (
-            <button className="depth-btn" onClick={handleAskForDepth}>
-              Ask for Depth (AI)
+          {!hasInterrogated && (
+            <button 
+              className="depth-btn" 
+              onClick={handleDeepInsight}
+              disabled={world.player.insight < 10}
+              style={{ padding: '8px 24px', fontSize: '14px', borderColor: '#4ade80', color: world.player.insight >= 10 ? '#4ade80' : '#555' }}
+            >
+              Seek Deep Insight (-10 Insight)
             </button>
           )}
         </div>

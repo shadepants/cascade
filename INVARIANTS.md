@@ -7,8 +7,6 @@ The following invariants MUST be maintained. These are mechanically validated du
 - `LIFECYCLE: Cascade_Order`: CASCADE order: cascade → seedEventKnowledge → gossip (seeding must precede gossip).
 - `DATA_MODEL: FactionEthics`: Keys: `violence | expansion | trade | tradition | mercy` with values `embraced | neutral | shunned`.
 - `CONFIG: Max_Actions`: `MAX_ACTIONS_PER_ERA = 6` in types.ts — reset in App.tsx after each jump.
-- `SECURITY: LLM_Config`: LLM config in `sessionStorage` as `cascade_llm_config` (session-only, not localStorage).
-- `INFRA: Vite_Proxy`: `/api/anthropic` → `api.anthropic.com` (dev only; prod needs real proxy).
 - `PERFORMANCE: Build_Size`: Build ~813KB main bundle (xyflow/react + PixiJS + vocab tables; chunk warning is expected).
 - `API_CONTRACT: emitEvent`: `emitEvent(world, pool, event, year)` returns void, not usable where side-effects need suppression gating.
 - `LIFECYCLE: Mode_Selector`: Mode selector on TitleScreen reads `state.config.storytellerMode` on mount; dispatches `SET_CONFIG` on New Game before `SET_WORLD`.

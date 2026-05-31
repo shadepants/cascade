@@ -13,7 +13,8 @@ import { HUD } from './HUD.tsx';
 import { InterventionMenu } from './InterventionMenu.tsx';
 import { GlobalLedger } from './GlobalLedger.tsx';
 import { OraclesEye } from './OraclesEye.tsx';
-import { saveGame } from '../data/db.ts';
+import { saveGame, loadGame } from '../data/db.ts';
+import { listen } from '@tauri-apps/api/event';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
 import type { WorldState, GameEvent } from '../types';
@@ -69,6 +70,50 @@ export function App() {
   const clearNotification = useGameStore(s => s.clearNotification);
   const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
   const toggleLedger = useGameStore(s => s.toggleLedger);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('cascade_llm_config');
+    }
+  }, []);
+
+  useEffect(() => {
+    const setupMenuListener = async () => {
+      const w = window as any;
+      if (w.__TAURI_INTERNALS__ || w.__TAURI__) {
+        try {
+          const unlisten = await listen('menu-click', async (event: any) => {
+            const id = event.payload;
+            const store = useGameStore.getState();
+            if (id === 'new_game') {
+              store.setPhase('title');
+            } else if (id === 'load_auto') {
+              const save = await loadGame('auto_save');
+              if (save) {
+                store.setWorld(save);
+              } else {
+                store.showNotification("No auto-save found.");
+              }
+            } else if (id === 'toggle_ledger') {
+              store.toggleLedger();
+            } else if (id === 'toggle_oracle') {
+              store.toggleOraclesEye();
+            }
+          });
+          return unlisten;
+        } catch (e) {
+          console.error("Tauri menu listen failed:", e);
+        }
+      }
+    };
+    let cleanupFn: (() => void) | undefined;
+    setupMenuListener().then(fn => {
+      cleanupFn = fn as (() => void) | undefined;
+    });
+    return () => {
+      if (cleanupFn) cleanupFn();
+    };
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -186,15 +231,16 @@ export function App() {
       if (invokeFn) {
         console.log('[TAURI] Invoking native simulation tick...');
 
-        const worldDyn = { ...worldRef.current, events: [] };
+        if (!worldRef.current) return;
+        const worldDyn = { ...worldRef.current, events: [] } as any;
         worldDyn.map = {
-          ...worldDyn.map,
-          tiles: worldDyn.map.tiles.map(row => row.map(t => ({
+          ...worldRef.current.map,
+          tiles: worldRef.current.map.tiles.map(row => row.map(t => ({
             factionId: t.factionId,
             settlementId: t.settlementId,
             modifiers: t.modifiers
           } as any)))
-        };
+        } as any;
 
         const nextEventId = worldRef.current.events.reduce((max, e) => {
           if (e.id.startsWith('evt_')) {
