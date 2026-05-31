@@ -132,7 +132,7 @@ export function App() {
 
   // Dev-only test hook — exposes state for Playwright
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && (import.meta.env.DEV || (typeof navigator !== 'undefined' && navigator.webdriver))) {
       window.__CASCADE_STATE = useGameStore.getState();
       
       const unsubscribe = useGameStore.subscribe((state) => {
