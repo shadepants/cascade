@@ -19,6 +19,16 @@ import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
 import type { WorldState, GameEvent } from '../types';
 
+interface TauriWindow extends Window {
+  __TAURI_INTERNALS__?: {
+    invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+  };
+  __TAURI__?: {
+    invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+  };
+}
+
+
 
 
 /** High-speed era year counter overlay for the 'jumping' phase. */
@@ -76,10 +86,10 @@ export function App() {
 
   useEffect(() => {
     const setupMenuListener = async () => {
-      const w = window as any;
+      const w = window as unknown as TauriWindow;
       if (w.__TAURI_INTERNALS__ || w.__TAURI__) {
         try {
-          const unlisten = await listen('menu-click', async (event: any) => {
+          const unlisten = await listen('menu-click', async (event: { payload: string }) => {
             const id = event.payload;
             const store = useGameStore.getState();
             if (id === 'new_game') {
@@ -180,7 +190,7 @@ export function App() {
 
   // Cache static map fields in Rust when world seed changes
   useEffect(() => {
-    const w = window as any;
+    const w = window as unknown as TauriWindow;
     const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
     const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
 
@@ -190,7 +200,7 @@ export function App() {
           console.log('[TAURI] Static map cached successfully.');
           cachedSeed.current = world.seed;
         })
-        .catch((err: any) => console.error('[TAURI] Failed to cache static map:', err));
+        .catch((err: unknown) => console.error('[TAURI] Failed to cache static map:', err));
     }
   }, [world]);
 
@@ -219,7 +229,9 @@ export function App() {
     const JUMP_YEARS     = 10;
     const MAX_GAME_YEARS = 200;
 
-    const w = window as any;
+    const { setWorld, showNotification, setPhase, config: storeConfig } = useGameStore.getState();
+
+    const w = window as unknown as TauriWindow;
     const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
 
     if (isTauri) {
@@ -228,15 +240,15 @@ export function App() {
         console.log('[TAURI] Invoking native simulation tick...');
 
         if (!worldRef.current) return;
-        const worldDyn = { ...worldRef.current, events: [] } as any;
+        const worldDyn = { ...worldRef.current, events: [] } as unknown as WorldState;
         worldDyn.map = {
           ...worldRef.current.map,
           tiles: worldRef.current.map.tiles.map(row => row.map(t => ({
             factionId: t.factionId,
             settlementId: t.settlementId,
             modifiers: t.modifiers
-          } as any)))
-        } as any;
+          } as unknown as typeof t)))
+        } as unknown as WorldState['map'];
 
         const nextEventId = worldRef.current.events.reduce((max, e) => {
           if (e.id.startsWith('evt_')) {
@@ -251,9 +263,19 @@ export function App() {
           years: JUMP_YEARS,
           nextEventId: nextEventId,
         })
-          .then((result: any) => {
-            const [dynamicWorld, newEvents] = result as [any, GameEvent[]];
-            const { config, setPhase, setWorld, showNotification } = useGameStore.getState();
+          .then((result: unknown) => {
+            const [dynamicWorld, newEvents] = result as [
+              {
+                map: {
+                  tiles: {
+                    factionId: string | null;
+                    settlementId: string | null;
+                    modifiers?: unknown;
+                  }[][];
+                };
+              },
+              GameEvent[]
+            ];
             
             // Reconstruct full world state
             const fullMapTiles = worldRef.current!.map.tiles.map((row, y) => 
@@ -272,7 +294,7 @@ export function App() {
                 ...dynamicWorld.map, 
                 tiles: fullMapTiles 
               } 
-            } as WorldState;
+            } as unknown as WorldState;
 
             const pendingNotification = processSimulationResult(newWorld, newEvents, currentWorld).notification;
 
@@ -280,12 +302,11 @@ export function App() {
 
             if (pendingNotification) showNotification(pendingNotification);
 
-            if (newWorld.currentYear >= config.pregenYears + MAX_GAME_YEARS) {
+            if (newWorld.currentYear >= storeConfig.pregenYears + MAX_GAME_YEARS) {
               setPhase('score');
             }
           })
-          .catch((err: any) => {
-            const { setPhase, showNotification } = useGameStore.getState();
+          .catch((err: unknown) => {
             console.error('[TAURI] Simulation Command Error:', err);
             setPhase('exploring');
             showNotification('Simulation error occurred.');

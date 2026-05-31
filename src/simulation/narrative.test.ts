@@ -11,7 +11,7 @@ describe('narrative', () => {
       personality: 'loyal',
       knowledge: [],
       alive: true,
-    } as any;
+    } as unknown as NPC;
     
     const mockWorld = {
       seed: 1234,

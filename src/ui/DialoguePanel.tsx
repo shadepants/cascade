@@ -3,7 +3,7 @@
 // Shows the NPC's greeting and their knowledge of historical events.
 
 import { useGameStore } from '../store/index';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { executeEcho } from '../engine/echoSystem.ts';
 import type { KnowledgeEntry, TemporalEcho } from '../types';
 import {
@@ -20,21 +20,22 @@ export function DialoguePanel() {
   const gainInsight = useGameStore(s => s.gainInsight);
   const setWorld = useGameStore(s => s.setWorld);
 
-  const [aiText, setAiText] = useState<string | null>(null);
+  const [prevNpcId, setPrevNpcId] = useState<string | null>(null);
+  const [interrogatedText, setInterrogatedText] = useState<string | null>(null);
   const [hasInterrogated, setHasInterrogated] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showWhisperMenu, setShowWhisperMenu] = useState(false);
 
-  useEffect(() => {
-    if (!activeNpc || !world) return;
-
-    // Default to instant simulation synthesis
-    const simText = synthesizeHistoryMonologue(activeNpc, world);
-    setAiText(simText);
+  if (activeNpc && activeNpc.id !== prevNpcId) {
+    setPrevNpcId(activeNpc.id);
+    setInterrogatedText(null);
     setHasInterrogated(false);
-  }, [activeNpc, world]);
+  }
 
   if (!activeNpc || !world) return null;
+
+  const defaultText = synthesizeHistoryMonologue(activeNpc, world);
+  const aiText = interrogatedText ? `${defaultText}\n\n[DEEP INSIGHT]\n${interrogatedText}` : defaultText;
 
   const faction = world.factions.find(f => f.id === activeNpc.factionId);
   const factionName = faction?.name ?? 'Unknown';
@@ -127,7 +128,7 @@ export function DialoguePanel() {
     setHasInterrogated(true);
     
     const depthText = synthesizeFutureOutlook(activeNpc, world);
-    setAiText(prev => `${prev}\n\n[DEEP INSIGHT]\n${depthText}`);
+    setInterrogatedText(depthText);
   };
 
   return (

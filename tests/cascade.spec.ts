@@ -3,7 +3,6 @@
 //   title screen → new game → give item → jump → cascade fires →
 //   NPCs learn it → dialogue shows tiered text → "Remember this" notifies
 
-/// <reference path="../src/window.d.ts" />
 import { test, expect, type Page } from '@playwright/test';
 import type { NPC, GameEvent, NPCKnowledge, TestAction } from '../src/types';
 
@@ -11,12 +10,15 @@ import type { NPC, GameEvent, NPCKnowledge, TestAction } from '../src/types';
 
 /** Read the full game state from the dev test hook. */
 async function getState(page: Page) {
-  return page.evaluate(() => window.__CASCADE_STATE);
+  return page.evaluate(() => (window as unknown as { __CASCADE_STATE: Record<string, unknown> }).__CASCADE_STATE);
 }
 
 /** Dispatch a store action via the dev test hook. */
 async function dispatch(page: Page, action: TestAction) {
-  return page.evaluate((a) => window.__CASCADE_DISPATCH!(a), action);
+  return page.evaluate(
+    (a) => (window as unknown as { __CASCADE_DISPATCH: (action: TestAction) => void }).__CASCADE_DISPATCH(a),
+    action
+  );
 }
 
 /** Wait for game phase to match. */

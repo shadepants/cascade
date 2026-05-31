@@ -243,11 +243,12 @@ function PixiViewportInner() {
       setReady(true);
     })();
 
+    const pool = texPoolRef.current;
     return () => {
       mounted = false;
       // Destroy pooled sub-textures before the app (GPU resources freed by app.destroy).
-      texPoolRef.current.forEach(tex => tex.destroy());
-      texPoolRef.current.clear();
+      pool.forEach(tex => tex.destroy());
+      pool.clear();
       // Remove canvas from DOM manually before destroy
       const canvas = appRef.current?.canvas as HTMLCanvasElement | undefined;
       canvas?.parentElement?.removeChild(canvas);
@@ -297,105 +298,107 @@ function PixiViewportInner() {
   // React Compiler's memoization mismatch warnings.
   const handlerRef = useRef<(e: KeyboardEvent) => void>(null);
 
-  handlerRef.current = (e: KeyboardEvent) => {
-    // Get freshest state from store directly to avoid handler churn
-    const state = useGameStore.getState();
-    const { world, camera, phase, showLedger } = state;
-    if (!world) return;
+  useEffect(() => {
+    handlerRef.current = (e: KeyboardEvent) => {
+      // Get freshest state from store directly to avoid handler churn
+      const state = useGameStore.getState();
+      const { world, camera, phase, showLedger } = state;
+      if (!world) return;
 
-    // Block game actions if a modal is open, EXCEPT for Escape (to close)
-    const isModalOpen = phase === 'dialogue' || phase === 'action' || phase === 'intervention' || phase === 'jumping' || phase === 'worldgen' || showLedger;
-    
-    if (isModalOpen) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showLedger) state.toggleLedger();
-        else if (phase === 'dialogue') state.closeDialogue();
-        else if (phase === 'action') state.closeAction();
-        else if (phase === 'intervention') state.closeIntervention();
-        return;
-      }
+      // Block game actions if a modal is open, EXCEPT for Escape (to close)
+      const isModalOpen = phase === 'dialogue' || phase === 'action' || phase === 'intervention' || phase === 'jumping' || phase === 'worldgen' || showLedger;
       
-      // Strict isolation: block all keys when modal is open to prevent 
-      // movement or unintended actions in the background.
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-
-    if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
-
-    // Zoom in / out (Allowed even if ledger is open? No, let's block to be safe)
-    if (!isModalOpen) {
-      if (e.key === '=' || e.key === '+') {
-        state.updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
-        return;
-      }
-      if (e.key === '-' || e.key === '_') {
-        state.updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
-        return;
-      }
-    }
-
-    const action = mapKeyToAction(e.key, phase);
-
-    // Religion Overlay Toggle (R key)
-    if (!isModalOpen && e.key.toLowerCase() === 'r') {
-      state.toggleReligionOverlay();
-      return;
-    }
-
-    // Ledger Toggle (L key)
-    if (e.key.toLowerCase() === 'l') {
-      state.toggleLedger();
-      return;
-    }
-
-    switch (action.type) {
-      case 'MOVE': {
-        if (isModalOpen) break;
-        const player = world.player;
-        const newX = player.position.x + action.direction.x;
-        const newY = player.position.y + action.direction.y;
-
-        if (newX < 0 || newY < 0) return;
-        if (newX >= world.map.width || newY >= world.map.height) return;
-        if (!world.map.tiles[newY][newX].walkable) return;
-
-        const npcAtTarget = world.npcs.find(
-          n => n.alive && n.position.x === newX && n.position.y === newY,
-        );
-        if (npcAtTarget) {
-          state.openDialogue(npcAtTarget);
+      if (isModalOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (showLedger) state.toggleLedger();
+          else if (phase === 'dialogue') state.closeDialogue();
+          else if (phase === 'action') state.closeAction();
+          else if (phase === 'intervention') state.closeIntervention();
           return;
         }
-
-        state.updateWorld((w) => ({
-          ...w,
-          player: { ...w.player, position: { x: newX, y: newY } },
-        }));
-        const newCamera = centerOnPlayer(camera, { x: newX, y: newY }, world.map);
-        state.setCamera(newCamera);
-        break;
+        
+        // Strict isolation: block all keys when modal is open to prevent 
+        // movement or unintended actions in the background.
+        e.preventDefault();
+        e.stopPropagation();
+        return;
       }
 
-      case 'INTERACT': {
-        if (isModalOpen) break;
-        const playerPos = world.player.position;
-        const itemAtPlayer = world.items.find(
-          item => item.position.x === playerPos.x && item.position.y === playerPos.y,
-        );
-        if (itemAtPlayer) state.openAction(itemAtPlayer);
-        break;
+      if (e.key.toLowerCase() === 'h') return; // handled by history toggle above
+
+      // Zoom in / out (Allowed even if ledger is open? No, let's block to be safe)
+      if (!isModalOpen) {
+        if (e.key === '=' || e.key === '+') {
+          state.updateCamera((c) => ({ ...c, zoom: Math.min(2.0, (c.zoom ?? 1.0) + 0.1) }));
+          return;
+        }
+        if (e.key === '-' || e.key === '_') {
+          state.updateCamera((c) => ({ ...c, zoom: Math.max(0.2, (c.zoom ?? 1.0) - 0.1) }));
+          return;
+        }
       }
 
-      case 'JUMP':
-        if (isModalOpen) break;
-        state.setPreviousWorld(world);
-        state.setPhase('jumping');
-        break;
-    }
-  };
+      const action = mapKeyToAction(e.key, phase);
+
+      // Religion Overlay Toggle (R key)
+      if (!isModalOpen && e.key.toLowerCase() === 'r') {
+        state.toggleReligionOverlay();
+        return;
+      }
+
+      // Ledger Toggle (L key)
+      if (e.key.toLowerCase() === 'l') {
+        state.toggleLedger();
+        return;
+      }
+
+      switch (action.type) {
+        case 'MOVE': {
+          if (isModalOpen) break;
+          const player = world.player;
+          const newX = player.position.x + action.direction.x;
+          const newY = player.position.y + action.direction.y;
+
+          if (newX < 0 || newY < 0) return;
+          if (newX >= world.map.width || newY >= world.map.height) return;
+          if (!world.map.tiles[newY][newX].walkable) return;
+
+          const npcAtTarget = world.npcs.find(
+            n => n.alive && n.position.x === newX && n.position.y === newY,
+          );
+          if (npcAtTarget) {
+            state.openDialogue(npcAtTarget);
+            return;
+          }
+
+          state.updateWorld((w) => ({
+            ...w,
+            player: { ...w.player, position: { x: newX, y: newY } },
+          }));
+          const newCamera = centerOnPlayer(camera, { x: newX, y: newY }, world.map);
+          state.setCamera(newCamera);
+          break;
+        }
+
+        case 'INTERACT': {
+          if (isModalOpen) break;
+          const playerPos = world.player.position;
+          const itemAtPlayer = world.items.find(
+            item => item.position.x === playerPos.x && item.position.y === playerPos.y,
+          );
+          if (itemAtPlayer) state.openAction(itemAtPlayer);
+          break;
+        }
+
+        case 'JUMP':
+          if (isModalOpen) break;
+          state.setPreviousWorld(world);
+          state.setPhase('jumping');
+          break;
+      }
+    };
+  });
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => handlerRef.current?.(e);
