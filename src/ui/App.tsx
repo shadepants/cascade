@@ -274,7 +274,6 @@ export function App() {
               } 
             } as WorldState;
 
-            const { setWorld, setPhase, showNotification } = useGameStore.getState();
             const pendingNotification = processSimulationResult(newWorld, newEvents, currentWorld).notification;
 
             setWorld(newWorld);
