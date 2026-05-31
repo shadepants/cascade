@@ -33,4 +33,5 @@ dist-ssr
 .scout-watermark
 pr18*.diff
 src-tauri/target/  
+test-results/
  

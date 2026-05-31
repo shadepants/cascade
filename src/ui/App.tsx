@@ -225,6 +225,7 @@ export function App() {
     if (isTauri) {
       const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
       if (invokeFn) {
+        const { setPhase, showNotification, setWorld } = useGameStore.getState();
         console.log('[TAURI] Invoking native simulation tick...');
 
         if (!worldRef.current) return;
