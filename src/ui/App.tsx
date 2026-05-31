@@ -64,9 +64,6 @@ export function App() {
   const showLedger = useGameStore(s => s.showLedger);
   const showOraclesEye = useGameStore(s => s.showOraclesEye);
   
-  const setWorld = useGameStore(s => s.setWorld);
-  const setPhase = useGameStore(s => s.setPhase);
-  const showNotification = useGameStore(s => s.showNotification);
   const clearNotification = useGameStore(s => s.clearNotification);
   const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
   const toggleLedger = useGameStore(s => s.toggleLedger);
@@ -218,7 +215,9 @@ export function App() {
 
   // Execute time jump when phase transitions to 'jumping'
   useEffect(() => {
-    if (phase !== 'jumping' || !world) return;
+    if (phase !== 'jumping') return;
+    const currentWorld = worldRef.current;
+    if (!currentWorld) return;
 
     const JUMP_YEARS     = 10;
     const MAX_GAME_YEARS = 200;
@@ -310,10 +309,9 @@ export function App() {
 
       if (result.type === 'SIMULATION_COMPLETE') {
         const { world: newWorld, events: newEvents } = result;
+        const { config, setPhase, setWorld, showNotification } = useGameStore.getState();
 
-        const pendingNotification = world
-          ? processSimulationResult(newWorld, newEvents, world).notification
-          : null;
+        const pendingNotification = processSimulationResult(newWorld, newEvents, currentWorld).notification;
 
         // setWorld transitions phase → 'exploring'
         setWorld(newWorld);
@@ -327,6 +325,7 @@ export function App() {
           setPhase('score');
         }
       } else if (result.type === 'SIMULATION_ERROR') {
+        const { setPhase, showNotification } = useGameStore.getState();
         console.error('Simulation Worker Error:', result.error);
         setPhase('exploring');
         showNotification('Simulation error occurred.');
@@ -342,7 +341,7 @@ export function App() {
     });
 
     return () => worker.terminate();
-  }, [phase]); // worldRef.current used instead of state.world to avoid stale closure
+  }, [phase]);
 
   // Auto-dismiss cascade notifications after 3 seconds
   useEffect(() => {

@@ -1,4 +1,4 @@
-import type { WorldState, GameEvent, Settlement, StatDelta } from '../../types';
+import type { WorldState, GameEvent, Settlement, StatDelta, HistoricalFigure, Faction, Religion } from '../../types';
 import type { GameRNG } from '../../utils/rng.ts';
 import { createEvent } from '../../world/events.ts';
 import { emitEvent } from '../emitEvent.ts';
@@ -59,10 +59,13 @@ export function phaseReligion(
 
   // 3. Trade Route diffusion (Missionaries / Merchants)
   if (world.tradeRoutes) {
+    const settlementMap = new Map<string, Settlement>();
+    for (const s of settlements) settlementMap.set(s.id, s);
+
     for (const route of world.tradeRoutes) {
       if (!route.active || route.volume < 30) continue;
-      const s1 = settlements.find(s => s.id === route.startSettlementId);
-      const s2 = settlements.find(s => s.id === route.endSettlementId);
+      const s1 = settlementMap.get(route.startSettlementId);
+      const s2 = settlementMap.get(route.endSettlementId);
       if (s1 && s2) {
         const pressure = Math.floor(route.volume / 8);
         shareFaith(world, s1, s2, pressure);
@@ -211,11 +214,34 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
     e.year === year - 1 && e.action === 'death'
   );
 
+  if (recentDeaths.length === 0) return;
+
+  const hfMap = new Map<string, HistoricalFigure>();
+  for (const hf of world.historicalFigures) {
+    hfMap.set(hf.id, hf);
+  }
+
+  const factionMap = new Map<string, Faction>();
+  for (const f of world.factions) {
+    factionMap.set(f.id, f);
+  }
+
+  const religionMap = new Map<string, Religion>();
+  for (const r of world.religions) {
+    religionMap.set(r.id, r);
+  }
+
+  // Also precompute settlements to avoid O(S) inside the loop
+  const settlementMap = new Map<string, Settlement>();
+  for (const s of world.settlements) {
+    settlementMap.set(s.id, s);
+  }
+
   for (const death of recentDeaths) {
-    const figure = world.historicalFigures.find(hf => hf.id === death.subject);
+    const figure = hfMap.get(death.subject);
     if (figure && figure.traits.includes('pious')) {
-      const faction = world.factions.find(f => f.id === figure.factionId);
-      const primaryReligion = world.religions.find(r => r.id === `rel_${figure.factionId}`);
+      const faction = factionMap.get(figure.factionId);
+      const primaryReligion = religionMap.get(`rel_${figure.factionId}`);
       
       if (faction && primaryReligion) {
         const martyrdomEvent = createEvent({
@@ -229,7 +255,7 @@ function checkMartyrdom(world: WorldState, year: number, events: GameEvent[]) {
         if (!shouldSuppressEvent(world.storyteller, year, martyrdomEvent.significance)) {
           // Boost faith in all settlements of this faction
           for (const sId of faction.settlements) {
-            const settlement = world.settlements.find(s => s.id === sId);
+            const settlement = settlementMap.get(sId);
             if (settlement) {
               applyPressure(world, settlement, primaryReligion.id, 15);
             }
