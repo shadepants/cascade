@@ -413,7 +413,7 @@ test('storyteller mode selected on title screen persists in world', async ({ pag
     await waitForWorld(page);
 
     const state = await getState(page);
-    console.log(`STORYTELLER MODE DETECTED: mode = ${mode}, storyteller =`, JSON.stringify(state?.world?.storyteller));
+    // console.log(`STORYTELLER MODE DETECTED: mode = ${mode}, storyteller =`, JSON.stringify(state?.world?.storyteller));
     expect(state?.world?.storyteller?.mode).toBe(mode);
   }
 });
