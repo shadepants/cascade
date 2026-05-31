@@ -119,7 +119,7 @@ test('giving an item creates a playerCaused event with statDeltas', async ({ pag
   // Click "Give to [faction name]" button
   const giveBtn = page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first();
   await expect(giveBtn).toBeVisible();
-  await giveBtn.dispatchEvent('click');
+  await giveBtn.click();
 
   await waitForPhase(page, 'exploring');
 
