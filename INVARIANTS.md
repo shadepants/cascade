@@ -10,7 +10,7 @@ The following invariants MUST be maintained. These are mechanically validated du
 - `PERFORMANCE: Build_Size`: Build ~813KB main bundle (xyflow/react + PixiJS + vocab tables; chunk warning is expected).
 - `API_CONTRACT: emitEvent`: `emitEvent(world, pool, event, year)` returns void, not usable where side-effects need suppression gating.
 - `LIFECYCLE: Mode_Selector`: Mode selector on TitleScreen reads `state.config.storytellerMode` on mount; dispatches `SET_CONFIG` on New Game before `SET_WORLD`.
-- `INFRA: Unit_Tests`: `npm test` (Vitest, 186 tests / 24 suites, node env, scoped to src/**/*.test.ts — Playwright E2E excluded).
+- `INFRA: Unit_Tests`: `npm test` (Vitest in node env, scoped to src/**/*.test.ts — Playwright E2E excluded).
 - `ASSETS: Terrain_Calibration`: `SHEET_TERRAIN = Tile.png`. BIOME_TILES calibrated to row 0. Forest/grassland share green tile.
 - `PERFORMANCE: Pixi_Batching`: Ghost layer batching: edges grouped by faction color → one `g.stroke()` per color.
 - `DATA_MODEL: Texture_Pool`: Texture pool key: `sheetKey:region.x:region.y`.

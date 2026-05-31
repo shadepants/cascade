@@ -10,7 +10,7 @@ These rules apply universally across all coding agents (Gemini, Claude, etc.) op
 ## 🛠️ Build & Test Commands
 - **Dev:** `npm run dev` (Launch Playtest SOP)
 - **Build:** `npm run build` (Verify TS/Vite integrity: `tsc -b && vite build`)
-- **Test:** `npm test` (Vitest, 186 tests / 24 suites, node env)
+- **Test:** `npm test` (Vitest in node environment)
 - **Scout:** `npm run scout` (Regenerate CODEBASE.md)
 
 ## 🚨 Cascade Pitfalls & Development Rules

@@ -16,7 +16,7 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - [x] WebWorker engine, Gossip system, Visual DAG, Legendary Artifacts
 - [x] Socratic Gate: Procedural Deep Insight dialogue (formerly LLM-powered)
 - [x] IndexedDB save/load (Dexie), Ghost of History layer (hold H)
-- [x] Action budget: 6/era, stale worldRef fix, session-only API key
+- [x] Action budget: 6/era, stale worldRef fix
 - [x] **Task 001:** Accuracy-tiered dialogue, ETHICS_VOCAB, EVENT_ACTION_VOCAB, chain synthesis
 - [x] **Task 002:** Storyteller Director — tension, spotlight, cooldowns, narrative debt, mode selector
 - [x] **GitHub PRs resolved** — PRs #1–8 all closed/merged; master is clean

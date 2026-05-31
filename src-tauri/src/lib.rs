@@ -1,16 +1,8 @@
 // ─── Cascade Tauri Backend ───────────────────────────────────────────────────
 //
 // This is the native Rust backend for the Cascade desktop wrapper.
-// In the browser build, Anthropic API calls are proxied through a Vite
-// dev proxy (dev-only) or a server-side nginx/Cloudflare Worker (production).
-//
-// In the Tauri build, calls go directly to the Anthropic API via the
-// tauri-plugin-http native HTTP client, which bypasses CORS entirely.
-// The user's API key is stored in a local config file managed by
-// tauri-plugin-store. The key is never passed over IPC from the frontend.
-//
-// Tauri command: `anthropic_chat` forwards the request body to Anthropic
-// and returns the full response to the frontend.
+// It exposes commands to cache static map data and run simulation ticks
+// against dynamic world state, and wires desktop menu events to the UI.
 
 use std::sync::Mutex;
 use tauri::{State, Emitter, Manager};
@@ -39,7 +31,11 @@ fn cache_static_map(
             }).collect()
         }).collect(),
     };
-    *cache.0.lock().unwrap() = Some(static_data);
+    let mut cache_guard = cache
+        .0
+        .lock()
+        .map_err(|_| "Map cache lock poisoned".to_string())?;
+    *cache_guard = Some(static_data);
     Ok(())
 }
 
@@ -131,7 +127,10 @@ async fn run_simulation(
     next_event_id: u32,
     cache: State<'_, StaticMapCache>,
 ) -> Result<(state::WorldStateDynamic, Vec<state::GameEvent>), String> {
-    let static_map = cache.0.lock().unwrap();
+    let static_map = cache
+        .0
+        .lock()
+        .map_err(|_| "Map cache lock poisoned".to_string())?;
     let static_ref = static_map.as_ref()
         .ok_or("Map cache not initialized")?;
     

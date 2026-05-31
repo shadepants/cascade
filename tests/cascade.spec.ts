@@ -169,7 +169,7 @@ test('time jump produces cascade events with causedBy links', async ({ page }) =
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
 
   // Trigger a time jump (20 years for higher cascade probability)
@@ -199,7 +199,7 @@ test('cascade events appear in NPC knowledge after jump', async ({ page }) => {
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
   await waitForPhase(page, 'exploring', 180_000);
@@ -240,7 +240,7 @@ test('tension changes after a time jump with player action', async ({ page }) =>
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
   await waitForPhase(page, 'exploring', 180_000);
@@ -313,7 +313,7 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
   await waitForPhase(page, 'exploring', 180_000);

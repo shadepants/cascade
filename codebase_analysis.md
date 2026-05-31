@@ -158,12 +158,6 @@
 - **Size**: 6 lines
 - **Summary**: General utility or component.
 
-## `simulation/llm.ts`
-- **Size**: 77 lines
-- **Functions**: getLLMConfig, stored, parsed, saveLLMConfig, safeConfig, fetchNarrative, res, errText, data
-- **Types/Interfaces**: LLMConfig
-- **Summary**: General utility or component.
-
 ## `simulation/narrative.ts`
 - **Size**: 256 lines
 - **Imports**: ../types, ../utils/rng.ts
@@ -462,7 +456,7 @@
 
 ## `ui/DialoguePanel.tsx`
 - **Size**: 230 lines
-- **Imports**: ../store/index, react, ../engine/echoSystem.ts, ../types, ../simulation/llm.ts
+- **Imports**: ../store/index, react, ../engine/echoSystem.ts, ../types, ../simulation/narrative.ts
 - **Functions**: DialoguePanel, activeNpc, world, updateWorld, closeDialogue, showNotification, gainInsight, setWorld, simText, faction, factionName, settlement, loggedEventIds, unseenKnowledge, eA, eB, spotlightEvent, handleLearnEvent, handleWhisper, newWorld, handleAskForDepth, config, narrativeCtx, prompt, depthText, rel
 - **Summary**: React UI component.
 
@@ -524,7 +518,7 @@
 
 ## `ui/TitleScreen.tsx`
 - **Size**: 147 lines
-- **Imports**: react, ../store/index, ../world/worldgen.ts, ../engine/camera.ts, ../data/db.ts, ../simulation/llm.ts, ../types
+- **Imports**: react, ../store/index, ../world/worldgen.ts, ../engine/camera.ts, ../data/db.ts, ../types
 - **Functions**: TitleScreen, configState, setPhase, setConfig, setCamera, setWorld, handleResume, world, camera, handleNewGame, newConfig, handleSaveSettings, info, active
 - **Summary**: React UI component.
 
@@ -615,4 +609,3 @@
 - **Imports**: ./terrain.ts, ./factions.ts, ./entities.ts, ./events.ts, ../simulation/tick.ts, ../types, ../data/names.ts, ../utils/rng.ts
 - **Functions**: generateWorld, seed, rng, map, resourceNodes, historicalFigures, faction, npcs, npcPositions, religions, holySites, startPos, player, items, generateResourceNodes, count, x, y, tile, type, spawnRulers, usedNames, findPlayerStart, center, assignKnowledgeToNPCs, eventIndex, event, generateReligions, RELIGION_NAMES, RELIGION_COLORS, nameIndex, name, settlement, ethics, spawnHolySites, SEARCH_RADIUS, nx, ny, dist, scoreA, scoreB, getScenicScore, buildSimConfig
 - **Summary**: World generation, terrain, factions, and initial state setup.
-

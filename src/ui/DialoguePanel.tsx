@@ -135,7 +135,7 @@ export function DialoguePanel() {
       <div className="panel-header">
         <span>
           {activeNpc.name} — {factionName}
-          {accuracySymbol && (
+          {activeKnowledge && accuracySymbol && (
             <span className="accuracy-dot" style={{ marginLeft: '8px', color: '#ffcc00' }} title={`Accuracy: ${Math.round(activeKnowledge.accuracy * 100)}%`}>
               {accuracySymbol}
             </span>

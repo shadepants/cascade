@@ -107,6 +107,7 @@ export function App() {
     return () => {
       cleanupPromise.then((fn) => { if (fn) fn(); }).catch(() => {});
     };
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -252,6 +253,7 @@ export function App() {
         })
           .then((result: any) => {
             const [dynamicWorld, newEvents] = result as [any, GameEvent[]];
+            const { config, setPhase, setWorld, showNotification } = useGameStore.getState();
             
             // Reconstruct full world state
             const fullMapTiles = worldRef.current!.map.tiles.map((row, y) => 
@@ -273,9 +275,7 @@ export function App() {
             } as WorldState;
 
             const { setWorld, setPhase, showNotification } = useGameStore.getState();
-
-            const pendingNotification =
-              processSimulationResult(newWorld, newEvents, currentWorld).notification;
+            const pendingNotification = processSimulationResult(newWorld, newEvents, currentWorld).notification;
 
             setWorld(newWorld);
 
@@ -286,6 +286,7 @@ export function App() {
             }
           })
           .catch((err: any) => {
+            const { setPhase, showNotification } = useGameStore.getState();
             console.error('[TAURI] Simulation Command Error:', err);
             setPhase('exploring');
             showNotification('Simulation error occurred.');
