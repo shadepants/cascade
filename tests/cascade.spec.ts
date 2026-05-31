@@ -146,7 +146,7 @@ test('spotlight is set on the faction the player gives to', async ({ page }) => 
 
   await dispatch(page, { type: 'OPEN_ACTION', item });
   await waitForPhase(page, 'action');
-  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().dispatchEvent('click');
+  await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
 
   const stateAfter = await getState(page);
