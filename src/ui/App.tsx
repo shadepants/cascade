@@ -272,15 +272,14 @@ export function App() {
               } 
             } as WorldState;
 
-            const pendingNotification = world
-              ? processSimulationResult(newWorld, newEvents, world).notification
-              : null;
+            const { setWorld, setPhase, showNotification } = useGameStore.getState();
+
+            const pendingNotification =
+              processSimulationResult(newWorld, newEvents, currentWorld).notification;
 
             setWorld(newWorld);
 
-            if (pendingNotification) {
-              showNotification(pendingNotification);
-            }
+            if (pendingNotification) showNotification(pendingNotification);
 
             if (newWorld.currentYear >= config.pregenYears + MAX_GAME_YEARS) {
               setPhase('score');
