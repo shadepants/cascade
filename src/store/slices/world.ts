@@ -8,7 +8,14 @@ export const createWorldSlice: StateCreator<GameStore, [], [], WorldSlice> = (se
 
   setWorld: (world) => {
     if (world) {
-      initEventIds(world.events.length);
+      const nextId = world.events.reduce((max, e) => {
+        if (e.id.startsWith('evt_')) {
+          const n = Number.parseInt(e.id.slice(4), 10);
+          return Number.isFinite(n) ? Math.max(max, n + 1) : max;
+        }
+        return max;
+      }, 0);
+      initEventIds(nextId);
     }
     return set((state) => ({ 
       ...state, 
