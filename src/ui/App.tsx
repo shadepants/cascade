@@ -103,14 +103,10 @@ export function App() {
         }
       }
     };
-    let cleanupFn: (() => void) | undefined;
-    setupMenuListener().then(fn => {
-      cleanupFn = fn as (() => void) | undefined;
-    });
+    const cleanupPromise = setupMenuListener();
     return () => {
-      if (cleanupFn) cleanupFn();
+      cleanupPromise.then((fn) => { if (fn) fn(); }).catch(() => {});
     };
-  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
