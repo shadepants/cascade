@@ -11,12 +11,6 @@ export default defineConfig({
     exclude: ['tests/**', 'node_modules/**'],
   },
   server: {
-    proxy: {
-      '/api/anthropic': {
-        target: 'https://api.anthropic.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/anthropic/, ''),
-      }
-    }
+    port: 5199
   }
 })

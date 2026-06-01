@@ -5,24 +5,26 @@ export function OraclesEye() {
   const world = useGameStore(s => s.world);
   const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
 
-  if (!world) return null;
-
-  const st = world.storyteller;
   const playerEvents = useMemo(() => {
+    if (!world) return [];
     return [...world.events]
       .filter(e => e.playerCaused)
       .sort((a, b) => b.year - a.year);
-  }, [world.events]);
+  }, [world]);
 
   const avgStability = useMemo(() => {
-    if (world.factions.length === 0) return 0;
+    if (!world || world.factions.length === 0) return 0;
     return world.factions.reduce((acc, f) => acc + f.stability, 0) / world.factions.length;
-  }, [world.factions]);
+  }, [world]);
 
   const totalTradeVolume = useMemo(() => {
-    if (!world.tradeRoutes) return 0;
+    if (!world || !world.tradeRoutes) return 0;
     return world.tradeRoutes.reduce((acc, r) => acc + (r.active ? r.volume : 0), 0);
-  }, [world.tradeRoutes]);
+  }, [world]);
+
+  if (!world) return null;
+
+  const st = world.storyteller;
 
   return (
     <div className="oracles-eye-panel glass-panel">

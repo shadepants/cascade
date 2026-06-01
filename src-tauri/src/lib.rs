@@ -1,91 +1,203 @@
 // ─── Cascade Tauri Backend ───────────────────────────────────────────────────
 //
 // This is the native Rust backend for the Cascade desktop wrapper.
-// In the browser build, Anthropic API calls are proxied through a Vite
-// dev proxy (dev-only) or a server-side nginx/Cloudflare Worker (production).
-//
-// In the Tauri build, calls go directly to the Anthropic API via the
-// tauri-plugin-http native HTTP client, which bypasses CORS entirely.
-// The user's API key is stored in a local config file managed by
-// tauri-plugin-store. The key is never passed over IPC from the frontend.
-//
-// Tauri command: `anthropic_chat` forwards the request body to Anthropic
-// and returns the full response to the frontend.
+// It exposes commands to cache static map data and run simulation ticks
+// against dynamic world state, and wires desktop menu events to the UI.
 
-use serde::Deserialize;
-use tauri::command;
-use tauri_plugin_store::StoreExt;
+use std::sync::Mutex;
+use tauri::{State, Emitter, Manager};
+use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem};
 
-/// Minimal request envelope — mirrors what the browser sends to /api/anthropic/v1/messages
-#[derive(Deserialize)]
-pub struct AnthropicRequest {
-    pub model: String,
-    pub max_tokens: u32,
-    pub messages: serde_json::Value,
-    pub system: Option<String>,
+pub mod state;
+pub mod rng;
+pub mod simulation;
+
+pub struct StaticMapCache(pub Mutex<Option<state::StaticMapData>>);
+
+#[tauri::command]
+fn cache_static_map(
+    map: state::GameMap,
+    cache: State<'_, StaticMapCache>,
+) -> Result<(), String> {
+    let static_data = state::StaticMapData {
+        width: map.width,
+        height: map.height,
+        tiles: map.tiles.into_iter().map(|row| {
+            row.into_iter().map(|t| state::StaticTileData {
+                biome: t.biome,
+                elevation: t.elevation,
+                rainfall: t.rainfall,
+                walkable: t.walkable,
+            }).collect()
+        }).collect(),
+    };
+    let mut cache_guard = cache
+        .0
+        .lock()
+        .map_err(|_| "Map cache lock poisoned".to_string())?;
+    *cache_guard = Some(static_data);
+    Ok(())
 }
 
-/// Forward an Anthropic chat request from the frontend.
-/// The API key is read from the local Tauri store — it is never accepted
-/// as an IPC argument, so it does not transit the JS/Rust boundary at runtime.
-#[command]
-pub async fn anthropic_chat(
-    app: tauri::AppHandle,
-    request: AnthropicRequest,
-) -> Result<String, String> {
-    // Read the API key from the local store (cascade.json) — never from the frontend.
-    let store = app
-        .store("cascade.json")
-        .map_err(|e| format!("Store open error: {e}"))?;
-    let api_key = store
-        .get("anthropic_api_key")
-        .and_then(|v| v.as_str().map(str::to_owned))
-        .ok_or_else(|| {
-            "Anthropic API key not configured. Save it via the Settings panel.".to_string()
-        })?;
-
-    use tauri_plugin_http::reqwest;
-
-    let client = reqwest::Client::new();
-
-    let mut body = serde_json::json!({
-        "model": request.model,
-        "max_tokens": request.max_tokens,
-        "messages": request.messages,
-    });
-    if let Some(system) = &request.system {
-        body["system"] = serde_json::Value::String(system.clone());
+fn reconstruct_world(
+    static_ref: &state::StaticMapData,
+    dynamic: state::WorldStateDynamic,
+) -> Result<state::WorldState, String> {
+    if dynamic.map.height as usize != static_ref.tiles.len() {
+        return Err("Dynamic map height does not match static map tiles length".to_string());
+    }
+    if dynamic.map.width as usize != static_ref.width as usize {
+        return Err("Dynamic map width does not match static map width".to_string());
+    }
+    for (y, row) in dynamic.map.tiles.iter().enumerate() {
+        if row.len() != static_ref.tiles[y].len() {
+            return Err(format!("Dynamic map row {} length does not match static tiles", y));
+        }
     }
 
-    let response = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", &api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("HTTP error: {e}"))?;
+    let full_map = state::GameMap {
+        width: dynamic.map.width,
+        height: dynamic.map.height,
+        tiles: dynamic.map.tiles.into_iter().enumerate().map(|(y, row)| {
+            row.into_iter().enumerate().map(|(x, dt)| {
+                let st = &static_ref.tiles[y][x];
+                state::Tile {
+                    biome: st.biome,
+                    elevation: st.elevation,
+                    rainfall: st.rainfall,
+                    walkable: st.walkable,
+                    faction_id: dt.faction_id,
+                    settlement_id: dt.settlement_id,
+                    modifiers: dt.modifiers,
+                }
+            }).collect()
+        }).collect(),
+    };
 
-    let status = response.status();
-    let text = response
-        .text()
-        .await
-        .map_err(|e| format!("Response read error: {e}"))?;
+    Ok(state::WorldState {
+        seed: dynamic.seed,
+        current_year: dynamic.current_year,
+        map: full_map,
+        factions: dynamic.factions,
+        relationships: dynamic.relationships,
+        historical_figures: dynamic.historical_figures,
+        settlements: dynamic.settlements,
+        ruins: dynamic.ruins,
+        resource_nodes: dynamic.resource_nodes,
+        npcs: dynamic.npcs,
+        items: dynamic.items,
+        trade_routes: dynamic.trade_routes,
+        religions: dynamic.religions,
+        holy_sites: dynamic.holy_sites,
+        innovations: dynamic.innovations,
+        events: dynamic.events,
+        player: dynamic.player,
+        storyteller: dynamic.storyteller,
+        visuals: dynamic.visuals,
+        sim_config: dynamic.sim_config,
+    })
+}
 
-    if !status.is_success() {
-        return Err(format!("Anthropic API error ({}): {}", status, text));
+fn extract_dynamic(full: state::WorldState) -> state::WorldStateDynamic {
+    let dynamic_map = state::GameMapDynamic {
+        width: full.map.width,
+        height: full.map.height,
+        tiles: full.map.tiles.into_iter().map(|row| {
+            row.into_iter().map(|t| state::TileDynamic {
+                faction_id: t.faction_id,
+                settlement_id: t.settlement_id,
+                modifiers: t.modifiers,
+            }).collect()
+        }).collect(),
+    };
+
+    state::WorldStateDynamic {
+        seed: full.seed,
+        current_year: full.current_year,
+        map: dynamic_map,
+        factions: full.factions,
+        relationships: full.relationships,
+        historical_figures: full.historical_figures,
+        settlements: full.settlements,
+        ruins: full.ruins,
+        resource_nodes: full.resource_nodes,
+        npcs: full.npcs,
+        items: full.items,
+        trade_routes: full.trade_routes,
+        religions: full.religions,
+        holy_sites: full.holy_sites,
+        innovations: full.innovations,
+        events: full.events,
+        player: full.player,
+        storyteller: full.storyteller,
+        visuals: full.visuals,
+        sim_config: full.sim_config,
     }
+}
 
-    Ok(text)
+#[tauri::command]
+async fn run_simulation(
+    world_dynamic: state::WorldStateDynamic,
+    years: i32,
+    next_event_id: u32,
+    cache: State<'_, StaticMapCache>,
+) -> Result<(state::WorldStateDynamic, Vec<state::GameEvent>), String> {
+    let static_map = cache
+        .0
+        .lock()
+        .map_err(|_| "Map cache lock poisoned".to_string())?;
+    let static_ref = static_map.as_ref()
+        .ok_or("Map cache not initialized")?;
+    
+    let mut full_world = reconstruct_world(static_ref, world_dynamic)?;
+    
+    let (mut new_world, new_events) = simulation::run_simulation_loop(full_world, years, next_event_id);
+    
+    new_world.events.clear();
+    
+    let dynamic_out = extract_dynamic(new_world);
+    Ok((dynamic_out, new_events))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_http::init())
-        .invoke_handler(tauri::generate_handler![anthropic_chat])
+        .setup(|app| {
+            let new_game_i = MenuItemBuilder::with_id("new_game", "New Game").build(app)?;
+            let load_auto_i = MenuItemBuilder::with_id("load_auto", "Load Auto-Save").build(app)?;
+            let toggle_ledger_i = MenuItemBuilder::with_id("toggle_ledger", "Toggle Global Ledger (L)").build(app)?;
+            let toggle_oracle_i = MenuItemBuilder::with_id("toggle_oracle", "Toggle Oracle's Eye (O)").build(app)?;
+            let quit_i = PredefinedMenuItem::quit(app, None)?;
+            
+            let file_menu = SubmenuBuilder::new(app, "File")
+                .item(&new_game_i)
+                .item(&load_auto_i)
+                .separator()
+                .item(&quit_i)
+                .build()?;
+                
+            let view_menu = SubmenuBuilder::new(app, "View")
+                .item(&toggle_ledger_i)
+                .item(&toggle_oracle_i)
+                .build()?;
+                
+            let menu = MenuBuilder::new(app)
+                .items(&[&file_menu, &view_menu])
+                .build()?;
+                
+            app.set_menu(menu)?;
+
+            app.on_menu_event(move |app_handle, event| {
+                let id = event.id.as_ref();
+                if id != "quit" {
+                    let _ = app_handle.emit("menu-click", id);
+                }
+            });
+
+            Ok(())
+        })
+        .manage(StaticMapCache(Mutex::new(None)))
+        .invoke_handler(tauri::generate_handler![run_simulation, cache_static_map])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

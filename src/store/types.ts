@@ -9,6 +9,7 @@ export interface WorldSlice {
   setPreviousWorld: (world: WorldState) => void;
   updateWorld: (updater: (world: WorldState) => WorldState) => void;
   gainInsight: (amount: number) => void;
+  spendInsight: (amount: number) => void;
 }
 
 export interface CameraSlice {

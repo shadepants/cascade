@@ -190,6 +190,7 @@ describe('phaseTech', () => {
       culture: 30,
       wealth: 30,
       settlements: ['s2'],
+      techLevel: 1,
       military: 20,
     }));
     baseWorld.settlements[1].factionId = 'f2';

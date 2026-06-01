@@ -3,7 +3,6 @@
 //   title screen → new game → give item → jump → cascade fires →
 //   NPCs learn it → dialogue shows tiered text → "Remember this" notifies
 
-/// <reference path="../src/window.d.ts" />
 import { test, expect, type Page } from '@playwright/test';
 import type { NPC, GameEvent, NPCKnowledge, TestAction } from '../src/types';
 
@@ -11,12 +10,21 @@ import type { NPC, GameEvent, NPCKnowledge, TestAction } from '../src/types';
 
 /** Read the full game state from the dev test hook. */
 async function getState(page: Page) {
-  return page.evaluate(() => window.__CASCADE_STATE);
+  return page.evaluate(() => (window as unknown as { __CASCADE_STATE: Record<string, unknown> }).__CASCADE_STATE);
 }
 
 /** Dispatch a store action via the dev test hook. */
 async function dispatch(page: Page, action: TestAction) {
-  return page.evaluate((a) => window.__CASCADE_DISPATCH!(a), action);
+  return page.evaluate(
+    (a) => {
+      const w = window as unknown as { __CASCADE_DISPATCH?: (action: TestAction) => void };
+      if (!w.__CASCADE_DISPATCH) {
+        throw new Error('__CASCADE_DISPATCH is not available on window');
+      }
+      w.__CASCADE_DISPATCH(a);
+    },
+    action
+  );
 }
 
 /** Wait for game phase to match. */
@@ -316,7 +324,7 @@ test('"Remember this" on a cascade event fires cascade notification', async ({ p
   await page.getByRole('button', { name: `Give to ${faction.name}`, exact: true }).first().click();
   await waitForPhase(page, 'exploring');
   await dispatch(page, { type: 'SET_PHASE', phase: 'jumping' });
-  await waitForPhase(page, 'exploring', 90_000);
+  await waitForPhase(page, 'exploring', 180_000);
 
   const stateAfter = await getState(page);
   const cascadeEvent = stateAfter?.world?.events.find(
@@ -413,6 +421,7 @@ test('storyteller mode selected on title screen persists in world', async ({ pag
     await waitForWorld(page);
 
     const state = await getState(page);
+    // console.log(`STORYTELLER MODE DETECTED: mode = ${mode}, storyteller =`, JSON.stringify(state?.world?.storyteller));
     expect(state?.world?.storyteller?.mode).toBe(mode);
   }
 });

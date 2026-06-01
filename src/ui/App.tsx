@@ -13,9 +13,21 @@ import { HUD } from './HUD.tsx';
 import { InterventionMenu } from './InterventionMenu.tsx';
 import { GlobalLedger } from './GlobalLedger.tsx';
 import { OraclesEye } from './OraclesEye.tsx';
-import { saveGame } from '../data/db.ts';
+import { saveGame, loadGame } from '../data/db.ts';
+import { listen } from '@tauri-apps/api/event';
 import { processSimulationResult } from './simulationResult.ts';
 import type { SimulationResult } from '../simulation/worker.ts';
+import type { WorldState, GameEvent } from '../types';
+
+interface TauriWindow extends Window {
+  __TAURI_INTERNALS__?: {
+    invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+  };
+  __TAURI__?: {
+    invoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+  };
+}
+
 
 
 
@@ -61,10 +73,52 @@ export function App() {
   const notification = useGameStore(s => s.notification);
   const showLedger = useGameStore(s => s.showLedger);
   const showOraclesEye = useGameStore(s => s.showOraclesEye);
+  const activeNpc = useGameStore(s => s.activeNpc);
   
   const clearNotification = useGameStore(s => s.clearNotification);
   const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
   const toggleLedger = useGameStore(s => s.toggleLedger);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('cascade_llm_config');
+    }
+  }, []);
+
+  useEffect(() => {
+    const setupMenuListener = async () => {
+      const w = window as unknown as TauriWindow;
+      if (w.__TAURI_INTERNALS__ || w.__TAURI__) {
+        try {
+          const unlisten = await listen('menu-click', async (event: { payload: string }) => {
+            const id = event.payload;
+            const store = useGameStore.getState();
+            if (id === 'new_game') {
+              store.setPhase('title');
+            } else if (id === 'load_auto') {
+              const save = await loadGame('auto_save');
+              if (save) {
+                store.setWorld(save);
+              } else {
+                store.showNotification("No auto-save found.");
+              }
+            } else if (id === 'toggle_ledger') {
+              store.toggleLedger();
+            } else if (id === 'toggle_oracle') {
+              store.toggleOraclesEye();
+            }
+          });
+          return unlisten;
+        } catch (e) {
+          console.error("Tauri menu listen failed:", e);
+        }
+      }
+    };
+    const cleanupPromise = setupMenuListener();
+    return () => {
+      cleanupPromise.then((fn) => { if (fn) fn(); }).catch(() => {});
+    };
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -85,10 +139,71 @@ export function App() {
   }, [toggleOraclesEye, toggleLedger]);
 
   // Dev-only test hook — exposes state for Playwright
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (import.meta.env.DEV || (typeof navigator !== 'undefined' && navigator.webdriver))) {
+      window.__CASCADE_STATE = useGameStore.getState();
+      
+      const unsubscribe = useGameStore.subscribe((state) => {
+        window.__CASCADE_STATE = state;
+      });
 
-  // Always-current world ref — avoids stale closure in WebWorker effect
+      window.__CASCADE_DISPATCH = (action) => {
+        const store = useGameStore.getState();
+        switch (action.type) {
+          case 'SET_PHASE':
+            store.setPhase(action.phase);
+            break;
+          case 'OPEN_DIALOGUE':
+            store.openDialogue(action.npc);
+            break;
+          case 'CLOSE_DIALOGUE':
+            store.closeDialogue();
+            break;
+          case 'OPEN_ACTION':
+            store.openAction(action.item);
+            break;
+          case 'CLOSE_ACTION':
+            store.closeAction();
+            break;
+          case 'SET_WORLD':
+            store.setWorld(action.world);
+            break;
+          case 'SET_CONFIG':
+            store.setConfig(action.config);
+            break;
+          case 'GAIN_INSIGHT':
+            store.gainInsight(action.amount);
+            break;
+        }
+      };
+
+      return () => {
+        unsubscribe();
+        delete window.__CASCADE_STATE;
+        delete window.__CASCADE_DISPATCH;
+      };
+    }
+  }, []);  // Always-current world ref — avoids stale closure in WebWorker effect
   const worldRef = useRef(world);
   useEffect(() => { worldRef.current = world; }, [world]);
+
+  const cachedSeed = useRef<number | null>(null);
+
+  // Cache static map fields in Rust when world seed changes
+  useEffect(() => {
+    const w = window as unknown as TauriWindow;
+    const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
+    const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
+
+    if (isTauri && invokeFn && world && world.seed !== cachedSeed.current) {
+      invokeFn('cache_static_map', { map: world.map })
+        .then(() => {
+          console.log('[TAURI] Static map cached successfully.');
+          cachedSeed.current = world.seed;
+        })
+        .catch((err: unknown) => console.error('[TAURI] Failed to cache static map:', err));
+    }
+  }, [world]);
 
   // Auto-save every 5 minutes
   useEffect(() => {
@@ -112,15 +227,106 @@ export function App() {
     const currentWorld = worldRef.current;
     if (!currentWorld) return;
 
-    // Initialize the WebWorker
+    const JUMP_YEARS     = 10;
+    const MAX_GAME_YEARS = 200;
+
+    const { setWorld, showNotification, setPhase, config: storeConfig } = useGameStore.getState();
+
+    const w = window as unknown as TauriWindow;
+    const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
+
+    let active = true;
+
+    if (isTauri) {
+      const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
+      if (invokeFn) {
+        console.log('[TAURI] Invoking native simulation tick...');
+
+        if (!worldRef.current) return;
+        const worldDyn = { ...worldRef.current, events: worldRef.current.events } as unknown as WorldState;
+        worldDyn.map = {
+          ...worldRef.current.map,
+          tiles: worldRef.current.map.tiles.map(row => row.map(t => ({
+            factionId: t.factionId,
+            settlementId: t.settlementId,
+            modifiers: t.modifiers
+          } as unknown as typeof t)))
+        } as unknown as WorldState['map'];
+
+        const nextEventId = worldRef.current.events.reduce((max, e) => {
+          if (e.id.startsWith('evt_')) {
+            const id = parseInt(e.id.slice(4), 10);
+            return id >= max ? id + 1 : max;
+          }
+          return max;
+        }, 0);
+
+        invokeFn('run_simulation', {
+          worldDynamic: worldDyn,
+          years: JUMP_YEARS,
+          nextEventId: nextEventId,
+        })
+          .then((result: unknown) => {
+            if (!active) return;
+            const [dynamicWorld, newEvents] = result as [
+              {
+                map: {
+                  tiles: {
+                    factionId: string | null;
+                    settlementId: string | null;
+                    modifiers?: unknown;
+                  }[][];
+                };
+              },
+              GameEvent[]
+            ];
+            
+            // Reconstruct full world state
+            const fullMapTiles = worldRef.current!.map.tiles.map((row, y) => 
+              row.map((t, x) => ({
+                ...t,
+                factionId: dynamicWorld.map.tiles[y][x].factionId,
+                settlementId: dynamicWorld.map.tiles[y][x].settlementId,
+                modifiers: dynamicWorld.map.tiles[y][x].modifiers,
+              }))
+            );
+            
+            const newWorld = { 
+              ...dynamicWorld, 
+              events: [...worldRef.current!.events, ...newEvents], 
+              map: { 
+                ...dynamicWorld.map, 
+                tiles: fullMapTiles 
+              } 
+            } as unknown as WorldState;
+
+            const pendingNotification = processSimulationResult(newWorld, newEvents, currentWorld).notification;
+
+            setWorld(newWorld);
+
+            if (pendingNotification) showNotification(pendingNotification);
+
+            if (newWorld.currentYear >= storeConfig.pregenYears + MAX_GAME_YEARS) {
+              setPhase('score');
+            }
+          })
+          .catch((err: unknown) => {
+            if (!active) return;
+            console.error('[TAURI] Simulation Command Error:', err);
+            setPhase('exploring');
+            showNotification('Simulation error occurred.');
+          });
+        return () => { active = false; };
+      }
+    }
+
+    // Initialize the WebWorker (Browser Fallback)
     const worker = new Worker(new URL('../simulation/worker.ts', import.meta.url), {
       type: 'module'
     });
 
-    const JUMP_YEARS     = 10;
-    const MAX_GAME_YEARS = 200;
-
     worker.onmessage = (event: MessageEvent<SimulationResult>) => {
+      if (!active) return;
       const result = event.data;
 
       if (result.type === 'SIMULATION_COMPLETE') {
@@ -156,7 +362,10 @@ export function App() {
       years: JUMP_YEARS
     });
 
-    return () => worker.terminate();
+    return () => {
+      active = false;
+      worker.terminate();
+    };
   }, [phase]);
 
   // Auto-dismiss cascade notifications after 3 seconds
@@ -193,7 +402,7 @@ export function App() {
               endYear={world.currentYear - (config.pregenYears - 1) + 10}
             />
           )}
-          {phase === 'dialogue' && <DialoguePanel />}
+          {phase === 'dialogue' && <DialoguePanel key={activeNpc?.id} />}
           {phase === 'action' && <ActionMenu />}
           {phase === 'intervention' && <InterventionMenu />}
           {showLedger && <GlobalLedger />}

@@ -50,6 +50,12 @@ export async function loadMostRecentSave(): Promise<WorldState | null> {
   return latest?.worldState ?? null;
 }
 
+/** Load a save by name. */
+export async function loadGame(name: string): Promise<WorldState | null> {
+  const save = await db.saves.where('name').equals(name).first();
+  return save?.worldState ?? null;
+}
+
 /** List all available save slots. */
 export async function getSaveSlots() {
   return await db.saves.orderBy('lastUpdated').reverse().toArray();

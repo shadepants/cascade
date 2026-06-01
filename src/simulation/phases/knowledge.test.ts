@@ -77,7 +77,7 @@ describe('knowledge pipeline', () => {
     // Force diffusion to trigger
     const diffusionRng = {
       nextFloat: () => 0.01, // < 0.05
-      nextInt: (_max: number) => 0,
+      nextInt: () => 0,
     };
 
     phaseDiffusion(world, 11, diffusionRng as never);

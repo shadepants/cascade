@@ -14,9 +14,9 @@ Browser-based roguelike where the player time-travels through procedurally simul
 ## Current State
 - [x] POC MVP, 5-phase DF-inspired simulation engine
 - [x] WebWorker engine, Gossip system, Visual DAG, Legendary Artifacts
-- [x] Socratic Gate: LLM-powered NPC dialogue (Anthropic API via Vite proxy)
+- [x] Socratic Gate: Procedural Deep Insight dialogue (formerly LLM-powered)
 - [x] IndexedDB save/load (Dexie), Ghost of History layer (hold H)
-- [x] Action budget: 6/era, stale worldRef fix, session-only API key
+- [x] Action budget: 6/era, stale worldRef fix
 - [x] **Task 001:** Accuracy-tiered dialogue, ETHICS_VOCAB, EVENT_ACTION_VOCAB, chain synthesis
 - [x] **Task 002:** Storyteller Director — tension, spotlight, cooldowns, narrative debt, mode selector
 - [x] **GitHub PRs resolved** — PRs #1–8 all closed/merged; master is clean
@@ -55,8 +55,6 @@ Browser-based roguelike where the player time-travels through procedurally simul
 - CASCADE order: cascade → seedEventKnowledge → gossip (seeding must precede gossip)
 - FactionEthics keys: `violence | expansion | trade | tradition | mercy` with `embraced | neutral | shunned`
 - MAX_ACTIONS_PER_ERA = 6 in types.ts — reset in App.tsx after each jump
-- LLM config in `sessionStorage` as `cascade_llm_config` (session-only, not localStorage)
-- Vite proxy: `/api/anthropic` → `api.anthropic.com` (dev only; prod needs real proxy)
 - Build ~813KB main bundle (xyflow/react + PixiJS + vocab tables; chunk warning is expected)
 - `emitEvent(world, pool, event, year)` — helper in tick.ts; returns void, not usable where side-effects need suppression gating (phaseCascade consequence block stays inline)
 - Mode selector on TitleScreen reads `state.config.storytellerMode` on mount; dispatches `SET_CONFIG` on New Game before `SET_WORLD`

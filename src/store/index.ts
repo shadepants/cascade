@@ -5,6 +5,7 @@ import { createWorldSlice } from './slices/world';
 import { createCameraSlice } from './slices/camera';
 import { createUISlice } from './slices/ui';
 import { createConfigSlice } from './slices/config';
+import { resetEventIds } from '../world/events.ts';
 
 export const useGameStore = create<GameStore>()(
   devtools(
@@ -16,6 +17,7 @@ export const useGameStore = create<GameStore>()(
       
       reset: () => {
         const [set] = a;
+        resetEventIds();
         // Manual reset to initial states of all slices
         set((state) => ({
           ...state,

@@ -3,15 +3,13 @@
 // Shows the NPC's greeting and their knowledge of historical events.
 
 import { useGameStore } from '../store/index';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { executeEcho } from '../engine/echoSystem.ts';
 import type { KnowledgeEntry, TemporalEcho } from '../types';
 import {
   synthesizeHistoryMonologue,
-  assembleNarrativeContext,
-  buildInterrogationPrompt,
+  synthesizeFutureOutlook,
 } from '../simulation/narrative.ts';
-import { getLLMConfig, fetchNarrative } from '../simulation/llm.ts';
 
 export function DialoguePanel() {
   const activeNpc = useGameStore(s => s.activeNpc);
@@ -21,24 +19,17 @@ export function DialoguePanel() {
   const showNotification = useGameStore(s => s.showNotification);
   const gainInsight = useGameStore(s => s.gainInsight);
   const setWorld = useGameStore(s => s.setWorld);
+  const spendInsight = useGameStore(s => s.spendInsight);
 
-  const [aiText, setAiText] = useState<string | null>(null);
-  const [isTyping, setIsTyping] = useState(false);
+  const [interrogatedText, setInterrogatedText] = useState<string | null>(null);
   const [hasInterrogated, setHasInterrogated] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showWhisperMenu, setShowWhisperMenu] = useState(false);
 
-  useEffect(() => {
-    if (!activeNpc || !world) return;
-
-    // Default to instant simulation synthesis
-    const simText = synthesizeHistoryMonologue(activeNpc, world);
-    setAiText(simText);
-    setHasInterrogated(false);
-    setIsTyping(false);
-  }, [activeNpc, world]);
-
   if (!activeNpc || !world) return null;
+
+  const defaultText = synthesizeHistoryMonologue(activeNpc, world);
+  const aiText = interrogatedText ? `${defaultText}\n\n[DEEP INSIGHT]\n${interrogatedText}` : defaultText;
 
   const faction = world.factions.find(f => f.id === activeNpc.factionId);
   const factionName = faction?.name ?? 'Unknown';
@@ -57,6 +48,18 @@ export function DialoguePanel() {
   const spotlightEvent = unseenKnowledge[0] 
     ? world.events.find(e => e.id === unseenKnowledge[0].eventId) 
     : null;
+
+  const activeKnowledge = unseenKnowledge[0] || activeNpc.knowledge[0];
+  let accuracySymbol = '';
+  if (activeKnowledge) {
+    if (activeKnowledge.accuracy > 0.8) {
+      accuracySymbol = '●';
+    } else if (activeKnowledge.accuracy >= 0.5) {
+      accuracySymbol = '◑';
+    } else {
+      accuracySymbol = '○';
+    }
+  }
 
   function handleLearnEvent() {
     if (!spotlightEvent || !world) return;
@@ -105,34 +108,33 @@ export function DialoguePanel() {
     }
   }
 
-  const handleAskForDepth = async () => {
+  const handleDeepInsight = () => {
     if (!activeNpc || !world) return;
-    const config = getLLMConfig();
-    if (!config) {
-      showNotification("LLM not configured. Check settings.");
+    if (world.player.insight < 10) {
+      showNotification("Not enough Insight.");
       return;
     }
 
-    setIsTyping(true);
+    // Deduct insight
+    spendInsight(10);
+    
     setHasInterrogated(true);
-    const narrativeCtx = assembleNarrativeContext(activeNpc, world);
-    const prompt = buildInterrogationPrompt(narrativeCtx);
-
-    try {
-      const depthText = await fetchNarrative(prompt, config);
-      setAiText(prev => `${prev}\n\n[DEEP INTERROGATION]\n${depthText}`);
-    } catch (err) {
-      console.error('LLM Error:', err);
-      showNotification("AI failed to respond. Check API key.");
-    } finally {
-      setIsTyping(false);
-    }
+    
+    const depthText = synthesizeFutureOutlook(activeNpc, world);
+    setInterrogatedText(depthText);
   };
 
   return (
     <div className="panel dialogue-panel">
       <div className="panel-header">
-        <span>{activeNpc.name} — {factionName}</span>
+        <span>
+          {activeNpc.name} — {factionName}
+          {activeKnowledge && accuracySymbol && (
+            <span className="accuracy-dot" style={{ marginLeft: '8px', color: '#ffcc00' }} title={`Accuracy: ${Math.round(activeKnowledge.accuracy * 100)}%`}>
+              {accuracySymbol}
+            </span>
+          )}
+        </span>
         <button onClick={closeDialogue} aria-label="Close dialogue panel">✕</button>
       </div>
 
@@ -141,16 +143,10 @@ export function DialoguePanel() {
           {aiText}
         </div>
 
-        {isTyping && (
-          <p className="dialogue-text" style={{ fontStyle: 'italic', color: '#4ade80', marginTop: '12px' }}>
-            Interrogating the deeper simulation...
-          </p>
-        )}
-
         <div style={{ marginTop: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {spotlightEvent && !isTyping && (
+          {spotlightEvent && (
             <button 
-              className="start-btn" 
+              className="learn-btn start-btn" 
               onClick={handleLearnEvent}
               style={{ padding: '8px 24px', fontSize: '14px', background: 'rgba(255, 204, 0, 0.1)' }}
             >
@@ -158,9 +154,14 @@ export function DialoguePanel() {
             </button>
           )}
 
-          {!isTyping && !hasInterrogated && getLLMConfig() && (
-            <button className="depth-btn" onClick={handleAskForDepth}>
-              Ask for Depth (AI)
+          {!hasInterrogated && (
+            <button 
+              className="depth-btn" 
+              onClick={handleDeepInsight}
+              disabled={world.player.insight < 10}
+              style={{ padding: '8px 24px', fontSize: '14px', borderColor: '#4ade80', color: world.player.insight >= 10 ? '#4ade80' : '#555' }}
+            >
+              Seek Deep Insight (-10 Insight)
             </button>
           )}
         </div>

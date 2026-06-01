@@ -322,7 +322,7 @@ function spawnHolySites(religions: Religion[], settlements: Settlement[], map: G
   });
 }
 
-function getScenicScore(tile: any, pos: Position, center: Position): number {
+function getScenicScore(tile: GameMap['tiles'][number][number], pos: Position, center: Position): number {
   let score = 0;
   if (tile.biome === 'mountain') score += 10;
   if (tile.biome === 'coast') score += 8;

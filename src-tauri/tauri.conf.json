@@ -21,16 +21,11 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost https://api.anthropic.com ws://localhost:5173"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost ws://localhost:5173"
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
     "targets": "all"
-  },
-  "plugins": {
-    "store": {
-      "autosave": 300
-    }
   }
 }
