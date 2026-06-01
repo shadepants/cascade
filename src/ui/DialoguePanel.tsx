@@ -3,7 +3,7 @@
 // Shows the NPC's greeting and their knowledge of historical events.
 
 import { useGameStore } from '../store/index';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { executeEcho } from '../engine/echoSystem.ts';
 import type { KnowledgeEntry, TemporalEcho } from '../types';
 import {
@@ -20,17 +20,17 @@ export function DialoguePanel() {
   const gainInsight = useGameStore(s => s.gainInsight);
   const setWorld = useGameStore(s => s.setWorld);
 
-  const [prevNpcId, setPrevNpcId] = useState<string | null>(null);
   const [interrogatedText, setInterrogatedText] = useState<string | null>(null);
   const [hasInterrogated, setHasInterrogated] = useState(false);
   const [showLocalIntel, setShowLocalIntel] = useState(false);
   const [showWhisperMenu, setShowWhisperMenu] = useState(false);
 
-  if (activeNpc && activeNpc.id !== prevNpcId) {
-    setPrevNpcId(activeNpc.id);
+  useEffect(() => {
     setInterrogatedText(null);
     setHasInterrogated(false);
-  }
+    setShowLocalIntel(false);
+    setShowWhisperMenu(false);
+  }, [activeNpc?.id]);
 
   if (!activeNpc || !world) return null;
 

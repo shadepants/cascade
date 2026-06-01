@@ -16,7 +16,13 @@ async function getState(page: Page) {
 /** Dispatch a store action via the dev test hook. */
 async function dispatch(page: Page, action: TestAction) {
   return page.evaluate(
-    (a) => (window as unknown as { __CASCADE_DISPATCH: (action: TestAction) => void }).__CASCADE_DISPATCH(a),
+    (a) => {
+      const w = window as unknown as { __CASCADE_DISPATCH?: (action: TestAction) => void };
+      if (!w.__CASCADE_DISPATCH) {
+        throw new Error('__CASCADE_DISPATCH is not available on window');
+      }
+      w.__CASCADE_DISPATCH(a);
+    },
     action
   );
 }

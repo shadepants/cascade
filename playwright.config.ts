@@ -6,13 +6,13 @@ export default defineConfig({
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5199',
     headless: true,
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:5199',
     reuseExistingServer: true,
     timeout: 30_000,
   },

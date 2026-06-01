@@ -103,7 +103,7 @@ export function assembleNarrativeContext(
     factionName,
     factionEthics: ethicsStr,
     recentEvents: eventSummaries,
-    innovations: settlement?.innovations.map(id => world.innovations.find(i => i.id === id)?.name).filter(Boolean) as string[] ?? [],
+    innovations: (settlement?.innovations ?? []).map(id => world.innovations.find(i => i.id === id)?.name).filter((name): name is string => name != null),
   };
 }
 
@@ -111,7 +111,7 @@ export function assembleNarrativeContext(
  * Generate a procedural profound outlook for the Deep Insight feature.
  */
 export function synthesizeFutureOutlook(npc: NPC, world: WorldState): string {
-  const seed = world.seed + world.currentYear + npc.id.charCodeAt(0);
+  const seed = world.seed + world.currentYear + npc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const rng = new SeededRNG(seed);
   const pick = <T>(arr: T[]) => arr[rng.nextInt(arr.length)];
 

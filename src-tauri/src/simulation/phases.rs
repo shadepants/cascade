@@ -698,14 +698,15 @@ fn apply_resource_node_yields(
     let faction_name = world.factions.iter().find(|f| f.id == faction_id)
         .map(|f| f.name.as_str()).unwrap_or("Faction").to_string();
 
-    events.push(create_event(
+    let eco_event = create_event(
         next_id, year,
         faction_id.to_string(), "resource_yield".to_string(), faction_id.to_string(),
         None, 1.0, false,
         format!("{} drew yield from {} resource node(s)", faction_name, controlled_nodes_count),
         "strategic control of natural wealth".to_string(),
         collapsed_deltas,
-    ));
+    );
+    emit_event(&mut world.storyteller, events, eco_event, year);
 }
 
 // ─── Phase 4: Trade ──────────────────────────────────────────────────────────

@@ -157,11 +157,11 @@ pub fn fire_debt_intervention(
     let target_event = target?;
     let max_per_type = 3;
 
-    if debt >= 70 && state.debt_interventions_fired < max_per_type * 3 {
+    if debt >= 70 && state.debt_interventions_fired >= max_per_type * 2 && state.debt_interventions_fired < max_per_type * 3 {
         state.debt_interventions_fired += 1;
         return Some(StorytellerIntervention::ForceNotification { event_id: target_event.id.clone() });
     }
-    if debt >= 50 && state.debt_interventions_fired < max_per_type * 2 {
+    if debt >= 50 && state.debt_interventions_fired >= max_per_type && state.debt_interventions_fired < max_per_type * 2 {
         state.debt_interventions_fired += 1;
         let mut secondary_event_ids = Vec::new();
         if let Some(s) = second { secondary_event_ids.push(s.id.clone()); }

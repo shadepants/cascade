@@ -5,15 +5,29 @@ pub struct SeededRNG {
     state: i32,
 }
 
+fn to_int32(seed: f64) -> i32 {
+    if !seed.is_finite() {
+        return 0;
+    }
+    let val = seed.trunc().rem_euclid(4294967296.0);
+    val as u32 as i32
+}
+
 impl SeededRNG {
     pub fn new(seed: f64) -> Self {
-        Self {
-            state: seed as i32,
+        let mut state = to_int32(seed);
+        if state == 0 && (!seed.is_finite() || seed != 0.0) {
+            state = 1;
         }
+        Self { state }
     }
 
     pub fn reseed(&mut self, seed: f64) {
-        self.state = seed as i32;
+        let mut state = to_int32(seed);
+        if state == 0 && (!seed.is_finite() || seed != 0.0) {
+            state = 1;
+        }
+        self.state = state;
     }
 
     pub fn next_float(&mut self) -> f64 {
@@ -58,6 +72,16 @@ impl SeededRNG {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_to_int32_semantics() {
+        assert_eq!(to_int32(f64::NAN), 0);
+        assert_eq!(to_int32(f64::INFINITY), 0);
+        assert_eq!(to_int32(4294967295.0), -1);
+        assert_eq!(to_int32(2147483648.0), -2147483648);
+        assert_eq!(to_int32(2147483647.0), 2147483647);
+        assert_eq!(to_int32(0.0), 0);
+    }
 
     #[test]
     fn test_rng_determinism() {

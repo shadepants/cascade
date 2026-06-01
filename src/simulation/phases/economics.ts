@@ -97,12 +97,12 @@ function applyResourceNodeBonuses(
   );
 
   // Emit once per year per faction (significance=1 keeps it under storyteller gating)
-  events.push(createEvent({
+  emitEvent(world, events, createEvent({
     tick: 0, year,
     subject: faction.id, action: 'resource_yield', object: faction.id,
     causedBy: null, significance: 1, playerCaused: false,
     description: `${faction.name} drew yield from ${controlledNodes.length} resource node(s)`,
     motivation: 'strategic control of natural wealth',
     statDeltas: collapsedDeltas,
-  }));
+  }), year);
 }

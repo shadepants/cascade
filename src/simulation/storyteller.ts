@@ -291,11 +291,11 @@ export function fireDebtIntervention(
   }
   const MAX_PER_TYPE = 3;
 
-  if (debt >= 70 && state.debtInterventionsFired < MAX_PER_TYPE * 3) {
+  if (debt >= 70 && state.debtInterventionsFired >= MAX_PER_TYPE * 2 && state.debtInterventionsFired < MAX_PER_TYPE * 3) {
     state.debtInterventionsFired++;
     return { type: 'FORCE_NOTIFICATION', eventId: target.id };
   }
-  if (debt >= 50 && state.debtInterventionsFired < MAX_PER_TYPE * 2) {
+  if (debt >= 50 && state.debtInterventionsFired >= MAX_PER_TYPE && state.debtInterventionsFired < MAX_PER_TYPE * 2) {
     state.debtInterventionsFired++;
     const secondaryEventIds: string[] = [];
     if (second) secondaryEventIds.push(second.id);

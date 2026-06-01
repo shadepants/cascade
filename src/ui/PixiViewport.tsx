@@ -398,7 +398,7 @@ function PixiViewportInner() {
           break;
       }
     };
-  });
+  }, []);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => handlerRef.current?.(e);

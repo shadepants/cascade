@@ -234,13 +234,15 @@ export function App() {
     const w = window as unknown as TauriWindow;
     const isTauri = typeof window !== 'undefined' && (w.__TAURI_INTERNALS__ !== undefined || w.__TAURI__ !== undefined);
 
+    let active = true;
+
     if (isTauri) {
       const invokeFn = w.__TAURI_INTERNALS__?.invoke || w.__TAURI__?.invoke;
       if (invokeFn) {
         console.log('[TAURI] Invoking native simulation tick...');
 
         if (!worldRef.current) return;
-        const worldDyn = { ...worldRef.current, events: [] } as unknown as WorldState;
+        const worldDyn = { ...worldRef.current, events: worldRef.current.events } as unknown as WorldState;
         worldDyn.map = {
           ...worldRef.current.map,
           tiles: worldRef.current.map.tiles.map(row => row.map(t => ({
@@ -264,6 +266,7 @@ export function App() {
           nextEventId: nextEventId,
         })
           .then((result: unknown) => {
+            if (!active) return;
             const [dynamicWorld, newEvents] = result as [
               {
                 map: {
@@ -307,11 +310,12 @@ export function App() {
             }
           })
           .catch((err: unknown) => {
+            if (!active) return;
             console.error('[TAURI] Simulation Command Error:', err);
             setPhase('exploring');
             showNotification('Simulation error occurred.');
           });
-        return;
+        return () => { active = false; };
       }
     }
 
@@ -321,6 +325,7 @@ export function App() {
     });
 
     worker.onmessage = (event: MessageEvent<SimulationResult>) => {
+      if (!active) return;
       const result = event.data;
 
       if (result.type === 'SIMULATION_COMPLETE') {
@@ -356,7 +361,10 @@ export function App() {
       years: JUMP_YEARS
     });
 
-    return () => worker.terminate();
+    return () => {
+      active = false;
+      worker.terminate();
+    };
   }, [phase]);
 
   // Auto-dismiss cascade notifications after 3 seconds

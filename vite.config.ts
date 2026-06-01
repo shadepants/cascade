@@ -10,5 +10,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     exclude: ['tests/**', 'node_modules/**'],
   },
-  server: {}
+  server: {
+    port: 5199
+  }
 })

@@ -39,7 +39,22 @@ fn cache_static_map(
     Ok(())
 }
 
-fn reconstruct_world(static_ref: &state::StaticMapData, dynamic: state::WorldStateDynamic) -> state::WorldState {
+fn reconstruct_world(
+    static_ref: &state::StaticMapData,
+    dynamic: state::WorldStateDynamic,
+) -> Result<state::WorldState, String> {
+    if dynamic.map.height as usize != static_ref.tiles.len() {
+        return Err("Dynamic map height does not match static map tiles length".to_string());
+    }
+    if dynamic.map.width as usize != static_ref.width as usize {
+        return Err("Dynamic map width does not match static map width".to_string());
+    }
+    for (y, row) in dynamic.map.tiles.iter().enumerate() {
+        if row.len() != static_ref.tiles[y].len() {
+            return Err(format!("Dynamic map row {} length does not match static tiles", y));
+        }
+    }
+
     let full_map = state::GameMap {
         width: dynamic.map.width,
         height: dynamic.map.height,
@@ -59,7 +74,7 @@ fn reconstruct_world(static_ref: &state::StaticMapData, dynamic: state::WorldSta
         }).collect(),
     };
 
-    state::WorldState {
+    Ok(state::WorldState {
         seed: dynamic.seed,
         current_year: dynamic.current_year,
         map: full_map,
@@ -80,7 +95,7 @@ fn reconstruct_world(static_ref: &state::StaticMapData, dynamic: state::WorldSta
         storyteller: dynamic.storyteller,
         visuals: dynamic.visuals,
         sim_config: dynamic.sim_config,
-    }
+    })
 }
 
 fn extract_dynamic(full: state::WorldState) -> state::WorldStateDynamic {
@@ -134,11 +149,7 @@ async fn run_simulation(
     let static_ref = static_map.as_ref()
         .ok_or("Map cache not initialized")?;
     
-    let mut full_world = reconstruct_world(static_ref, world_dynamic);
-    
-    // Clear incoming events since they are append-only. They shouldn't be sent from frontend,
-    // but just in case, we clear them to ensure we don't return them.
-    full_world.events.clear();
+    let mut full_world = reconstruct_world(static_ref, world_dynamic)?;
     
     let (mut new_world, new_events) = simulation::run_simulation_loop(full_world, years, next_event_id);
     
