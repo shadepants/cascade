@@ -1,6 +1,6 @@
 # Playtest Guide: Gems Upgrade Verification
 **Agent:** Claude Chrome Agent
-**Environment:** `npm run dev` (http://localhost:5173)
+**Environment:** `npm run dev` (http://localhost:5199)
 
 ## Goal
 Verify the stability, performance, and mechanical depth of the "Gems" High-Fidelity upgrade on the new 128x128 map with 500 years of pre-history.
