@@ -73,6 +73,7 @@ export function App() {
   const notification = useGameStore(s => s.notification);
   const showLedger = useGameStore(s => s.showLedger);
   const showOraclesEye = useGameStore(s => s.showOraclesEye);
+  const activeNpc = useGameStore(s => s.activeNpc);
   
   const clearNotification = useGameStore(s => s.clearNotification);
   const toggleOraclesEye = useGameStore(s => s.toggleOraclesEye);
@@ -401,7 +402,7 @@ export function App() {
               endYear={world.currentYear - (config.pregenYears - 1) + 10}
             />
           )}
-          {phase === 'dialogue' && <DialoguePanel />}
+          {phase === 'dialogue' && <DialoguePanel key={activeNpc?.id} />}
           {phase === 'action' && <ActionMenu />}
           {phase === 'intervention' && <InterventionMenu />}
           {showLedger && <GlobalLedger />}
