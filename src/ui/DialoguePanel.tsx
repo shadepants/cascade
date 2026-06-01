@@ -19,6 +19,7 @@ export function DialoguePanel() {
   const showNotification = useGameStore(s => s.showNotification);
   const gainInsight = useGameStore(s => s.gainInsight);
   const setWorld = useGameStore(s => s.setWorld);
+  const spendInsight = useGameStore(s => s.spendInsight);
 
   const [interrogatedText, setInterrogatedText] = useState<string | null>(null);
   const [hasInterrogated, setHasInterrogated] = useState(false);
@@ -115,8 +116,7 @@ export function DialoguePanel() {
     }
 
     // Deduct insight
-    const worldSlice = useGameStore.getState();
-    worldSlice.spendInsight(10);
+    spendInsight(10);
     
     setHasInterrogated(true);
     
